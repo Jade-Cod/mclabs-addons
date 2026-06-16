@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "dev.jade.fishbite.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"CameraAccessor",
+		"FishingBobberEntityAccessor",
+		"SoundSystemMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
