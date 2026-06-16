@@ -30,14 +30,12 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -52,9 +50,9 @@ public class FishBiteClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		FishBiteConfig.get();
 
-		// Bite marker: capture frame matrices, draw the projected "!" on the HUD.
+		// Bite marker: capture frame matrices; the projected "!" is drawn by
+		// HudRenderDispatcher (InGameHudMixin tail hook) alongside the widgets.
 		WorldRenderEvents.END_EXTRACTION.register(BiteMarkerHud::onEndExtraction);
-		HudElementRegistry.addLast(Identifier.of("fishbite", "bite_marker"), BiteMarkerHud::render);
 
 		// HUD objects (each gains dragging, snapping, resize, background).
 		HudObjects.register(new ChumHudObject());
