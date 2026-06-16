@@ -15,6 +15,12 @@ import dev.jade.fishbite.personal.PersonalBoosterHudObject;
 import dev.jade.fishbite.personal.PersonalBoosters;
 import dev.jade.fishbite.chum.ChumTimer;
 import dev.jade.fishbite.booster.BoosterTracker;
+import dev.jade.fishbite.bounty.BountyHudObject;
+import dev.jade.fishbite.bounty.BountyTracker;
+import dev.jade.fishbite.daily.DailyReminderHudObject;
+import dev.jade.fishbite.daily.DailyTracker;
+import dev.jade.fishbite.daily.VoteReminderHudObject;
+import dev.jade.fishbite.daily.VoteTracker;
 import dev.jade.fishbite.chum.ChumDetector;
 import dev.jade.fishbite.chum.ChumHudObject;
 import dev.jade.fishbite.hud.HudEditScreen;
@@ -58,6 +64,9 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new LabWarsHudObject());
 		HudObjects.register(new RentalMountHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
+		HudObjects.register(new BountyHudObject());
+		HudObjects.register(new DailyReminderHudObject());
+		HudObjects.register(new VoteReminderHudObject());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
@@ -73,7 +82,7 @@ public class FishBiteClient implements ClientModInitializer {
 			if (player == MinecraftClient.getInstance().player) {
 				var stack = player.getStackInHand(hand);
 				if (ChumDetector.isChumBucket(stack)) {
-					ChumDetector.tryActivate();
+					ChumDetector.tryActivate(player.getInventory().getSelectedSlot());
 				} else {
 					RentalMountTimer.tryCoupon(stack);
 				}
@@ -111,5 +120,8 @@ public class FishBiteClient implements ClientModInitializer {
 		ChumTimer.onMessage(text);
 		RentalMountTimer.onMessage(text);
 		PersonalBoosters.onMessage(text);
+		BountyTracker.onMessage(text);
+		DailyTracker.onMessage(text);
+		VoteTracker.onMessage(text);
 	}
 }
