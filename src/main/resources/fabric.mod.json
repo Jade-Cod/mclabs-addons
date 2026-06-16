@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "fishbite",
+	"version": "${version}",
+	"name": "MCLabs Addons",
+	"description": "MCLabs server HUD addons: fish-bite indicator, chum & booster timers, mini-event/pit trackers, and Lab Wars revenue boosters. Configurable, draggable HUD widgets.",
+	"authors": [
+		"jade"
+	],
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"dev.jade.fishbite.FishBiteClient"
+		],
+		"modmenu": [
+			"dev.jade.fishbite.config.FishBiteModMenu"
+		]
+	},
+	"mixins": [
+		"fishbite.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=21",
+		"fabric-api": "*",
+		"cloth-config": "*"
+	},
+	"recommends": {
+		"modmenu": "*"
+	}
+}
