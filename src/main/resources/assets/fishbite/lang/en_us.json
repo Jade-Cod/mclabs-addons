@@ -57,5 +57,9 @@
 	"fishbite.hud.rental_mount.name": "Rental Mount",
 	"fishbite.hud.rental_mount.clear": "Clear Rental Mount",
 	"fishbite.hud.personal_boosters.name": "Personal Boosters",
-	"fishbite.hud.personal_boosters.clear": "Clear Personal Boosters"
+	"fishbite.hud.personal_boosters.clear": "Clear Personal Boosters",
+	"fishbite.hud.bounty.name": "Bounties",
+	"fishbite.hud.bounty.clear": "Clear Bounty",
+	"fishbite.hud.dailies.name": "Dailies",
+	"fishbite.hud.votes.name": "Vote Reminder"
 }

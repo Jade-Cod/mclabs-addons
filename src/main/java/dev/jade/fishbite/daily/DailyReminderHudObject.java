@@ -1,21 +1,21 @@
-package dev.jade.fishbite.booster;
+package dev.jade.fishbite.daily;
 
-import dev.jade.fishbite.chem.ChemIcons;
 import dev.jade.fishbite.hud.HudObject;
 import dev.jade.fishbite.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Server booster countdowns: a chem icon with "<mult>x <time>" per active booster. */
-public class BoosterHudObject extends HudObject {
-	public static final String ID = "booster_timer";
-	private static final int DEFAULT_TEXT_COLOR = 0xFFFFD75F;
+/** Daily claim reminders that reset at 9 PM Pacific: the daily spin and /sm claim. */
+public class DailyReminderHudObject extends HudObject {
+	public static final String ID = "dailies";
+	private static final int DEFAULT_TEXT_COLOR = 0xFFFFE079;
 	private static final int ICON_SIZE = 16;
 	private static final int ICON_GAP = 4;
 	private static final int LINE_GAP = 3;
@@ -29,19 +29,14 @@ public class BoosterHudObject extends HudObject {
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
 		defaults.x = 0.012f;
-		defaults.y = 0.52f;
+		defaults.y = 0.30f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}
 
 	@Override
 	public boolean shouldRender() {
-		return !BoosterTracker.active().isEmpty();
-	}
-
-	@Override
-	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.booster.clear"), BoosterTracker::clear);
+		return DailyTracker.dailyPending() || DailyTracker.smPending();
 	}
 
 	private record Row(ItemStack icon, String text) {
@@ -49,13 +44,11 @@ public class BoosterHudObject extends HudObject {
 
 	private List<Row> rows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
-		for (var booster : BoosterTracker.active()) {
-			rows.add(new Row(ChemIcons.iconFor(booster.item),
-					BoosterTracker.formatMultiplier(booster.multiplier) + " "
-							+ BoosterTracker.formatRemaining(booster)));
+		if (preview || DailyTracker.dailyPending()) {
+			rows.add(new Row(new ItemStack(Items.CLOCK), "Daily Spin: /daily"));
 		}
-		if (rows.isEmpty() && preview) {
-			rows.add(new Row(ChemIcons.iconFor("all"), "1.5x 30:00"));
+		if (preview || DailyTracker.smPending()) {
+			rows.add(new Row(new ItemStack(Items.EMERALD), "Investor: /sm claim"));
 		}
 		return rows;
 	}
