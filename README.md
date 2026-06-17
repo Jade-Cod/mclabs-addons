@@ -47,7 +47,7 @@ booster shows an end crystal).
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**,
    **Cloth Config**, and (optionally) **Mod Menu** into your `mods` folder — see
    *Requirements* below.
-2. Put `mclabs-addons-1.10.0.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.10.2.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
