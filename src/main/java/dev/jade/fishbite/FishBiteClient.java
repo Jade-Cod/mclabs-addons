@@ -15,6 +15,12 @@ import dev.jade.fishbite.personal.PersonalBoosterHudObject;
 import dev.jade.fishbite.personal.PersonalBoosters;
 import dev.jade.fishbite.chum.ChumTimer;
 import dev.jade.fishbite.booster.BoosterTracker;
+import dev.jade.fishbite.bounty.BountyHudObject;
+import dev.jade.fishbite.bounty.BountyTracker;
+import dev.jade.fishbite.daily.DailyReminderHudObject;
+import dev.jade.fishbite.daily.DailyTracker;
+import dev.jade.fishbite.daily.VoteReminderHudObject;
+import dev.jade.fishbite.daily.VoteTracker;
 import dev.jade.fishbite.chum.ChumDetector;
 import dev.jade.fishbite.chum.ChumHudObject;
 import dev.jade.fishbite.hud.HudEditScreen;
@@ -24,14 +30,12 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.ActionResult;
-import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -46,9 +50,9 @@ public class FishBiteClient implements ClientModInitializer {
 	public void onInitializeClient() {
 		FishBiteConfig.get();
 
-		// Bite marker: capture frame matrices, draw the projected "!" on the HUD.
+		// Bite marker: capture frame matrices; the projected "!" is drawn by
+		// HudRenderDispatcher (InGameHudMixin tail hook) alongside the widgets.
 		WorldRenderEvents.END_EXTRACTION.register(BiteMarkerHud::onEndExtraction);
-		HudElementRegistry.addLast(Identifier.of("fishbite", "bite_marker"), BiteMarkerHud::render);
 
 		// HUD objects (each gains dragging, snapping, resize, background).
 		HudObjects.register(new ChumHudObject());
@@ -58,6 +62,9 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new LabWarsHudObject());
 		HudObjects.register(new RentalMountHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
+		HudObjects.register(new BountyHudObject());
+		HudObjects.register(new DailyReminderHudObject());
+		HudObjects.register(new VoteReminderHudObject());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
@@ -73,7 +80,7 @@ public class FishBiteClient implements ClientModInitializer {
 			if (player == MinecraftClient.getInstance().player) {
 				var stack = player.getStackInHand(hand);
 				if (ChumDetector.isChumBucket(stack)) {
-					ChumDetector.tryActivate();
+					ChumDetector.tryActivate(player.getInventory().getSelectedSlot());
 				} else {
 					RentalMountTimer.tryCoupon(stack);
 				}
@@ -84,7 +91,7 @@ public class FishBiteClient implements ClientModInitializer {
 		// Keybind to open the draggable chum HUD editor (unbound by default).
 		chumEditorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
 				"key.fishbite.chum_editor", InputUtil.Type.KEYSYM,
-				GLFW.GLFW_KEY_UNKNOWN, KeyBinding.Category.GAMEPLAY));
+				GLFW.GLFW_KEY_SEMICOLON, KeyBinding.Category.GAMEPLAY));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
@@ -111,5 +118,8 @@ public class FishBiteClient implements ClientModInitializer {
 		ChumTimer.onMessage(text);
 		RentalMountTimer.onMessage(text);
 		PersonalBoosters.onMessage(text);
+		BountyTracker.onMessage(text);
+		DailyTracker.onMessage(text);
+		VoteTracker.onMessage(text);
 	}
 }

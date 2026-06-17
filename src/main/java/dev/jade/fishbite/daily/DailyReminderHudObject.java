@@ -1,8 +1,7 @@
-package dev.jade.fishbite.personal;
+package dev.jade.fishbite.daily;
 
 import dev.jade.fishbite.hud.HudObject;
 import dev.jade.fishbite.hud.HudObjectSettings;
-import dev.jade.fishbite.hud.TimeFormat;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -13,10 +12,10 @@ import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Personal boosts: chem price (gold ingot) and prestige (xp bottle) rows. */
-public class PersonalBoosterHudObject extends HudObject {
-	public static final String ID = "personal_boosters";
-	private static final int DEFAULT_TEXT_COLOR = 0xFF7FFF8F;
+/** Daily claim reminders that reset at 9 PM Pacific: the daily spin and /sm claim. */
+public class DailyReminderHudObject extends HudObject {
+	public static final String ID = "dailies";
+	private static final int DEFAULT_TEXT_COLOR = 0xFFFFE079;
 	private static final int ICON_SIZE = 16;
 	private static final int ICON_GAP = 4;
 	private static final int LINE_GAP = 3;
@@ -30,19 +29,14 @@ public class PersonalBoosterHudObject extends HudObject {
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
 		defaults.x = 0.985f;
-		defaults.y = 0.60f;
+		defaults.y = 0.78f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}
 
 	@Override
 	public boolean shouldRender() {
-		return PersonalBoosters.anyActive();
-	}
-
-	@Override
-	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.personal_boosters.clear"), PersonalBoosters::clear);
+		return DailyTracker.dailyPending() || DailyTracker.smPending();
 	}
 
 	private record Row(ItemStack icon, String text) {
@@ -50,17 +44,11 @@ public class PersonalBoosterHudObject extends HudObject {
 
 	private List<Row> rows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
-		if (PersonalBoosters.chemRemainingMs() > 0) {
-			rows.add(new Row(new ItemStack(Items.GOLD_INGOT),
-					"Chem Price 10% " + TimeFormat.hms(PersonalBoosters.chemRemainingMs())));
+		if (preview || DailyTracker.dailyPending()) {
+			rows.add(new Row(new ItemStack(Items.CLOCK), "Daily Spin: /daily"));
 		}
-		if (PersonalBoosters.prestigeRemainingMs() > 0) {
-			rows.add(new Row(new ItemStack(Items.EXPERIENCE_BOTTLE),
-					"Prestige 10% " + TimeFormat.hms(PersonalBoosters.prestigeRemainingMs())));
-		}
-		if (rows.isEmpty() && preview) {
-			rows.add(new Row(new ItemStack(Items.GOLD_INGOT), "Chem Price 10% 29:34"));
-			rows.add(new Row(new ItemStack(Items.EXPERIENCE_BOTTLE), "Prestige 10% 1d 8h"));
+		if (preview || DailyTracker.smPending()) {
+			rows.add(new Row(new ItemStack(Items.EMERALD), "Investor: /sm claim"));
 		}
 		return rows;
 	}

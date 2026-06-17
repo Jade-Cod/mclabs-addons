@@ -57,6 +57,12 @@ public class FishBiteConfig {
 	public long personalChemPriceExpiryMs = 0L;
 	public long personalPrestigeExpiryMs = 0L;
 
+	// --- Dailies & votes (reset at 9 PM Pacific; see daily.DailyReset) ---
+	public long dailySpinClaimedMs = 0L;
+	public long smClaimedMs = 0L;
+	public int voteCount = 0;
+	public long voteBoundaryMs = 0L;
+
 	// --- Server boosters (tracked from chat announcements) ---
 	public java.util.Map<String, BoosterState> boosters = new java.util.LinkedHashMap<>();
 
@@ -115,6 +121,10 @@ public class FishBiteConfig {
 		clean.rentalMountExpiryEpochMs = Math.max(0L, this.rentalMountExpiryEpochMs);
 		clean.personalChemPriceExpiryMs = Math.max(0L, this.personalChemPriceExpiryMs);
 		clean.personalPrestigeExpiryMs = Math.max(0L, this.personalPrestigeExpiryMs);
+		clean.dailySpinClaimedMs = Math.max(0L, this.dailySpinClaimedMs);
+		clean.smClaimedMs = Math.max(0L, this.smClaimedMs);
+		clean.voteCount = Math.max(0, this.voteCount);
+		clean.voteBoundaryMs = Math.max(0L, this.voteBoundaryMs);
 		if (this.labWarsActive != null) {
 			for (LabWarsBooster b : this.labWarsActive) {
 				if (b != null && b.key != null) {

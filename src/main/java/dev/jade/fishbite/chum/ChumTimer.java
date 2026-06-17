@@ -16,15 +16,34 @@ public final class ChumTimer {
 
 	private static final Pattern DOUBLE_FISH_PURCHASE = Pattern.compile(
 			"purchased\\s+(.+?)\\s+of double fish", Pattern.CASE_INSENSITIVE);
+	/** /chum reply: "Double fish time remaining: 19m 53s" — authoritative remaining. */
+	private static final Pattern TIME_REMAINING = Pattern.compile(
+			"Double fish time remaining:\\s*(.+)", Pattern.CASE_INSENSITIVE);
+	/** /chum reply: "You don't currently have double fish!" — buff is gone. */
+	private static final Pattern NO_DOUBLE_FISH = Pattern.compile(
+			"don't currently have double fish", Pattern.CASE_INSENSITIVE);
 
 	private ChumTimer() {
 	}
 
-	/** Chat: "<player> has just purchased N minutes of double fish for the whole lab!" */
+	/**
+	 * Parses chum chat. {@code /chum} replies sync the timer to the server's
+	 * authoritative value (replacing any local stack); a "purchased N of double
+	 * fish" announcement stacks on top of the remaining time.
+	 */
 	public static void onMessage(String text) {
-		Matcher m = DOUBLE_FISH_PURCHASE.matcher(text);
-		if (m.find()) {
-			long ms = Durations.parseMs(m.group(1));
+		Matcher remaining = TIME_REMAINING.matcher(text);
+		if (remaining.find()) {
+			setRemaining(Durations.parseMs(remaining.group(1)));
+			return;
+		}
+		if (NO_DOUBLE_FISH.matcher(text).find()) {
+			setRemaining(0L);
+			return;
+		}
+		Matcher purchase = DOUBLE_FISH_PURCHASE.matcher(text);
+		if (purchase.find()) {
+			long ms = Durations.parseMs(purchase.group(1));
 			if (ms > 0) {
 				addDuration(ms);
 			}
@@ -41,6 +60,16 @@ public final class ChumTimer {
 		FishBiteConfig config = FishBiteConfig.get();
 		long base = Math.max(System.currentTimeMillis(), config.chumExpiryEpochMs);
 		config.chumExpiryEpochMs = base + durationMs;
+		config.save();
+	}
+
+	/**
+	 * Replaces the timer with an absolute remaining duration (authoritative /chum
+	 * sync). {@code durationMs <= 0} clears the timer.
+	 */
+	public static void setRemaining(long durationMs) {
+		FishBiteConfig config = FishBiteConfig.get();
+		config.chumExpiryEpochMs = durationMs <= 0L ? 0L : System.currentTimeMillis() + durationMs;
 		config.save();
 	}
 
