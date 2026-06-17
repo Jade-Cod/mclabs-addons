@@ -91,7 +91,7 @@ public class FishBiteClient implements ClientModInitializer {
 		// Keybind to open the draggable chum HUD editor (unbound by default).
 		chumEditorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
 				"key.fishbite.chum_editor", InputUtil.Type.KEYSYM,
-				GLFW.GLFW_KEY_UNKNOWN, KeyBinding.Category.GAMEPLAY));
+				GLFW.GLFW_KEY_SEMICOLON, KeyBinding.Category.GAMEPLAY));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
