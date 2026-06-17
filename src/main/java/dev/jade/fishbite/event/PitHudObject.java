@@ -21,8 +21,8 @@ public class PitHudObject extends LabeledTimerHudObject {
 	@Override
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
-		defaults.x = 0.012f;
-		defaults.y = 0.72f;
+		defaults.x = 0.985f;
+		defaults.y = 0.33f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}

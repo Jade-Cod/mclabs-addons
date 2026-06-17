@@ -3,6 +3,14 @@
 All notable changes to MCLabs Addons are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.10.2] - 2026-06-16
+
+### Fixed
+- HUD widgets that sat under the editor's "Widgets" rail (e.g. the Votes reminder) could not be dragged out. A selected widget can now be grabbed and dragged even when it sits beneath the rail or inspector panel.
+
+### Changed
+- Default HUD widget positions are now laid out as a clean, evenly spaced right-anchored column. Previously every widget defaulted to the far-left edge, where it was hidden under the editor's "Widgets" rail and several widgets overlapped each other. Existing saved layouts are untouched; use the editor's "Reset all" to adopt the new defaults.
+
 ## [1.10.1] - 2026-06-16
 
 ### Fixed
@@ -24,6 +32,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.10.2]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.2
 [1.10.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.1
 [1.10.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.0
 [1.9.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.9.0

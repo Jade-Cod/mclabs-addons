@@ -538,6 +538,19 @@ public class HudEditScreen extends Screen {
 			}
 		}
 
+		// Rescue: a selected widget hidden under the rail/inspector can still be
+		// grabbed and dragged out (e.g. a left-edge widget whose default position
+		// sits beneath the Widgets rail). The open-area body pass below is
+		// unchanged; this only adds the under-chrome case for selected widgets.
+		if (!shift && overUi(mx, my)) {
+			for (HudObject sel : selection) {
+				if (contains(sel.screenBounds(this.width, this.height, true), mx, my)) {
+					startGroupDrag(sel, mx, my);
+					return true;
+				}
+			}
+		}
+
 		List<HudObject> objects = HudObjects.all();
 		for (int i = 0; i < objects.size(); i++) {
 			int[] row = layerRowRect(i);

@@ -21,8 +21,8 @@ public class RentalMountHudObject extends LabeledTimerHudObject {
 	@Override
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
-		defaults.x = 0.012f;
-		defaults.y = 0.46f;
+		defaults.x = 0.985f;
+		defaults.y = 0.69f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}

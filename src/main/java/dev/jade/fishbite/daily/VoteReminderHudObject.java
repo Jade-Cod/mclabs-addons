@@ -23,8 +23,8 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 	@Override
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
-		defaults.x = 0.012f;
-		defaults.y = 0.20f;
+		defaults.x = 0.985f;
+		defaults.y = 0.87f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}
