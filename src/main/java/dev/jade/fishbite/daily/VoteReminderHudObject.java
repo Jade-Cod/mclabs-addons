@@ -54,4 +54,10 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 		int done = preview ? PREVIEW_DONE : VoteTracker.votesDone();
 		return done + "/" + VoteTracker.VOTE_GOAL;
 	}
+
+	// Cross-machine sync is intentionally out of scope; this is local-only.
+	@Override
+	public EditorAction editorAction() {
+		return new EditorAction(Text.translatable("fishbite.hud.votes.mark_voted"), VoteTracker::markAllDone);
+	}
 }
