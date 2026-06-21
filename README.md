@@ -15,7 +15,7 @@ GUIs **passively** — it never sends commands or automates anything.
 pinned above the water when the bobber is pulled under. Drawn as a HUD overlay so
 it survives optimization mods (EntityCulling / ImmediatelyFast / Sodium).
 
-**Sound** — optionally mute other players' bobber sounds, and replace your
+**Sound** — **Mute other players bobber sounds** replace your
 bobber's catch splash with any registered Minecraft sound (click-to-open dropdown).
 
 **HUD timer widgets** (all draggable, resizable, colorable — see *HUD editor*):
