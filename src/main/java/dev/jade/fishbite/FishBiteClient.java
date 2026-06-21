@@ -30,6 +30,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
@@ -37,6 +38,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.ActionResult;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.Locale;
 
 /**
  * Client entrypoint. Wires up the bite marker (HUD-projected, see
@@ -74,6 +77,17 @@ public class FishBiteClient implements ClientModInitializer {
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
 				dispatchChat(message.getString()));
+
+		// Mark the SM daily claimed the moment the player sends "/sm claim",
+		// without waiting for the server confirmation line. Fires on the main
+		// client thread (sendCommand), same as the receive listeners above.
+		ClientSendMessageEvents.COMMAND.register(command -> {
+			String sent = command.trim().toLowerCase(Locale.ROOT);
+			// Exact match (or with trailing args) so "/sm claimsomething" can't false-trigger.
+			if (sent.equals("sm claim") || sent.startsWith("sm claim ")) {
+				DailyTracker.markSmClaimed();
+			}
+		});
 
 		// Detect Chum Bucket activation (right-click with the item in hand).
 		UseItemCallback.EVENT.register((player, world, hand) -> {
