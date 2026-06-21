@@ -1,5 +1,6 @@
 package dev.jade.fishbite.booster;
 
+import dev.jade.fishbite.chem.ChemIcons;
 import dev.jade.fishbite.config.FishBiteConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,19 +43,33 @@ public final class BoosterTracker {
 		} catch (NumberFormatException e) {
 			return;
 		}
-		long durationMs = parseDuration(matcher.group(3));
+		long durationMs = parseDurationMs(matcher.group(3));
 		if (durationMs <= 0) {
 			return;
 		}
 
-		FishBiteConfig config = FishBiteConfig.get();
-		config.boosters.put(item.toLowerCase(Locale.ROOT),
-				new BoosterState(item, multiplier, System.currentTimeMillis() + durationMs));
-		config.save();
+		track(item, multiplier, System.currentTimeMillis() + durationMs);
 		LOGGER.info("[fishbite] Tracked booster: {} {}x for {}", item, multiplier, matcher.group(3));
 	}
 
-	private static long parseDuration(String text) {
+	/**
+	 * Upsert one active booster. Shared by the chat announcement above and the
+	 * /chems "Booster(s) active!" GUI scrape ({@link BoosterRatesReader}); the GUI's
+	 * "Time left" simply refreshes the countdown, the same way /lw rates does.
+	 */
+	public static void track(String item, double multiplier, long expiryEpochMs) {
+		FishBiteConfig config = FishBiteConfig.get();
+		config.boosters.put(storageKey(item), new BoosterState(item, multiplier, expiryEpochMs));
+		config.save();
+	}
+
+	/** Canonical map key: every "All Chems"/"all_chem_booster" variant collapses to one entry. */
+	private static String storageKey(String item) {
+		return ChemIcons.isAllBooster(item) ? "all" : item.toLowerCase(Locale.ROOT);
+	}
+
+	/** Parses server durations like "20m", "1h30m", or the GUI's "13m:53s". */
+	public static long parseDurationMs(String text) {
 		long totalMs = 0;
 		Matcher part = DURATION_PART.matcher(text.toLowerCase(Locale.ROOT));
 		while (part.find()) {

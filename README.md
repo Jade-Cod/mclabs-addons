@@ -23,7 +23,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | Widget | Tracks | Source |
 |--------|--------|--------|
 | Chum Timer | Double-fish time | Right-click a Chum Bucket; "purchased N minutes of double fish for the whole lab" chat; **`/chum` syncs to the server's exact remaining time**; Fishing mini-events grant +30 min |
-| Booster Timer | Server revenue boosters, each with its **chem icon** | "Booster activated!" chat |
+| Booster Timer | Server revenue boosters, each with its **chem icon** | "Booster activated!" chat + the `/chems` "Booster(s) active!" GUI (read only while you have it open, so you can pick up boosters you joined mid-way) |
 | Mini-Event | Upcoming + active mini-events (type, time) | "Mini-Event …" chat |
 | The Pit | Pit open window (stacks sponsor/extend) | "The Pit …" chat |
 | Lab Wars Boosters | Per-category revenue boosts (multiplier + time) | "Lab Wars …" chat + the `/lw rates` GUI (read only while you have it open) |
@@ -47,7 +47,7 @@ booster shows an end crystal labelled "All").
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**,
    **Cloth Config**, and (optionally) **Mod Menu** into your `mods` folder — see
    *Requirements* below.
-2. Put `mclabs-addons-1.11.0.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.11.1.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -68,7 +68,10 @@ Everything updates **passively** from chat — you never have to run anything sp
   **`/chum`** anytime to snap the timer to the server's exact remaining time; if the
   buff has expired, the widget clears itself.
 - **Boosters** — appears automatically when someone activates a server booster,
-  showing the chemical's icon, multiplier, and countdown.
+  showing the chemical's icon, multiplier, and countdown. The "All Chems" booster
+  shows an end crystal labelled "All". Joined after a booster started? Open
+  **`/chems` → "Booster(s) active!"** and the widget picks up whatever is already
+  running and refreshes its countdown, the same way `/lw rates` updates Lab Wars.
 - **Bounty Hunt** — when a Bounty Hunt starts in Spawn, the chest widget shows the
   bounty chemical and how many chests remain, updating as players find them and
   hiding when the hunt ends. Use the server's **`/bounty track`** in Spawn to be led
@@ -118,7 +121,7 @@ category per HUD widget (enable, size, text color, background). Saved to
   HUD widgets via `hud/HudObjects`, the chat dispatch (`ClientReceiveMessageEvents`
   → per-feature trackers), the outgoing-command hook (`ClientSendMessageEvents`,
   used to clear the `/sm claim` reminder), item-use detection (`UseItemCallback`),
-  and the editor keybind + the once-per-open `/lw rates` GUI scrape.
+  and the editor keybind + the once-per-open `/lw rates` and `/chems` GUI scrapes.
 - `hud/` — the reusable widget framework: `HudObject` base (background, scale,
   auto side-anchoring, screen bounds), `HudObjectSettings`, `HudEditScreen`,
   `ColorPickerScreen`, `TimeFormat`, `Durations`; `hud/editor/` holds
@@ -149,7 +152,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | required (config widgets) |
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 
-Current mod version: **1.11.0**.
+Current mod version: **1.11.1**.
 
 ## Building
 

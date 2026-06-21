@@ -3,6 +3,14 @@
 All notable changes to MCLabs Addons are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.11.1] - 2026-06-20
+
+### Added
+- **Active boosters are now picked up from the `/chems` → "Booster(s) active!" GUI.** Opening that menu tracks any chem price booster already running — useful when you join mid-booster and missed the activation chat — and refreshes its countdown each time you open it, the same way `/lw rates` updates Lab Wars boosters.
+
+### Fixed
+- **The "All" chem booster now actually shows its end-crystal icon and "All" label.** The 1.11.0 change matched the literal name `all`, but the server announces this booster as "All Chems", so it fell back to a plain paper icon with no label. The widget now recognises every "All" variant (`All Chems`, `all_chem_booster`).
+
 ## [1.11.0] - 2026-06-20
 
 ### Added
@@ -44,6 +52,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.11.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.1
 [1.11.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.0
 [1.10.2]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.2
 [1.10.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.1

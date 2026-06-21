@@ -14,6 +14,7 @@ import dev.jade.fishbite.mount.RentalMountTimer;
 import dev.jade.fishbite.personal.PersonalBoosterHudObject;
 import dev.jade.fishbite.personal.PersonalBoosters;
 import dev.jade.fishbite.chum.ChumTimer;
+import dev.jade.fishbite.booster.BoosterRatesReader;
 import dev.jade.fishbite.booster.BoosterTracker;
 import dev.jade.fishbite.bounty.BountyHudObject;
 import dev.jade.fishbite.bounty.BountyTracker;
@@ -110,11 +111,14 @@ public class FishBiteClient implements ClientModInitializer {
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
-			// Passive: scrape the /lw rates GUI ONCE per open (its lore is a static
-			// snapshot; re-reading every tick would freeze the countdown).
+			// Passive: scrape the /lw rates and /chems booster GUIs ONCE per open
+			// (their lore is a static snapshot; re-reading every tick would freeze
+			// the countdown).
 			net.minecraft.client.gui.screen.Screen current = client.currentScreen;
 			if (current instanceof HandledScreen<?> handledScreen) {
-				if (current != lastRatesScreen && LabWarsRatesReader.tryRead(handledScreen)) {
+				if (current != lastRatesScreen
+						&& (LabWarsRatesReader.tryRead(handledScreen)
+								|| BoosterRatesReader.tryRead(handledScreen))) {
 					lastRatesScreen = current;
 				}
 			} else {

@@ -87,8 +87,21 @@ public final class ChemIcons {
 		return stack;
 	}
 
+	/**
+	 * Whether a booster/chem name refers to the server's "All" chem booster.
+	 * Accepts the chat name ("All Chems"), the GUI model-data ("all_chem_booster"),
+	 * and the bare "All".
+	 */
+	public static boolean isAllBooster(String name) {
+		if (name == null) {
+			return false;
+		}
+		String s = name.toLowerCase(Locale.ROOT).replace('_', ' ').trim();
+		return s.equals("all") || s.startsWith("all chem");
+	}
+
 	private static ItemStack build(String key) {
-		if (key.equals("all")) {
+		if (isAllBooster(key)) {
 			return new ItemStack(Items.END_CRYSTAL);
 		}
 		Item item = ITEMS.get(key);
