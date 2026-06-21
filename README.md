@@ -38,7 +38,7 @@ Timers persist across relogs (absolute expiry in config) and display as `M:SS`,
 widgets reset at **9 PM Pacific**, computed as a real instant so they reset at the
 correct local time wherever you play. The **Booster** and **Bounty** widgets show
 each chemical's real in-game icon, skinned by the server resource pack (the "All"
-booster shows an end crystal).
+booster shows an end crystal labelled "All").
 
 ## User Guide
 
@@ -47,15 +47,16 @@ booster shows an end crystal).
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**,
    **Cloth Config**, and (optionally) **Mod Menu** into your `mods` folder — see
    *Requirements* below.
-2. Put `mclabs-addons-1.10.0.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.11.0.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
 
 - Start fishing — an exclamation mark appears over your bobber: **yellow** while
   waiting, **red** the instant a fish is ready to reel in.
-- Bind a key under **Options → Controls → Gameplay → "Open HUD Editor"** (unbound
-  by default) to arrange every widget; see *HUD editor* below.
+- The **"Open HUD Editor"** key defaults to **semicolon** (`;`); rebind it under
+  **Options → Controls → Gameplay** if you like, then use it to arrange every
+  widget; see *HUD editor* below.
 - Adjust colors, sizes, and toggles in **Mods → MCLabs Addons → Config**.
 
 ### Using each tracker
@@ -73,10 +74,13 @@ Everything updates **passively** from chat — you never have to run anything sp
   hiding when the hunt ends. Use the server's **`/bounty track`** in Spawn to be led
   to a chest.
 - **Dailies** — reminds you to claim your **daily spin (`/daily`)** and **Daily
-  Investor Rewards (`/sm claim`)**. Each line disappears once you claim it and
-  returns after the **9 PM Pacific** reset.
+  Investor Rewards (`/sm claim`)**. Each line disappears once you claim it — the
+  `/sm claim` reminder clears the moment you send the command — and returns after
+  the **9 PM Pacific** reset.
 - **Vote Reminder** — counts your votes toward **7/7** as each "Vote registered!"
-  arrives, and hides once all seven are done for the day (resets 9 PM Pacific).
+  arrives, and hides once all seven are done for the day (resets 9 PM Pacific). If
+  you voted elsewhere or missed the chat lines, select the widget in the HUD editor
+  and use **"Mark voted today"** to hide it until the next reset.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 
@@ -85,8 +89,8 @@ HUD editor to preview and position every widget, including idle ones.
 
 ## HUD editor ("HUD Studio")
 
-Bind **"Open HUD Editor"** in *Controls* (category: Gameplay; unbound by
-default), then press it to enter the editor:
+Press **"Open HUD Editor"** (in *Controls* → category: Gameplay; defaults to
+**semicolon** `;`) to enter the editor:
 
 - **Layers rail** (left) — lists all widgets; click to select, eye icon to
   toggle visibility even on hidden widgets.
@@ -112,8 +116,9 @@ category per HUD widget (enable, size, text color, background). Saved to
 
 - `FishBiteClient` (entrypoint) registers the bite-marker render callbacks, all
   HUD widgets via `hud/HudObjects`, the chat dispatch (`ClientReceiveMessageEvents`
-  → per-feature trackers), item-use detection (`UseItemCallback`), and the editor
-  keybind + the once-per-open `/lw rates` GUI scrape.
+  → per-feature trackers), the outgoing-command hook (`ClientSendMessageEvents`,
+  used to clear the `/sm claim` reminder), item-use detection (`UseItemCallback`),
+  and the editor keybind + the once-per-open `/lw rates` GUI scrape.
 - `hud/` — the reusable widget framework: `HudObject` base (background, scale,
   auto side-anchoring, screen bounds), `HudObjectSettings`, `HudEditScreen`,
   `ColorPickerScreen`, `TimeFormat`, `Durations`; `hud/editor/` holds
@@ -144,7 +149,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | required (config widgets) |
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 
-Current mod version: **1.10.0**.
+Current mod version: **1.11.0**.
 
 ## Building
 

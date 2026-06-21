@@ -3,6 +3,18 @@
 All notable changes to MCLabs Addons are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.11.0] - 2026-06-20
+
+### Added
+- **Vote Reminder: manual "Mark voted today" override.** A new action in the widget's HUD-editor inspector marks all 7 daily votes done, hiding the reminder for the rest of the day; it returns automatically after the 9 PM Pacific reset. Handy when votes were cast on another device or the "Vote registered!" lines were missed. Local-only — it does not sync across machines.
+
+### Fixed
+- **The "All" booster now shows its name.** The all-booster HUD row already used the end-crystal icon but displayed only the multiplier and time, so it was indistinguishable from a chem booster; it now reads e.g. `All 2x 30:00`.
+- **The Daily Investor Rewards reminder (`/sm claim`) now clears the moment you run the command.** Previously it only cleared once a confirmation chat line matched, so it lingered until the command was re-run. It is now dismissed as soon as you send `/sm claim` (matched exactly, so other subcommands can't trigger it); the confirmation-line detection remains as a fallback for claims made from another client.
+
+### Changed
+- The **Open HUD Editor** keybind now defaults to **semicolon** (`;`) instead of being unbound.
+
 ## [1.10.2] - 2026-06-16
 
 ### Fixed
@@ -32,6 +44,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.11.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.0
 [1.10.2]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.2
 [1.10.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.1
 [1.10.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.0
