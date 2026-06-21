@@ -37,6 +37,13 @@ public final class DailyTracker {
 		}
 	}
 
+	/** Called immediately when the player types "/sm claim", before server confirmation. */
+	public static void markSmClaimed() {
+		FishBiteConfig config = FishBiteConfig.get();
+		config.smClaimedMs = System.currentTimeMillis();
+		config.save();
+	}
+
 	public static boolean dailyPending() {
 		return DailyReset.isPending(FishBiteConfig.get().dailySpinClaimedMs);
 	}

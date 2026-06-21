@@ -44,4 +44,12 @@ public final class VoteTracker {
 	public static boolean pending() {
 		return votesDone() < VOTE_GOAL;
 	}
+
+	/** Marks all votes done for the current reset window (local-only override). */
+	public static void markAllDone() {
+		FishBiteConfig config = FishBiteConfig.get();
+		config.voteBoundaryMs = DailyReset.currentBoundaryMs();
+		config.voteCount = VOTE_GOAL;
+		config.save();
+	}
 }

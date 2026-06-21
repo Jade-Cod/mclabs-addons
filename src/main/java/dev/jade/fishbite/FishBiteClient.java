@@ -14,6 +14,7 @@ import dev.jade.fishbite.mount.RentalMountTimer;
 import dev.jade.fishbite.personal.PersonalBoosterHudObject;
 import dev.jade.fishbite.personal.PersonalBoosters;
 import dev.jade.fishbite.chum.ChumTimer;
+import dev.jade.fishbite.booster.BoosterRatesReader;
 import dev.jade.fishbite.booster.BoosterTracker;
 import dev.jade.fishbite.bounty.BountyHudObject;
 import dev.jade.fishbite.bounty.BountyTracker;
@@ -30,6 +31,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
@@ -37,6 +39,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.ActionResult;
 import org.lwjgl.glfw.GLFW;
+
+import java.util.Locale;
 
 /**
  * Client entrypoint. Wires up the bite marker (HUD-projected, see
@@ -75,6 +79,17 @@ public class FishBiteClient implements ClientModInitializer {
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
 				dispatchChat(message.getString()));
 
+		// Mark the SM daily claimed the moment the player sends "/sm claim",
+		// without waiting for the server confirmation line. Fires on the main
+		// client thread (sendCommand), same as the receive listeners above.
+		ClientSendMessageEvents.COMMAND.register(command -> {
+			String sent = command.trim().toLowerCase(Locale.ROOT);
+			// Exact match (or with trailing args) so "/sm claimsomething" can't false-trigger.
+			if (sent.equals("sm claim") || sent.startsWith("sm claim ")) {
+				DailyTracker.markSmClaimed();
+			}
+		});
+
 		// Detect Chum Bucket activation (right-click with the item in hand).
 		UseItemCallback.EVENT.register((player, world, hand) -> {
 			if (player == MinecraftClient.getInstance().player) {
@@ -96,11 +111,14 @@ public class FishBiteClient implements ClientModInitializer {
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
-			// Passive: scrape the /lw rates GUI ONCE per open (its lore is a static
-			// snapshot; re-reading every tick would freeze the countdown).
+			// Passive: scrape the /lw rates and /chems booster GUIs ONCE per open
+			// (their lore is a static snapshot; re-reading every tick would freeze
+			// the countdown).
 			net.minecraft.client.gui.screen.Screen current = client.currentScreen;
 			if (current instanceof HandledScreen<?> handledScreen) {
-				if (current != lastRatesScreen && LabWarsRatesReader.tryRead(handledScreen)) {
+				if (current != lastRatesScreen
+						&& (LabWarsRatesReader.tryRead(handledScreen)
+								|| BoosterRatesReader.tryRead(handledScreen))) {
 					lastRatesScreen = current;
 				}
 			} else {

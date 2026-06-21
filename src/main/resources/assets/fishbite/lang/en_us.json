@@ -61,5 +61,6 @@
 	"fishbite.hud.bounty.name": "Bounties",
 	"fishbite.hud.bounty.clear": "Clear Bounty",
 	"fishbite.hud.dailies.name": "Dailies",
-	"fishbite.hud.votes.name": "Vote Reminder"
+	"fishbite.hud.votes.name": "Vote Reminder",
+	"fishbite.hud.votes.mark_voted": "Mark voted today"
 }

@@ -19,6 +19,7 @@ public class BoosterHudObject extends HudObject {
 	private static final int ICON_SIZE = 16;
 	private static final int ICON_GAP = 4;
 	private static final int LINE_GAP = 3;
+	private static final String ALL_BOOSTER_LABEL = "All";
 
 	@Override
 	public String id() {
@@ -50,12 +51,13 @@ public class BoosterHudObject extends HudObject {
 	private List<Row> rows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
 		for (var booster : BoosterTracker.active()) {
+			String prefix = ChemIcons.isAllBooster(booster.item) ? ALL_BOOSTER_LABEL + " " : "";
 			rows.add(new Row(ChemIcons.iconFor(booster.item),
-					BoosterTracker.formatMultiplier(booster.multiplier) + " "
+					prefix + BoosterTracker.formatMultiplier(booster.multiplier) + " "
 							+ BoosterTracker.formatRemaining(booster)));
 		}
 		if (rows.isEmpty() && preview) {
-			rows.add(new Row(ChemIcons.iconFor("all"), "1.5x 30:00"));
+			rows.add(new Row(ChemIcons.iconFor("all"), ALL_BOOSTER_LABEL + " 1.5x 30:00"));
 		}
 		return rows;
 	}
