@@ -26,14 +26,14 @@ public final class BountyTracker {
 	private static final Pattern ENDED = Pattern.compile(
 			"All bounty chests have been found", Pattern.CASE_INSENSITIVE);
 
-	private static boolean active;
-	private static String chem = "";
-	private static int remaining;
+	private static volatile boolean active;
+	private static volatile String chem = "";
+	private static volatile int remaining;
 
 	private BountyTracker() {
 	}
 
-	public static void onMessage(String text) {
+	public static synchronized void onMessage(String text) {
 		Matcher start = START.matcher(text);
 		if (start.find()) {
 			remaining = parseInt(start.group(1));
@@ -69,19 +69,19 @@ public final class BountyTracker {
 		}
 	}
 
-	public static boolean isActive() {
+	public static synchronized boolean isActive() {
 		return active && remaining > 0;
 	}
 
-	public static String chem() {
+	public static synchronized String chem() {
 		return chem;
 	}
 
-	public static int remaining() {
+	public static synchronized int remaining() {
 		return remaining;
 	}
 
-	public static void clear() {
+	public static synchronized void clear() {
 		active = false;
 		chem = "";
 		remaining = 0;

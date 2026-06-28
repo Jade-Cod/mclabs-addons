@@ -131,11 +131,11 @@ public class ColorPickerScreen extends Screen {
 		}
 		String hex = text.startsWith("#") ? text.substring(1) : text;
 		int expected = withAlpha ? 8 : 6;
-		if (hex.length() != expected) {
+		if (hex.length() != expected || !hex.matches("^[0-9a-fA-F]+$")) {
 			return;
 		}
 		try {
-			long parsed = Long.parseLong(hex, 16);
+			long parsed = Long.parseUnsignedLong(hex, 16);
 			color = withAlpha ? (int) parsed : (int) parsed | 0xFF000000;
 			updatingHex = true;
 			sliders.forEach(slider -> slider.setChannel((color >> slider.shift) & 0xFF));

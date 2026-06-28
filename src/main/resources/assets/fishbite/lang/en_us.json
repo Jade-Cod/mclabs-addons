@@ -14,7 +14,10 @@
 	"fishbite.config.catch_sound": "Catch Sound",
 	"fishbite.config.catch_sound.tooltip": "Sound played when a fish bites your bobber, replacing the vanilla splash. Leave as vanilla to keep the default.",
 	"fishbite.config.catch_sound.vanilla": "(vanilla splash)",
+	"key.category.fishbite.main": "McLab Addons",
 	"key.fishbite.chum_editor": "Open HUD Editor",
+	"key.fishbite.chem_deposit": "Deposit Chemtainer",
+	"key.fishbite.chem_withdraw": "Withdraw Chemtainer",
 	"category.fishbite": "Fish Bite Indicator",
 	"fishbite.config.hud.enabled": "Show HUD Widget",
 	"fishbite.config.hud.enabled.tooltip": "Show this widget on screen when active.",
@@ -62,5 +65,12 @@
 	"fishbite.hud.bounty.clear": "Clear Bounty",
 	"fishbite.hud.dailies.name": "Dailies",
 	"fishbite.hud.votes.name": "Vote Reminder",
-	"fishbite.hud.votes.mark_voted": "Mark voted today"
+	"fishbite.hud.votes.mark_voted": "Mark Voted Today",
+	"fishbite.hud.chemtainer.name": "Chemtainer",
+	"fishbite.hud.chemtainer.clear": "Clear Chemtainer",
+	"fishbite.hud.chemtainer.satchel": "Using Satchel",
+	"fishbite.hud.editor.help": "Help",
+	"fishbite.hud.editor.help.tooltip": "Mod guide & sync commands",
+	"fishbite.hud.help.title": "MCLabs Addons Help",
+	"fishbite.hud.help.dismiss": "Got it"
 }

@@ -86,6 +86,9 @@ public class HudEditScreen extends Screen {
 	private boolean snapEnabled = true;
 	private boolean gridEnabled;
 
+	// First-run welcome guard: check once per screen instance (init() also runs on resize).
+	private boolean welcomeChecked;
+
 	// Inspector layout, recomputed in init() whenever the selection changes.
 	private int[] panel;
 	private int nameY;
@@ -113,6 +116,24 @@ public class HudEditScreen extends Screen {
 		if (one != null) {
 			buildInspector(one);
 		}
+		maybeShowWelcome();
+	}
+
+	/** Show the welcome guide once, the first time a player ever opens the editor. */
+	private void maybeShowWelcome() {
+		if (welcomeChecked) {
+			return;
+		}
+		welcomeChecked = true;
+		if (!FishBiteConfig.get().hasSeenWelcome && this.client != null) {
+			this.client.setScreen(new HelpScreen(this, true));
+		}
+	}
+
+	private void openHelp() {
+		if (this.client != null) {
+			this.client.setScreen(new HelpScreen(this, false));
+		}
 	}
 
 	private void buildToolbar() {
@@ -129,6 +150,11 @@ public class HudEditScreen extends Screen {
 						Text.translatable("fishbite.hud.editor.reset_all"), b -> resetAll())
 				.dimensions(x, y, 78, 20)
 				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.reset_all.tooltip"))).build());
+		x += 82;
+		this.addDrawableChild(ButtonWidget.builder(
+						Text.translatable("fishbite.hud.editor.help"), b -> openHelp())
+				.dimensions(x, y, 48, 20)
+				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.help.tooltip"))).build());
 
 		int rx = this.width - EditorTheme.MARGIN - 64;
 		this.addDrawableChild(ButtonWidget.builder(snapLabel(), b -> {
@@ -156,10 +182,12 @@ public class HudEditScreen extends Screen {
 		HudObjectSettings s = widget.settings();
 		int innerW = EditorTheme.PANEL_W - 2 * EditorTheme.PAD;
 		boolean hasAction = widget.editorAction() != null;
+		List<HudObject.ToggleOption> toggles = widget.toggleOptions();
 
 		int rowStep = EditorTheme.ROW + EditorTheme.GAP;
 		int contentH = EditorTheme.NAME_H
 				+ rowStep * 4
+				+ rowStep * toggles.size()
 				+ (hasAction ? rowStep : 0)
 				+ EditorTheme.ROW;
 		int panelH = contentH + 2 * EditorTheme.PAD;
@@ -205,6 +233,13 @@ public class HudEditScreen extends Screen {
 		this.bgSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.bgSwatchY = y;
 		y += rowStep;
+
+		for (HudObject.ToggleOption toggle : toggles) {
+			this.addDrawableChild(CyclingButtonWidget.onOffBuilder(toggle.value().getAsBoolean()).build(
+					innerX, y, innerW, EditorTheme.ROW, toggle.label(),
+					(b, v) -> toggle.onChange().accept(v)));
+			y += rowStep;
+		}
 
 		HudObject.EditorAction action = widget.editorAction();
 		if (action != null) {

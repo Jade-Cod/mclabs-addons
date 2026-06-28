@@ -49,6 +49,10 @@ public final class ChemIcons {
 			Map.entry("wheacactinide", Items.CYAN_DYE),
 			Map.entry("wheacobinide", Items.BROWN_DYE),
 			Map.entry("whearootinide", Items.BREAD),
+			// --- Base/processed chems renamed by the server texture pack ---
+			Map.entry("canium", Items.SUGAR_CANE),
+			Map.entry("nonowheanide", Items.HAY_BLOCK),
+			Map.entry("triwheanide", Items.BREAD),
 			// --- Base chems (sourced from minecraft-farm-optimizer crops.json) ---
 			Map.entry("wheatium", Items.WHEAT),
 			Map.entry("potatium", Items.POTATO),
@@ -73,6 +77,11 @@ public final class ChemIcons {
 	private static final Map<String, ItemStack> CACHE = new HashMap<>();
 
 	private ChemIcons() {
+	}
+
+	/** Whether {@code chemName} is a known chem (base crop, combo, or processed). */
+	public static boolean isKnown(String chemName) {
+		return ITEMS.containsKey(normalize(chemName));
 	}
 
 	/** An icon stack for the given chem/booster name; never null. */

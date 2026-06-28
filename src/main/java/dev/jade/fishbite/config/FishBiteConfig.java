@@ -2,6 +2,7 @@ package dev.jade.fishbite.config;
 
 import com.google.gson.Gson;
 import dev.jade.fishbite.booster.BoosterState;
+import dev.jade.fishbite.chem.ChemtainerEntry;
 import dev.jade.fishbite.labwars.LabWarsBooster;
 import dev.jade.fishbite.hud.HudObjectSettings;
 import com.google.gson.GsonBuilder;
@@ -15,6 +16,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Mod configuration persisted to {@code config/fishbite.json}. Loaded lazily and
@@ -26,6 +29,8 @@ public class FishBiteConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path CONFIG_PATH =
 			FabricLoader.getInstance().getConfigDir().resolve("fishbite.json");
+	private static final ExecutorService SAVE_EXECUTOR = Executors.newSingleThreadExecutor();
+	private static final Object SAVE_LOCK = new Object();
 
 	public static final int DEFAULT_WAITING_COLOR = 0xFFFF55;
 	public static final int DEFAULT_BITE_COLOR = 0xFF5555;
@@ -70,6 +75,19 @@ public class FishBiteConfig {
 	public java.util.List<LabWarsBooster> labWarsActive = new java.util.ArrayList<>();
 	/** Legacy v1.6.x single-per-category map, migrated into labWarsActive on load. */
 	@Deprecated public java.util.Map<String, LabWarsBooster> labWarsBoosters;
+
+	// --- Onboarding ---
+	/** True once the first-run welcome guide has been shown in the HUD editor. */
+	public boolean hasSeenWelcome = false;
+
+	// --- Chemtainer contents (authoritative snapshot scraped from the /ch GUI) ---
+	public java.util.List<ChemtainerEntry> chemtainer = new java.util.ArrayList<>();
+	/** When the contents above were last scraped (epoch ms); 0 = never opened. */
+	public long chemtainerSnapshotMs = 0L;
+	/** True if a deposit was seen in chat since the last scrape (contents stale). */
+	public boolean chemtainerStale = false;
+	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
+	public boolean chemtainerSatchel = true;
 
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
@@ -125,6 +143,21 @@ public class FishBiteConfig {
 		clean.smClaimedMs = Math.max(0L, this.smClaimedMs);
 		clean.voteCount = Math.max(0, this.voteCount);
 		clean.voteBoundaryMs = Math.max(0L, this.voteBoundaryMs);
+		clean.hasSeenWelcome = this.hasSeenWelcome;
+		if (this.chemtainer != null) {
+			for (ChemtainerEntry entry : this.chemtainer) {
+				if (entry != null && entry.chem != null && entry.count > 0) {
+					clean.chemtainer.add(new ChemtainerEntry(
+							entry.chem,
+							entry.purity == null ? "" : entry.purity,
+							entry.label == null ? "" : entry.label,
+							entry.count));
+				}
+			}
+		}
+		clean.chemtainerSnapshotMs = Math.max(0L, this.chemtainerSnapshotMs);
+		clean.chemtainerStale = this.chemtainerStale;
+		clean.chemtainerSatchel = this.chemtainerSatchel;
 		if (this.labWarsActive != null) {
 			for (LabWarsBooster b : this.labWarsActive) {
 				if (b != null && b.key != null) {
@@ -168,13 +201,20 @@ public class FishBiteConfig {
 	}
 
 	public void save() {
-		try {
-			Files.createDirectories(CONFIG_PATH.getParent());
-			try (BufferedWriter writer = Files.newBufferedWriter(CONFIG_PATH)) {
-				GSON.toJson(this, writer);
+		synchronized (SAVE_LOCK) {
+			try {
+				Files.createDirectories(CONFIG_PATH.getParent());
+				try (BufferedWriter writer = Files.newBufferedWriter(CONFIG_PATH)) {
+					GSON.toJson(this, writer);
+				}
+			} catch (IOException e) {
+				LOGGER.warn("[fishbite] Failed to write config at {}.", CONFIG_PATH, e);
 			}
-		} catch (IOException e) {
-			LOGGER.warn("[fishbite] Failed to write config at {}.", CONFIG_PATH, e);
 		}
+	}
+
+	public void saveAsync() {
+		FishBiteConfig snapshot = this.sanitized();
+		SAVE_EXECUTOR.submit(snapshot::save);
 	}
 }

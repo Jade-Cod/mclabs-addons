@@ -4,3 +4,7 @@ run/
 *.log
 .DS_Store
 run-client.log
+.agents/
+CLAUDE.md
+skills-lock.json
+JsonDumps/

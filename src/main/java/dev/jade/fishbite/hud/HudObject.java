@@ -42,15 +42,30 @@ public abstract class HudObject {
 		return null;
 	}
 
+	/** A widget-specific on/off setting shown as a toggle in the editor inspector. */
+	public record ToggleOption(net.minecraft.text.Text label,
+			java.util.function.BooleanSupplier value,
+			java.util.function.Consumer<Boolean> onChange) {
+	}
+
+	/** @return extra on/off toggles for this widget's settings (empty by default). */
+	public java.util.List<ToggleOption> toggleOptions() {
+		return java.util.List.of();
+	}
+
+	private HudObjectSettings cachedSettings;
+
 	public HudObjectSettings settings() {
-		FishBiteConfig config = FishBiteConfig.get();
-		HudObjectSettings settings = config.hudObjects.get(id());
-		if (settings == null) {
-			settings = defaultSettings().copy();
-			config.hudObjects.put(id(), settings);
-			config.save();
+		if (cachedSettings == null) {
+			FishBiteConfig config = FishBiteConfig.get();
+			cachedSettings = config.hudObjects.get(id());
+			if (cachedSettings == null) {
+				cachedSettings = defaultSettings().copy();
+				config.hudObjects.put(id(), cachedSettings);
+				config.saveAsync();
+			}
 		}
-		return settings;
+		return cachedSettings;
 	}
 
 	/**
