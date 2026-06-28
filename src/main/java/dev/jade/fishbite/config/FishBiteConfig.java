@@ -2,6 +2,7 @@ package dev.jade.fishbite.config;
 
 import com.google.gson.Gson;
 import dev.jade.fishbite.booster.BoosterState;
+import dev.jade.fishbite.chem.ChemtainerEntry;
 import dev.jade.fishbite.labwars.LabWarsBooster;
 import dev.jade.fishbite.hud.HudObjectSettings;
 import com.google.gson.GsonBuilder;
@@ -71,6 +72,19 @@ public class FishBiteConfig {
 	/** Legacy v1.6.x single-per-category map, migrated into labWarsActive on load. */
 	@Deprecated public java.util.Map<String, LabWarsBooster> labWarsBoosters;
 
+	// --- Onboarding ---
+	/** True once the first-run welcome guide has been shown in the HUD editor. */
+	public boolean hasSeenWelcome = false;
+
+	// --- Chemtainer contents (authoritative snapshot scraped from the /ch GUI) ---
+	public java.util.List<ChemtainerEntry> chemtainer = new java.util.ArrayList<>();
+	/** When the contents above were last scraped (epoch ms); 0 = never opened. */
+	public long chemtainerSnapshotMs = 0L;
+	/** True if a deposit was seen in chat since the last scrape (contents stale). */
+	public boolean chemtainerStale = false;
+	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
+	public boolean chemtainerSatchel = true;
+
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
 
@@ -125,6 +139,20 @@ public class FishBiteConfig {
 		clean.smClaimedMs = Math.max(0L, this.smClaimedMs);
 		clean.voteCount = Math.max(0, this.voteCount);
 		clean.voteBoundaryMs = Math.max(0L, this.voteBoundaryMs);
+		clean.hasSeenWelcome = this.hasSeenWelcome;
+		if (this.chemtainer != null) {
+			for (ChemtainerEntry entry : this.chemtainer) {
+				if (entry != null && entry.chem != null && entry.count > 0) {
+					if (entry.purity == null) {
+						entry.purity = "";
+					}
+					clean.chemtainer.add(entry);
+				}
+			}
+		}
+		clean.chemtainerSnapshotMs = Math.max(0L, this.chemtainerSnapshotMs);
+		clean.chemtainerStale = this.chemtainerStale;
+		clean.chemtainerSatchel = this.chemtainerSatchel;
 		if (this.labWarsActive != null) {
 			for (LabWarsBooster b : this.labWarsActive) {
 				if (b != null && b.key != null) {

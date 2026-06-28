@@ -6,6 +6,7 @@
 		"CameraAccessor",
 		"FishingBobberEntityAccessor",
 		"InGameHudMixin",
+		"KeyBindingCategoryAccessor",
 		"SoundSystemMixin"
 	],
 	"injectors": {

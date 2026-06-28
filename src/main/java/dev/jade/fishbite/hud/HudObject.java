@@ -42,6 +42,17 @@ public abstract class HudObject {
 		return null;
 	}
 
+	/** A widget-specific on/off setting shown as a toggle in the editor inspector. */
+	public record ToggleOption(net.minecraft.text.Text label,
+			java.util.function.BooleanSupplier value,
+			java.util.function.Consumer<Boolean> onChange) {
+	}
+
+	/** @return extra on/off toggles for this widget's settings (empty by default). */
+	public java.util.List<ToggleOption> toggleOptions() {
+		return java.util.List.of();
+	}
+
 	public HudObjectSettings settings() {
 		FishBiteConfig config = FishBiteConfig.get();
 		HudObjectSettings settings = config.hudObjects.get(id());

@@ -3,6 +3,23 @@
 All notable changes to MCLabs Addons are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **A Chemtainer widget that shows what you've banked.** It lists your chems by quantity and estimates how many **inventories** they'd fill (e.g. `3.4 Inventories`), with a **Using Satchel** toggle in the HUD editor that switches the per-inventory capacity. It learns your contents three ways: opening `/ch` reads the exact contents, and two new keybinds keep it current as you play.
+- **Deposit and Withdraw Chemtainer keybinds.** **Deposit Chemtainer** (default `B`) sends `/ch qd` and adds whatever chems just left your inventory; **Withdraw Chemtainer** (default `N`) runs `/ch withdraw` for whichever chem you have the most of and subtracts what the server reports. They work whether you press the key or type `/ch qd` yourself.
+- **A welcome guide for new players.** The first time you open the HUD editor, a short thank-you/guide appears (once), and a new **Help** button in the editor reopens it any time. It lists every sync command the mod uses.
+- **Normal (base) crops now track too.** Plain vanilla crops like Wheatium, Cactium, and Canium — which carry no special data, only the server texture pack's rename — are now recognised and counted in the Chemtainer just like combo chems.
+
+### Changed
+- **The mod's keybinds now have their own "McLab Addons" category** near the top of Options → Controls, instead of being mixed into vanilla Gameplay.
+- **Better booster icons.** More chems map to their real item (e.g. **Canium** now shows sugar cane, not sugar), so booster rows are easier to tell apart.
+- Polished the vote widget's override label to **"Mark Voted Today"**.
+
+### Fixed
+- **The Chemtainer widget no longer falls behind when you deposit fast.** Depositing quickly with `B` / `/ch qd`, or picking up more chems before the widget caught up, used to undercount — each deposit was guessed from a single before/after inventory snapshot, so anything you farmed in the meantime was subtracted straight out of the count, and a second deposit could wipe out the first. It now follows each chem leaving your inventory as it happens and checks the running tally against the server's own `Deposited N chems` total, so back-to-back deposits and farming-while-depositing both add up correctly. (Opening `/ch` still gives the exact contents and now takes priority over any in-progress estimate.)
+- **Redeeming a Personal Prestige Progress Boost now starts its timer.** The chem-price boost was detected on redeem but the prestige boost wasn't (its chat line has no colon, unlike `/checkboost`), so the widget never showed it — now both are picked up.
+
 ## [1.11.1] - 2026-06-20
 
 ### Added

@@ -15,6 +15,9 @@ import java.util.regex.Pattern;
 public final class PersonalBoosters {
 	private static final Pattern REDEEM_CHEM = Pattern.compile(
 			"redeemed\\s+(.+?)\\s+of personal 10% drug price boost", Pattern.CASE_INSENSITIVE);
+	private static final Pattern REDEEM_PRESTIGE = Pattern.compile(
+			"redeemed\\s+(.+?)\\s+of personal 10% (?:Founder )?prestige progress boost",
+			Pattern.CASE_INSENSITIVE);
 	private static final Pattern CHECK_CHEM = Pattern.compile(
 			"personal chem price boost:\\s*(.+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern CHECK_PRESTIGE = Pattern.compile(
@@ -27,6 +30,10 @@ public final class PersonalBoosters {
 		Matcher redeem = REDEEM_CHEM.matcher(text);
 		if (redeem.find()) {
 			setChem(Durations.parseMs(redeem.group(1)));
+		}
+		Matcher redeemPrestige = REDEEM_PRESTIGE.matcher(text);
+		if (redeemPrestige.find()) {
+			setPrestige(Durations.parseMs(redeemPrestige.group(1)));
 		}
 		Matcher chem = CHECK_CHEM.matcher(text);
 		if (chem.find()) {
