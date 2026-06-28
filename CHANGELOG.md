@@ -5,6 +5,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-06-28
+
 ### Added
 - **A Chemtainer widget that shows what you've banked.** It lists your chems by quantity and estimates how many **inventories** they'd fill (e.g. `3.4 Inventories`), with a **Using Satchel** toggle in the HUD editor that switches the per-inventory capacity. It learns your contents three ways: opening `/ch` reads the exact contents, and two new keybinds keep it current as you play.
 - **Deposit and Withdraw Chemtainer keybinds.** **Deposit Chemtainer** (default `B`) sends `/ch qd` and adds whatever chems just left your inventory; **Withdraw Chemtainer** (default `N`) runs `/ch withdraw` for whichever chem you have the most of and subtracts what the server reports. They work whether you press the key or type `/ch qd` yourself.
@@ -19,6 +21,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Fixed
 - **The Chemtainer widget no longer falls behind when you deposit fast.** Depositing quickly with `B` / `/ch qd`, or picking up more chems before the widget caught up, used to undercount — each deposit was guessed from a single before/after inventory snapshot, so anything you farmed in the meantime was subtracted straight out of the count, and a second deposit could wipe out the first. It now follows each chem leaving your inventory as it happens and checks the running tally against the server's own `Deposited N chems` total, so back-to-back deposits and farming-while-depositing both add up correctly. (Opening `/ch` still gives the exact contents and now takes priority over any in-progress estimate.)
 - **Redeeming a Personal Prestige Progress Boost now starts its timer.** The chem-price boost was detected on redeem but the prestige boost wasn't (its chat line has no colon, unlike `/checkboost`), so the widget never showed it — now both are picked up.
+- **The Chemtainer HUD no longer crashes on fast withdrawals on ARM Macs.** The render thread was iterating the live entry list while the chat thread could remove from it simultaneously; on Apple Silicon the two stores in `ArrayList.remove` (size decrement and null-slot write) can become visible out of order, producing a null element that caused a `NullPointerException` in the sort comparator and killed HUD rendering. The list is now copied inside the lock before it leaves `ChemtainerTracker`, so the render thread always works on a stable snapshot.
 
 ## [1.11.1] - 2026-06-20
 
@@ -69,6 +72,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.12.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.0
 [1.11.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.1
 [1.11.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.0
 [1.10.2]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.10.2

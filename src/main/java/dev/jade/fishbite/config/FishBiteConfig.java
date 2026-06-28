@@ -147,10 +147,11 @@ public class FishBiteConfig {
 		if (this.chemtainer != null) {
 			for (ChemtainerEntry entry : this.chemtainer) {
 				if (entry != null && entry.chem != null && entry.count > 0) {
-					if (entry.purity == null) {
-						entry.purity = "";
-					}
-					clean.chemtainer.add(entry);
+					clean.chemtainer.add(new ChemtainerEntry(
+							entry.chem,
+							entry.purity == null ? "" : entry.purity,
+							entry.label == null ? "" : entry.label,
+							entry.count));
 				}
 			}
 		}

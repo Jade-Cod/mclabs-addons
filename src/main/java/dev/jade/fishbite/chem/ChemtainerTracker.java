@@ -104,7 +104,7 @@ public final class ChemtainerTracker {
 	}
 
 	public static synchronized List<ChemtainerEntry> entries() {
-		return FishBiteConfig.get().chemtainer;
+		return new ArrayList<>(FishBiteConfig.get().chemtainer);
 	}
 
 	public static long snapshotMs() {
