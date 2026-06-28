@@ -53,15 +53,19 @@ public abstract class HudObject {
 		return java.util.List.of();
 	}
 
+	private HudObjectSettings cachedSettings;
+
 	public HudObjectSettings settings() {
-		FishBiteConfig config = FishBiteConfig.get();
-		HudObjectSettings settings = config.hudObjects.get(id());
-		if (settings == null) {
-			settings = defaultSettings().copy();
-			config.hudObjects.put(id(), settings);
-			config.save();
+		if (cachedSettings == null) {
+			FishBiteConfig config = FishBiteConfig.get();
+			cachedSettings = config.hudObjects.get(id());
+			if (cachedSettings == null) {
+				cachedSettings = defaultSettings().copy();
+				config.hudObjects.put(id(), cachedSettings);
+				config.saveAsync();
+			}
 		}
-		return settings;
+		return cachedSettings;
 	}
 
 	/**

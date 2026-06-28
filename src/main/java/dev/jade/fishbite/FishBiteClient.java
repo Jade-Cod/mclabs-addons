@@ -61,7 +61,7 @@ public class FishBiteClient implements ClientModInitializer {
 	private static KeyBinding chumEditorKey;
 	private static KeyBinding chemDepositKey;
 	private static KeyBinding chemWithdrawKey;
-	private static Object lastRatesScreen;
+	private static net.minecraft.client.gui.screen.Screen lastRatesScreen;
 
 	/** Create the "McLab Addons" category and hoist it above the vanilla ones
 	 *  (mod categories are otherwise appended last). Best-effort: if the registry
@@ -170,11 +170,13 @@ public class FishBiteClient implements ClientModInitializer {
 			// the countdown).
 			net.minecraft.client.gui.screen.Screen current = client.currentScreen;
 			if (current instanceof HandledScreen<?> handledScreen) {
-				if (current != lastRatesScreen
-						&& (LabWarsRatesReader.tryRead(handledScreen)
-								|| BoosterRatesReader.tryRead(handledScreen)
-								|| ChemtainerReader.tryRead(handledScreen))) {
+				if (current != lastRatesScreen) {
 					lastRatesScreen = current;
+					if (!LabWarsRatesReader.tryRead(handledScreen)) {
+						if (!BoosterRatesReader.tryRead(handledScreen)) {
+							ChemtainerReader.tryRead(handledScreen);
+						}
+					}
 				}
 			} else {
 				lastRatesScreen = null;

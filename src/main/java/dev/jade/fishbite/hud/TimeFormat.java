@@ -15,8 +15,8 @@ public final class TimeFormat {
 		if (days > 0) {
 			return days + "d " + hours + "h";
 		}
-		return hours > 0
-				? String.format("%d:%02d:%02d", hours, minutes, seconds)
-				: String.format("%d:%02d", minutes, seconds);
+		String mStr = minutes < 10 ? "0" + minutes : String.valueOf(minutes);
+		String sStr = seconds < 10 ? "0" + seconds : String.valueOf(seconds);
+		return hours > 0 ? hours + ":" + mStr + ":" + sStr : minutes + ":" + sStr;
 	}
 }

@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 public final class BoosterRatesReader {
 	private static final Pattern BOOST = Pattern.compile("Boost:\\s*([0-9]+(?:\\.[0-9]+)?)x", Pattern.CASE_INSENSITIVE);
 	private static final Pattern TIME_LEFT = Pattern.compile("Time left:\\s*(.+)", Pattern.CASE_INSENSITIVE);
+	private static final Pattern PRICE_BOOSTER_SUFFIX = Pattern.compile("\\s*price booster\\s*$", Pattern.CASE_INSENSITIVE);
 	private static final String BOOSTER_NAME = "price booster";
 
 	private BoosterRatesReader() {
@@ -63,7 +64,7 @@ public final class BoosterRatesReader {
 			return ChemIcons.isAllBooster(key) ? "All Chems" : key;
 		}
 		// "Glocobinide Price Booster" -> "Glocobinide"
-		return nameString(stack).replaceAll("(?i)\\s*price booster\\s*$", "").trim();
+		return PRICE_BOOSTER_SUFFIX.matcher(nameString(stack)).replaceAll("").trim();
 	}
 
 	private static double firstMatch(List<String> lore, Pattern pattern) {

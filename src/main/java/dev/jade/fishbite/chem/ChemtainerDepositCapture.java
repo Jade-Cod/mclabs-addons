@@ -38,6 +38,7 @@ public final class ChemtainerDepositCapture {
 	private static final int SETTLE_TICKS = 8;
 	/** Ticks to wait for a deposit confirmation before discarding an unconfirmed arm. */
 	private static final int CONFIRM_TIMEOUT_TICKS = 60;
+	private static final Object LOCK = new Object();
 
 	private static Map<ChemItems.ChemKey, Long> reference;
 	private static Map<ChemItems.ChemKey, Long> pending;
@@ -57,66 +58,76 @@ public final class ChemtainerDepositCapture {
 	 * never discard an in-flight capture.
 	 */
 	public static void arm(Map<ChemItems.ChemKey, Long> snapshot) {
-		if (reference == null) {
-			reference = new HashMap<>(snapshot);
-			pending = new HashMap<>();
-			reportedTotal = 0;
-			haveTotal = false;
-			depositSeen = false;
-			settleCountdown = SETTLE_TICKS;
-			confirmTimeout = CONFIRM_TIMEOUT_TICKS;
-		} else {
-			// A new quick-deposit while one is still settling: keep the running
-			// reference/pending and just give the new deposit time to confirm.
-			settleCountdown = SETTLE_TICKS;
+		synchronized (LOCK) {
+			if (reference == null) {
+				reference = new HashMap<>(snapshot);
+				pending = new HashMap<>();
+				reportedTotal = 0;
+				haveTotal = false;
+				depositSeen = false;
+				settleCountdown = SETTLE_TICKS;
+				confirmTimeout = CONFIRM_TIMEOUT_TICKS;
+			} else {
+				// A new quick-deposit while one is still settling: keep the running
+				// reference/pending and just give the new deposit time to confirm.
+				settleCountdown = SETTLE_TICKS;
+			}
 		}
 	}
 
 	/** A numbered "Deposited N chems" line: confirm the deposit and add N to the total. */
 	public static void noteDeposit(long count) {
-		if (reference == null) {
-			return;
+		synchronized (LOCK) {
+			if (reference == null) {
+				return;
+			}
+			depositSeen = true;
+			haveTotal = true;
+			reportedTotal += Math.max(0, count);
+			settleCountdown = SETTLE_TICKS;
 		}
-		depositSeen = true;
-		haveTotal = true;
-		reportedTotal += Math.max(0, count);
-		settleCountdown = SETTLE_TICKS;
 	}
 
 	/** A "Chemtainer is full" line (no number): confirm a deposit happened, total unknown. */
 	public static void noteFull() {
-		if (reference == null) {
-			return;
+		synchronized (LOCK) {
+			if (reference == null) {
+				return;
+			}
+			depositSeen = true;
+			settleCountdown = SETTLE_TICKS;
 		}
-		depositSeen = true;
-		settleCountdown = SETTLE_TICKS;
 	}
 
 	/** Discard any in-flight capture — an authoritative /ch scrape supersedes the diff. */
 	public static void cancel() {
-		disarm();
+		synchronized (LOCK) {
+			disarm();
+		}
 	}
 
 	/** Advance the capture each client tick: track inventory changes, flush when settled. */
 	public static void tick() {
-		if (reference == null) {
-			return;
-		}
-		PlayerInventory inventory = inventory();
-		if (inventory == null) {
-			return;
-		}
-		track(ChemItems.snapshot(inventory));
-		if (!depositSeen) {
-			if (--confirmTimeout <= 0) {
-				disarm(); // never confirmed — the removals weren't a deposit
+		synchronized (LOCK) {
+			if (reference == null) {
+				return;
 			}
-			return;
+			PlayerInventory inventory = inventory();
+			if (inventory == null) {
+				return;
+			}
+			track(ChemItems.snapshot(inventory));
+			if (!depositSeen) {
+				if (--confirmTimeout <= 0) {
+					disarm(); // never confirmed — the removals weren't a deposit
+				}
+				return;
+			}
+			if (--settleCountdown > 0) {
+				return;
+			}
+			flush();
 		}
-		if (--settleCountdown > 0) {
-			return;
-		}
-		flush();
 	}
 
 	/** Fold the latest inventory snapshot into reference/pending (drops = deposits). */

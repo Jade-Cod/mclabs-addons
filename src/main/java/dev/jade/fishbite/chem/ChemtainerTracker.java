@@ -49,28 +49,28 @@ public final class ChemtainerTracker {
 	}
 
 	/** Replace the stored contents with a fresh authoritative scrape of /ch. */
-	public static void snapshot(List<ChemtainerEntry> entries) {
+	public static synchronized void snapshot(List<ChemtainerEntry> entries) {
 		// An authoritative scrape supersedes any in-flight deposit diff; discard it so
 		// a pending flush can't double-count chems this scrape already reflects.
 		ChemtainerDepositCapture.cancel();
 		FishBiteConfig config = FishBiteConfig.get();
 		config.chemtainer = new ArrayList<>(entries);
 		config.chemtainerSnapshotMs = System.currentTimeMillis();
-		config.save();
+		config.saveAsync();
 	}
 
 	/** Add a captured deposit (from the inventory diff) to the ledger. */
-	public static void applyDeposit(Map<ChemKey, Long> deposited) {
+	public static synchronized void applyDeposit(Map<ChemKey, Long> deposited) {
 		FishBiteConfig config = FishBiteConfig.get();
 		for (Map.Entry<ChemKey, Long> entry : deposited.entrySet()) {
 			add(config.chemtainer, entry.getKey(), entry.getValue());
 		}
 		config.chemtainerSnapshotMs = System.currentTimeMillis();
-		config.save();
+		config.saveAsync();
 	}
 
 	/** Subtract a withdrawn amount (from the "Withdrew N …" chat line) from the ledger. */
-	public static void applyWithdraw(ChemKey key, long count) {
+	public static synchronized void applyWithdraw(ChemKey key, long count) {
 		FishBiteConfig config = FishBiteConfig.get();
 		ChemtainerEntry entry = find(config.chemtainer, key);
 		if (entry != null) {
@@ -80,11 +80,11 @@ public final class ChemtainerTracker {
 			}
 		}
 		config.chemtainerSnapshotMs = System.currentTimeMillis();
-		config.save();
+		config.saveAsync();
 	}
 
 	/** The chem you have the most of (what the withdraw keybind targets), or null. */
-	public static ChemKey largestChem() {
+	public static synchronized ChemKey largestChem() {
 		ChemtainerEntry largest = null;
 		for (ChemtainerEntry entry : entries()) {
 			if (largest == null || entry.count > largest.count) {
@@ -95,7 +95,7 @@ public final class ChemtainerTracker {
 	}
 
 	/** Total chems stored across all entries (used for the inventory estimate). */
-	public static long totalChems() {
+	public static synchronized long totalChems() {
 		long total = 0;
 		for (ChemtainerEntry entry : entries()) {
 			total += entry.count;
@@ -103,7 +103,7 @@ public final class ChemtainerTracker {
 		return total;
 	}
 
-	public static List<ChemtainerEntry> entries() {
+	public static synchronized List<ChemtainerEntry> entries() {
 		return FishBiteConfig.get().chemtainer;
 	}
 
@@ -115,11 +115,11 @@ public final class ChemtainerTracker {
 		return FishBiteConfig.get().chemtainerSnapshotMs > 0;
 	}
 
-	public static void clear() {
+	public static synchronized void clear() {
 		FishBiteConfig config = FishBiteConfig.get();
 		config.chemtainer = new ArrayList<>();
 		config.chemtainerSnapshotMs = 0L;
-		config.save();
+		config.saveAsync();
 	}
 
 	private static void add(List<ChemtainerEntry> list, ChemKey key, long count) {

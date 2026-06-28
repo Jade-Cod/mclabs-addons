@@ -60,12 +60,13 @@ public final class BiteMarker {
 		BlockPos pos = BlockPos.ofFloored(lerped);
 		if (world.getFluidState(pos).isIn(FluidTags.WATER)) {
 			int topY = pos.getY();
+			BlockPos.Mutable mutablePos = pos.mutableCopy();
 			while (topY - pos.getY() < MAX_SURFACE_SCAN
-					&& world.getFluidState(new BlockPos(pos.getX(), topY + 1, pos.getZ())).isIn(FluidTags.WATER)) {
+					&& world.getFluidState(mutablePos.set(pos.getX(), topY + 1, pos.getZ())).isIn(FluidTags.WATER)) {
 				topY++;
 			}
-			BlockPos top = new BlockPos(pos.getX(), topY, pos.getZ());
-			double surfaceY = topY + world.getFluidState(top).getHeight(world, top);
+			mutablePos.set(pos.getX(), topY, pos.getZ());
+			double surfaceY = topY + world.getFluidState(mutablePos).getHeight(world, mutablePos);
 			offsetY = Math.max(offsetY, surfaceY + SURFACE_CLEARANCE - lerped.y);
 		}
 

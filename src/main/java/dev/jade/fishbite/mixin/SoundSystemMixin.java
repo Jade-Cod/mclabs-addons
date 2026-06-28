@@ -1,5 +1,6 @@
 package dev.jade.fishbite.mixin;
 
+import dev.jade.fishbite.BiteMarker;
 import dev.jade.fishbite.config.FishBiteConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -57,7 +58,7 @@ public abstract class SoundSystemMixin {
 			return;
 		}
 
-		boolean isOwn = bobber.getPlayerOwner() == client.player;
+		boolean isOwn = BiteMarker.isOwnBobber(bobber);
 		if (!isOwn) {
 			if (config.muteOtherBobbers) {
 				cir.setReturnValue(SoundSystem.PlayResult.NOT_STARTED);
@@ -99,10 +100,10 @@ public abstract class SoundSystemMixin {
 			return;
 		}
 
-		SoundEvent replacement = Registries.SOUND_EVENT.get(replacementId);
-		if (replacement == null) {
+		if (!Registries.SOUND_EVENT.containsId(replacementId)) {
 			return;
 		}
+		SoundEvent replacement = Registries.SOUND_EVENT.get(replacementId);
 
 		cir.setReturnValue(SoundSystem.PlayResult.NOT_STARTED);
 		client.getSoundManager().play(new PositionedSoundInstance(

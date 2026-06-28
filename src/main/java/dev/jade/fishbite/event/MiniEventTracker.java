@@ -21,7 +21,7 @@ public final class MiniEventTracker {
 	private static final Pattern UPCOMING =
 			Pattern.compile("Mini-?Event will begin in\\s+(.+?)\\s*[!.\\n\\r]", Pattern.CASE_INSENSITIVE);
 	private static final Pattern BEGUN =
-			Pattern.compile("([A-Za-z][A-Za-z' ]*?)\\s+event has begun!", Pattern.CASE_INSENSITIVE);
+			Pattern.compile("([A-Za-z]+(?:[' ][A-Za-z]+)*)\\s+event has begun!", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ENDS =
 			Pattern.compile("Mini-event ends in\\s+(.+?)[.\\n\\r]", Pattern.CASE_INSENSITIVE);
 	private static final Pattern DURATION =

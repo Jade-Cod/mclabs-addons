@@ -57,10 +57,10 @@ public final class BoosterTracker {
 	 * /chems "Booster(s) active!" GUI scrape ({@link BoosterRatesReader}); the GUI's
 	 * "Time left" simply refreshes the countdown, the same way /lw rates does.
 	 */
-	public static void track(String item, double multiplier, long expiryEpochMs) {
+	public static synchronized void track(String item, double multiplier, long expiryEpochMs) {
 		FishBiteConfig config = FishBiteConfig.get();
 		config.boosters.put(storageKey(item), new BoosterState(item, multiplier, expiryEpochMs));
-		config.save();
+		config.saveAsync();
 	}
 
 	/** Canonical map key: every "All Chems"/"all_chem_booster" variant collapses to one entry. */
@@ -85,22 +85,22 @@ public final class BoosterTracker {
 	}
 
 	/** Active boosters sorted by soonest expiry; prunes expired entries. */
-	public static List<BoosterState> active() {
+	public static synchronized List<BoosterState> active() {
 		FishBiteConfig config = FishBiteConfig.get();
 		boolean pruned = config.boosters.values()
 				.removeIf(booster -> booster == null || booster.remainingMs() <= 0);
 		if (pruned) {
-			config.save();
+			config.saveAsync();
 		}
 		List<BoosterState> list = new ArrayList<>(config.boosters.values());
 		list.sort(Comparator.comparingLong(booster -> booster.expiryEpochMs));
 		return list;
 	}
 
-	public static void clear() {
+	public static synchronized void clear() {
 		FishBiteConfig config = FishBiteConfig.get();
 		config.boosters.clear();
-		config.save();
+		config.saveAsync();
 	}
 
 	public static String formatRemaining(BoosterState booster) {
