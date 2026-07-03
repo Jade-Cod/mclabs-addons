@@ -7,7 +7,7 @@ package dev.jade.fishbite.chem;
 public class ChemtainerEntry {
 	/** Lowercase chem key (e.g. {@code "chowartusite"}), used to pick the icon. */
 	public String chem = "";
-	/** Purity string "s-v-p" (e.g. {@code "2-2-2"}), or "" when the chem has none. */
+	/** Purity string "v-p-s" (e.g. {@code "2-2-2"}), or "" when the chem has none. */
 	public String purity = "";
 	/** Display label including purity, e.g. {@code "Chowartusite-2-2-2"}. */
 	public String label = "";
