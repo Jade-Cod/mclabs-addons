@@ -29,6 +29,9 @@ import dev.jade.fishbite.chem.ChemtainerReader;
 import dev.jade.fishbite.chem.ChemtainerTracker;
 import dev.jade.fishbite.chum.ChumDetector;
 import dev.jade.fishbite.chum.ChumHudObject;
+import dev.jade.fishbite.cooldown.CooldownHudObject;
+import dev.jade.fishbite.mcmmo.McmmoAbility;
+import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
@@ -102,11 +105,17 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
+		HudObjects.register(new CooldownHudObject());
+		CooldownHudObject.addSource(McmmoCooldownTracker.source());
+		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
 				dispatchChat(message.getString());
+			} else {
+				// mcMMO delivers ability notices to the actionbar on many setups.
+				McmmoCooldownTracker.onMessage(message.getString());
 			}
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
@@ -211,6 +220,20 @@ public class FishBiteClient implements ClientModInitializer {
 		}
 	}
 
+	/** The mcMMO tool kind the player is holding (FISTS for an empty hand). */
+	private static McmmoAbility.Tool heldTool() {
+		var player = MinecraftClient.getInstance().player;
+		if (player == null) {
+			return null;
+		}
+		var held = player.getMainHandStack();
+		if (held.isEmpty()) {
+			return McmmoAbility.Tool.FISTS;
+		}
+		return McmmoAbility.Tool.fromItemId(
+				net.minecraft.registry.Registries.ITEM.getId(held.getItem()).toString());
+	}
+
 	/** Send a chat command (no leading slash); no-op when not connected. */
 	private static void sendChatCommand(String command) {
 		var network = MinecraftClient.getInstance().getNetworkHandler();
@@ -231,5 +254,6 @@ public class FishBiteClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		McmmoCooldownTracker.onMessage(text);
 	}
 }

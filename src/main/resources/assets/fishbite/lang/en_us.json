@@ -72,5 +72,7 @@
 	"fishbite.hud.editor.help": "Help",
 	"fishbite.hud.editor.help.tooltip": "Mod guide & sync commands",
 	"fishbite.hud.help.title": "MCLabs Addons Help",
-	"fishbite.hud.help.dismiss": "Got it"
+	"fishbite.hud.help.dismiss": "Got it",
+	"fishbite.hud.ability_cooldowns.name": "Ability Cooldowns",
+	"fishbite.hud.ability_cooldowns.clear": "Clear Cooldowns"
 }
