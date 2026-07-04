@@ -5,6 +5,7 @@
 	"client": [
 		"CameraAccessor",
 		"FishingBobberEntityAccessor",
+		"GameRendererInvoker",
 		"InGameHudMixin",
 		"KeyBindingCategoryAccessor",
 		"SoundSystemMixin"
