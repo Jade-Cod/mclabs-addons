@@ -1,6 +1,7 @@
 package dev.jade.fishbite.hud;
 
 import dev.jade.fishbite.config.FishBiteConfig;
+import dev.jade.fishbite.server.McLabsSession;
 import net.minecraft.client.gui.DrawContext;
 
 /**
@@ -84,7 +85,7 @@ public abstract class HudObject {
 	/** Renders background + content. {@code preview} forces visibility (editor). */
 	public final void render(DrawContext context, boolean preview) {
 		HudObjectSettings settings = settings();
-		if (!preview && (!settings.enabled || !shouldRender())) {
+		if (!preview && (!settings.enabled || !shouldRender() || !McLabsSession.isActive())) {
 			return;
 		}
 

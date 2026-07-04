@@ -2,6 +2,10 @@
 
 ## [1.12.1] - 2026-07-04
 
+### Added
+- **The mod's HUD widgets now only appear on the MCLabs server.** Chemtainer, boosters, dailies, bounty, and the rest of the tracked panel widgets are populated purely from MCLabs' own chat, so they used to just sit there empty on any other server (or in singleplayer). They now switch on automatically the moment you join MCLabs and stay hidden everywhere else. The floating "!" bite marker is unaffected and keeps working on any server, since it doesn't depend on MCLabs at all.
+- **The mod now lets you know in chat when a newer version is out.** Every time you join MCLabs, it checks Modrinth for a newer release and drops a quick local note if one exists — nothing is sent to the server, and it stays silent if you're offline or Modrinth is unreachable.
+
 ### Fixed
 - **Withdrawing a chem from the Chemtainer could pull out 0 instead of the chem you have.** Chat would read `Withdrew 0 <Chem>-X-Y-Z from your chemtainer` even though that exact chem was sitting right there. The mod was reading a chem's purity numbers in the wrong order (e.g. reading a `2-0-2` chem as `2-2-0`), so the withdraw request asked the server for a purity variant that didn't exist. Purity is now read in the correct order, so the withdraw keybind pulls out the chem you actually have.
 

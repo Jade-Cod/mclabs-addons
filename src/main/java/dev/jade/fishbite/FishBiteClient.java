@@ -32,11 +32,14 @@ import dev.jade.fishbite.chum.ChumHudObject;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
+import dev.jade.fishbite.server.McLabsSession;
+import dev.jade.fishbite.update.ModrinthUpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import dev.jade.fishbite.mixin.KeyBindingCategoryAccessor;
@@ -109,6 +112,12 @@ public class FishBiteClient implements ClientModInitializer {
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
 				dispatchChat(message.getString()));
 
+		// The MCLabs-only HUD widgets and update check key off this per-connection
+		// session flag; reset it on every fresh connection so a stale "yes" can't
+		// leak into a different server (or singleplayer).
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> McLabsSession.reset());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> McLabsSession.reset());
+
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
 		// without waiting for the server confirmation line. Fires on the main
 		// client thread (sendCommand), same as the receive listeners above.
@@ -151,6 +160,9 @@ public class FishBiteClient implements ClientModInitializer {
 				"key.fishbite.chem_withdraw", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (McLabsSession.tick(client)) {
+				ModrinthUpdateChecker.checkAndNotify();
+			}
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
