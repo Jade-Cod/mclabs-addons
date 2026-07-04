@@ -3,6 +3,7 @@ package dev.jade.fishbite.server;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.text.Text;
 
 import java.util.Locale;
 
@@ -19,6 +20,11 @@ public final class McLabsSession {
 	private static final String SIDEBAR_MARKER = "mclabs";
 
 	private static volatile boolean onMcLabs = false;
+	// Identity-cached: the server only swaps in a new Text when the sidebar title
+	// actually changes, so re-deriving the lowercase match on every tick (20/sec,
+	// for as long as any sidebar objective is shown) is wasted work.
+	private static Text lastSidebarTitle;
+	private static boolean lastSidebarMatched;
 
 	private McLabsSession() {
 	}
@@ -35,18 +41,26 @@ public final class McLabsSession {
 
 	private static boolean isOnMcLabsNetwork(MinecraftClient client) {
 		if (client.world == null) {
+			lastSidebarTitle = null;
 			return false;
 		}
 		ScoreboardObjective sidebar = client.world.getScoreboard().getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
 		if (sidebar == null) {
+			lastSidebarTitle = null;
 			return false;
 		}
-		return sidebar.getDisplayName().getString().toLowerCase(Locale.ROOT).contains(SIDEBAR_MARKER);
+		Text title = sidebar.getDisplayName();
+		if (title != lastSidebarTitle) {
+			lastSidebarTitle = title;
+			lastSidebarMatched = title.getString().toLowerCase(Locale.ROOT).contains(SIDEBAR_MARKER);
+		}
+		return lastSidebarMatched;
 	}
 
 	/** Call on every fresh connection so a stale session can't leak forward. */
 	public static void reset() {
 		onMcLabs = false;
+		lastSidebarTitle = null;
 	}
 
 	public static boolean isActive() {

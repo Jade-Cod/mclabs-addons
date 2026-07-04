@@ -19,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Checks Modrinth for a newer release of this mod and, if one exists, posts a
@@ -33,12 +34,21 @@ public final class ModrinthUpdateChecker {
 	private static final Duration TIMEOUT = Duration.ofSeconds(5);
 	private static final HttpClient CLIENT = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
 
+	// Guards against overlapping checks (e.g. rapid rejoin/reconnect) firing duplicate
+	// requests and, worse, duplicate "update available" chat lines.
+	private static final AtomicBoolean CHECK_IN_FLIGHT = new AtomicBoolean(false);
+
 	private ModrinthUpdateChecker() {
 	}
 
 	public static void checkAndNotify() {
+		if (!CHECK_IN_FLIGHT.compareAndSet(false, true)) {
+			return;
+		}
+
 		Optional<ModContainer> container = FabricLoader.getInstance().getModContainer(MOD_ID);
 		if (container.isEmpty()) {
+			CHECK_IN_FLIGHT.set(false);
 			return;
 		}
 		String currentVersion = container.get().getMetadata().getVersion().getFriendlyString();
@@ -54,7 +64,8 @@ public final class ModrinthUpdateChecker {
 				.exceptionally(e -> {
 					LOGGER.debug("[fishbite] Update check failed (offline or Modrinth unreachable).", e);
 					return null;
-				});
+				})
+				.whenComplete((unused, throwable) -> CHECK_IN_FLIGHT.set(false));
 	}
 
 	private static void handleResponse(HttpResponse<String> response, String currentVersion) {
