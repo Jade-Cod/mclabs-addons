@@ -8,7 +8,6 @@
 
 ### Fixed
 - **Withdrawing a chem from the Chemtainer could pull out 0 instead of the chem you have.** Chat would read `Withdrew 0 <Chem>-X-Y-Z from your chemtainer` even though that exact chem was sitting right there. The mod was reading a chem's purity numbers in the wrong order (e.g. reading a `2-0-2` chem as `2-2-0`), so the withdraw request asked the server for a purity variant that didn't exist. Purity is now read in the correct order, so the withdraw keybind pulls out the chem you actually have.
-- **The bite marker could drift away from your bobber if you had a zoom mod installed** — even without actually zooming in, just looking around. The marker was being positioned using a projection matrix Minecraft only uses for view-culling, which quietly assumes your field of view never narrows below your normal settings; zoom mods do narrow it, which threw the marker's math off. It now recomputes its position from the same matrix the game actually renders the frame with, so it stays locked to the bobber regardless of what zoom mod you're running.
 
 ## [1.12.0] - 2026-06-28
 

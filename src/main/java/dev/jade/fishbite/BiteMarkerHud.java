@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.world.WorldExtractionContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.projectile.FishingBobberEntity;
 import net.minecraft.text.Text;
@@ -40,15 +39,8 @@ public final class BiteMarkerHud {
 	/** WorldRenderEvents.END_EXTRACTION: capture this frame's camera matrices. */
 	public static void onEndExtraction(WorldExtractionContext context) {
 		VIEW.set(context.viewMatrix());
-
-		// cullProjectionMatrix() clamps FOV to never go below the options value, so it silently
-		// ignores whatever a zoom mod did to the FOV this frame. RenderFrameState.PROJECTION is
-		// captured directly from GameRenderer.renderWorld's own call (GameRendererProjectionMixin),
-		// so it's the exact matrix this frame renders with — no replay/recompute involved.
-		PROJECTION.set(RenderFrameState.PROJECTION);
-
-		Camera camera = context.camera();
-		cameraPos = ((CameraAccessor) camera).getPos();
+		PROJECTION.set(context.cullProjectionMatrix());
+		cameraPos = ((CameraAccessor) context.camera()).getPos();
 		tickProgress = context.tickCounter().getTickProgress(false);
 		frameValid = true;
 	}
