@@ -160,6 +160,9 @@ public class FishBiteClient implements ClientModInitializer {
 				"key.fishbite.chem_withdraw", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (McLabsSession.tick(client)) {
+				ModrinthUpdateChecker.checkAndNotify();
+			}
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
@@ -217,9 +220,6 @@ public class FishBiteClient implements ClientModInitializer {
 	}
 
 	private static void dispatchChat(String text) {
-		if (McLabsSession.onMessage(text)) {
-			ModrinthUpdateChecker.checkAndNotify();
-		}
 		BoosterTracker.onMessage(text);
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
