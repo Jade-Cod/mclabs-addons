@@ -9,7 +9,8 @@ import java.util.Locale;
  * e.g. singleplayer) fails closed.
  */
 public final class McLabsSession {
-	private static final String JOIN_BANNER_MARKER = "welcome to mclabs";
+	private static final String JOIN_BANNER_GREETING = "welcome to";
+	private static final String JOIN_BANNER_SERVER_NAME = "mclabs";
 
 	private static volatile boolean onMcLabs = false;
 
@@ -18,7 +19,8 @@ public final class McLabsSession {
 
 	/** @return true the moment this call is the one that activates the session. */
 	public static boolean onMessage(String plainText) {
-		if (!onMcLabs && plainText.toLowerCase(Locale.ROOT).contains(JOIN_BANNER_MARKER)) {
+		String lower = plainText.toLowerCase(Locale.ROOT);
+		if (!onMcLabs && lower.contains(JOIN_BANNER_GREETING) && lower.contains(JOIN_BANNER_SERVER_NAME)) {
 			onMcLabs = true;
 			return true;
 		}
