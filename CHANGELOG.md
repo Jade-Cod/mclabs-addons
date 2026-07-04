@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.12.1] - 2026-07-04
+
+### Fixed
+- **Withdrawing a chem from the Chemtainer could pull out 0 instead of the chem you have.** Chat would read `Withdrew 0 <Chem>-X-Y-Z from your chemtainer` even though that exact chem was sitting right there. The mod was reading a chem's purity numbers in the wrong order (e.g. reading a `2-0-2` chem as `2-2-0`), so the withdraw request asked the server for a purity variant that didn't exist. Purity is now read in the correct order, so the withdraw keybind pulls out the chem you actually have.
+
 ## [1.12.0] - 2026-06-28
 
 ### Added
@@ -67,6 +72,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.12.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.1
 [1.12.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.0
 [1.11.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.1
 [1.11.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.0

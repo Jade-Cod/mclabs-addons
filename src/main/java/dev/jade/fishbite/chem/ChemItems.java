@@ -17,11 +17,11 @@ import java.util.regex.Pattern;
  * Shared helpers for identifying chem items and reading their chem key + purity.
  * A chem item is authoritatively marked by a {@code custom_data} compound with a
  * {@code "chem"} field; its purity is {@code custom_data.purity}
- * {score,value,progress}. Used by the {@code /ch} GUI scrape, the deposit diff,
+ * {value,progress,score}. Used by the {@code /ch} GUI scrape, the deposit diff,
  * and the withdraw command builder so every code path keys chems identically.
  */
 public final class ChemItems {
-	/** A chem identity: lowercase key + purity string ("s-v-p", or "" if none). */
+	/** A chem identity: lowercase key + purity string ("v-p-s", or "" if none). */
 	public record ChemKey(String chem, String purity) {
 	}
 
@@ -56,7 +56,7 @@ public final class ChemItems {
 		return ChemBaseItems.keyFor(stack.getItem());
 	}
 
-	/** The purity string "s-v-p" (e.g. "2-2-2"), or "" when the item has no purity. */
+	/** The purity string "v-p-s" (e.g. "2-2-2"), or "" when the item has no purity. */
 	public static String purity(ItemStack stack) {
 		NbtCompound data = customData(stack);
 		if (data == null || !data.contains("purity")) {
@@ -69,7 +69,7 @@ public final class ChemItems {
 		if (score < 0 && value < 0 && progress < 0) {
 			return "";
 		}
-		return Math.max(0, score) + "-" + Math.max(0, value) + "-" + Math.max(0, progress);
+		return Math.max(0, value) + "-" + Math.max(0, progress) + "-" + Math.max(0, score);
 	}
 
 	public static ChemKey keyOf(ItemStack stack) {
