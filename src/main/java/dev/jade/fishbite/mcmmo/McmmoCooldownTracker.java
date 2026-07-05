@@ -145,11 +145,20 @@ public final class McmmoCooldownTracker {
 		if (ability == null) {
 			return;
 		}
+		// A worn-off message (approximate) always begins a fresh recharge cycle, and so
+		// does the first sighting of an ability we aren't already tracking. Anything else
+		// — too-tired lines, named-cooldown lines, /mccooldown rows — is just a correction
+		// of the remaining time on a cycle already in progress, so totalMs (the HUD ring's
+		// progress denominator) must be left alone; otherwise every resync would make the
+		// ring's recharge progress jump back to 0%.
+		boolean isNewCycle = approximate || !STATE.containsKey(ability);
 		Slot slot = STATE.computeIfAbsent(ability, key -> new Slot());
 		slot.active = false;
 		slot.readyAtMs = nowMs + durationMs;
 		slot.approximate = approximate;
-		slot.totalMs = durationMs;
+		if (isNewCycle) {
+			slot.totalMs = durationMs;
+		}
 	}
 
 	/**

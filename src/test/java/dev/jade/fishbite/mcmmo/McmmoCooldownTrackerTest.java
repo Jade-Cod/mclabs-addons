@@ -155,6 +155,21 @@ public class McmmoCooldownTrackerTest {
 	}
 
 	@Test
+	public void exactResyncOnTrackedCooldownPreservesTotalForRingProgress() {
+		// Cooldown begins via worn-off, seeded with the default 240s total.
+		McmmoCooldownTracker.onMessage("**Super Breaker has worn off**", NOW);
+		// 60s later the player resyncs (e.g. via /mccooldown) and gets the exact remaining time.
+		long resyncAt = NOW + 60_000L;
+		McmmoCooldownTracker.onMessage("Super Breaker - 180 seconds left", resyncAt);
+		CooldownEntry entry = only(resyncAt);
+		assertEquals(180_000L, entry.remainingMs(resyncAt));
+		// The total must stay the original 240s, not collapse to the 180s remaining,
+		// or the HUD ring's green progress would snap back to 0% on every resync.
+		assertEquals(McmmoCooldownTracker.DEFAULT_COOLDOWN_MS, entry.totalMs());
+		assertEquals(0.25f, entry.elapsedFraction(resyncAt), 0.001f);
+	}
+
+	@Test
 	public void entriesSortActiveFirstThenSoonest() {
 		McmmoCooldownTracker.onMessage("Super Breaker - 200 seconds left", NOW);
 		McmmoCooldownTracker.onMessage("Giga Drill Breaker - 50 seconds left", NOW);
