@@ -2,6 +2,9 @@ package dev.jade.fishbite.cooldown;
 
 import dev.jade.fishbite.hud.HudObject;
 import dev.jade.fishbite.hud.HudObjectSettings;
+import dev.jade.fishbite.hud.TimeFormat;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -14,30 +17,37 @@ import java.util.List;
 
 /**
  * Generic multi-cooldown widget: one circular icon per tracked cooldown across
- * every registered {@link CooldownSource}, ringed by a two-tone recharge arc
- * (no text — the ring alone reads as a MOBA-style ability cooldown). Orange
- * is the elapsed portion, sweeping clockwise from the top; green is what's
- * left. An active ability's ring is solid accent teal; a freshly finished one
- * pulses solid green until it drops off.
+ * every registered {@link CooldownSource}, ringed by a recharge arc and
+ * labelled with the remaining time (M:SS). The ring starts solid red and
+ * green sweeps clockwise from the top as the cooldown recharges, like a clock
+ * hand, until the whole ring is green and ready. An active ability's ring is
+ * solid accent teal instead; a freshly finished one pulses solid green until
+ * it drops off.
  */
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
 
-	private static final float OUTER_RADIUS = 14f;
-	private static final float INNER_RADIUS = 11f;
-	private static final float DISC_RADIUS = 10f;
+	private static final float OUTER_RADIUS = 17f;
+	private static final float INNER_RADIUS = 14f;
+	private static final float DISC_RADIUS = 13.5f;
 	private static final float DIAMETER = OUTER_RADIUS * 2f;
-	private static final float GAP = 6f;
+	private static final float GAP = 8f;
 	private static final int ICON_SIZE = 16;
+	/** Icon top-left and text top, both relative to the ring's vertical center. */
+	private static final float ICON_Y_OFFSET = -11f;
+	private static final float TEXT_Y_OFFSET = 6f;
+	private static final float TEXT_SCALE = 0.75f;
+	private static final int TEXT_COLOR = 0xFFFFFFFF;
 
 	/** Wedge granularity for the recharge ring; coarser for the backdrop disc. */
 	private static final float RING_SEGMENT_DEG = 9f;
 	private static final float DISC_SEGMENT_DEG = 18f;
 
-	private static final int COLOR_ELAPSED = 0xFFFF8C1A;
-	private static final int COLOR_REMAINING = 0xFF4CD137;
+	/** Green fill, sweeping clockwise as the cooldown recharges (also the ready pulse). */
+	private static final int COLOR_PROGRESS = 0xFF4CD137;
+	/** Red base ring, shrinking as it's consumed by the green sweep. */
+	private static final int COLOR_BASE = 0xFFE74C3D;
 	private static final int COLOR_ACTIVE = 0xFF4FE3E3;
-	private static final int COLOR_READY = 0xFF4CD137;
 	private static final int COLOR_DISC_BG = 0x99202020;
 	/** Ready-pulse period; ~3 breaths across the linger window. */
 	private static final long PULSE_PERIOD_MS = 800L;
@@ -52,8 +62,8 @@ public class CooldownHudObject extends HudObject {
 		SOURCES.add(source);
 	}
 
-	private record Ring(@Nullable ItemStack icon, float elapsedFraction, boolean active, boolean ready,
-			boolean approximate) {
+	private record Ring(@Nullable ItemStack icon, long remainingMs, float elapsedFraction, boolean active,
+			boolean ready, boolean approximate) {
 	}
 
 	@Override
@@ -86,7 +96,7 @@ public class CooldownHudObject extends HudObject {
 		List<Ring> rings = new ArrayList<>();
 		for (CooldownSource source : SOURCES) {
 			for (CooldownEntry entry : source.entries(now)) {
-				rings.add(new Ring(source.iconFor(entry.key()), entry.elapsedFraction(now),
+				rings.add(new Ring(source.iconFor(entry.key()), entry.remainingMs(now), entry.elapsedFraction(now),
 						entry.active(), entry.isReady(now), entry.approximate()));
 			}
 		}
@@ -95,8 +105,8 @@ public class CooldownHudObject extends HudObject {
 				previewPickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
 				previewAxe = new ItemStack(Items.DIAMOND_AXE);
 			}
-			rings.add(new Ring(previewPickaxe, 0.8f, false, false, false));
-			rings.add(new Ring(previewAxe, 1f, false, true, false));
+			rings.add(new Ring(previewPickaxe, 48_000L, 0.8f, false, false, false));
+			rings.add(new Ring(previewAxe, 0L, 1f, false, true, false));
 		}
 		return rings;
 	}
@@ -117,15 +127,34 @@ public class CooldownHudObject extends HudObject {
 
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
+		TextRenderer font = font();
 		float cx = OUTER_RADIUS;
 		float cy = OUTER_RADIUS;
 		for (Ring ring : rings(preview)) {
 			drawRing(context, cx, cy, ring);
 			if (ring.icon() != null) {
-				context.drawItem(ring.icon(), Math.round(cx - ICON_SIZE / 2f), Math.round(cy - ICON_SIZE / 2f));
+				context.drawItem(ring.icon(), Math.round(cx - ICON_SIZE / 2f), Math.round(cy + ICON_Y_OFFSET));
+			}
+			String text = timeText(ring);
+			if (text != null) {
+				drawCenteredScaledText(context, font, text, cx, cy + TEXT_Y_OFFSET, TEXT_SCALE, TEXT_COLOR);
 			}
 			cx += DIAMETER + GAP;
 		}
+	}
+
+	private static TextRenderer font() {
+		return MinecraftClient.getInstance().textRenderer;
+	}
+
+	/** M:SS remaining, "~" prefixed when only estimated; no label while actively channeling. */
+	@Nullable
+	private static String timeText(Ring ring) {
+		if (ring.active()) {
+			return null;
+		}
+		String formatted = TimeFormat.hms(ring.remainingMs());
+		return ring.approximate() ? "~" + formatted : formatted;
 	}
 
 	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
@@ -135,15 +164,15 @@ public class CooldownHudObject extends HudObject {
 			return;
 		}
 		if (ring.ready()) {
-			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, pulse(COLOR_READY), RING_SEGMENT_DEG);
+			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, pulse(COLOR_PROGRESS), RING_SEGMENT_DEG);
 			return;
 		}
-		float elapsedDeg = ring.elapsedFraction() * 360f;
+		float progressDeg = ring.elapsedFraction() * 360f;
 		boolean dim = ring.approximate();
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, elapsedDeg,
-				dim ? withAlpha(COLOR_ELAPSED, 0xE6) : COLOR_ELAPSED, RING_SEGMENT_DEG);
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, elapsedDeg, 360f - elapsedDeg,
-				dim ? withAlpha(COLOR_REMAINING, 0xE6) : COLOR_REMAINING, RING_SEGMENT_DEG);
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, progressDeg,
+				dim ? withAlpha(COLOR_PROGRESS, 0xE6) : COLOR_PROGRESS, RING_SEGMENT_DEG);
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, progressDeg, 360f - progressDeg,
+				dim ? withAlpha(COLOR_BASE, 0xE6) : COLOR_BASE, RING_SEGMENT_DEG);
 	}
 
 	/**
@@ -176,6 +205,17 @@ public class CooldownHudObject extends HudObject {
 			context.fill(x1, y1, x2, y2, color);
 			matrices.popMatrix();
 		}
+	}
+
+	/** Draws text centered at ({@code cx}, {@code topY}) shrunk by {@code scale}. */
+	private static void drawCenteredScaledText(DrawContext context, TextRenderer font, String text, float cx,
+			float topY, float scale, int color) {
+		Matrix3x2fStack matrices = context.getMatrices();
+		matrices.pushMatrix();
+		matrices.translate(cx, topY);
+		matrices.scale(scale, scale);
+		context.drawCenteredTextWithShadow(font, text, 0, 0, color);
+		matrices.popMatrix();
 	}
 
 	private static int withAlpha(int color, int alpha) {

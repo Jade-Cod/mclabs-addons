@@ -196,6 +196,20 @@ public final class McmmoCooldownTracker {
 		STATE.clear();
 	}
 
+	/**
+	 * Recognises the server's Smelling Salts item by its custom_model_data string;
+	 * using one resets every cooldown. A plain stateless check (unlike
+	 * {@link dev.jade.fishbite.chum.ChumDetector}, which also owns debounce state),
+	 * so it lives here rather than in its own class.
+	 */
+	public static boolean isSmellingSalts(net.minecraft.item.ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return false;
+		}
+		var modelData = stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
+		return modelData != null && modelData.strings().contains("smellingsalts");
+	}
+
 	static String keyFor(McmmoAbility ability) {
 		return "mcmmo:" + ability.name().toLowerCase(Locale.ROOT);
 	}
