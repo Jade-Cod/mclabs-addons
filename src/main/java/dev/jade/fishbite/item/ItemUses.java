@@ -1,13 +1,22 @@
 package dev.jade.fishbite.item;
 
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 
-/** Reads the remaining "uses" (charges) custom_data field used by server items
- *  like Smoke Bomb / Smelling Salts / Janky Jetski. */
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/** Reads the remaining "uses" (charges) left on a server item like Smoke Bomb,
+ *  Smelling Salts, or Janky Jetski. Only some of these set a custom_data
+ *  "uses" field — every one of them mirrors the count into a lore line
+ *  ("Charges: 3"), so that's the fallback and the only source for items
+ *  (XL potions, Whetstone, etc.) that skip custom_data entirely. */
 public final class ItemUses {
+	private static final Pattern CHARGES_LORE = Pattern.compile("Charges:\\s*([0-9]+)", Pattern.CASE_INSENSITIVE);
+
 	private ItemUses() {
 	}
 
@@ -16,8 +25,27 @@ public final class ItemUses {
 		if (stack.isEmpty() || stack.getCount() != 1) {
 			return -1;
 		}
+		int fromCustomData = customDataUses(stack);
+		return fromCustomData >= 0 ? fromCustomData : loreCharges(stack);
+	}
+
+	private static int customDataUses(ItemStack stack) {
 		NbtComponent component = stack.get(DataComponentTypes.CUSTOM_DATA);
 		NbtCompound data = component == null ? null : component.copyNbt();
 		return data != null && data.contains("uses") ? data.getInt("uses", -1) : -1;
+	}
+
+	private static int loreCharges(ItemStack stack) {
+		LoreComponent lore = stack.get(DataComponentTypes.LORE);
+		if (lore == null) {
+			return -1;
+		}
+		for (var line : lore.lines()) {
+			Matcher matcher = CHARGES_LORE.matcher(line.getString());
+			if (matcher.find()) {
+				return Integer.parseInt(matcher.group(1));
+			}
+		}
+		return -1;
 	}
 }
