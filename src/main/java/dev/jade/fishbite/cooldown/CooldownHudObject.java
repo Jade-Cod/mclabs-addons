@@ -18,19 +18,21 @@ import java.util.List;
 /**
  * Generic multi-cooldown widget: one circular icon per tracked cooldown across
  * every registered {@link CooldownSource}, ringed by a recharge arc and
- * labelled with the remaining time (M:SS). The ring starts solid red and
+ * labelled with the remaining time (M:SS). The ring starts solid orange and
  * green sweeps clockwise from the top as the cooldown recharges, like a clock
  * hand, until the whole ring is green and ready. An active ability's ring is
  * solid accent teal instead; a freshly finished one pulses solid green until
- * it drops off.
+ * it drops off. A thin gray rim frames both edges of the ring.
  */
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
 
-	private static final float OUTER_RADIUS = 18f;
-	private static final float INNER_RADIUS = 15f;
-	private static final float DISC_RADIUS = 14.5f;
-	private static final float DIAMETER = OUTER_RADIUS * 2f;
+	private static final float RING_OUTER_RADIUS = 18f;
+	private static final float RING_INNER_RADIUS = 15f;
+	private static final float BORDER_THICKNESS = 1.5f;
+	private static final float BORDER_OUTER_RADIUS = RING_OUTER_RADIUS + BORDER_THICKNESS;
+	private static final float BORDER_INNER_RADIUS = RING_INNER_RADIUS - BORDER_THICKNESS;
+	private static final float DIAMETER = BORDER_OUTER_RADIUS * 2f;
 	private static final float GAP = 8f;
 	private static final int ICON_SIZE = 16;
 	/** Icon top-left and text top, both relative to the ring's vertical center. */
@@ -38,23 +40,17 @@ public class CooldownHudObject extends HudObject {
 	private static final float TEXT_Y_OFFSET = 6f;
 	private static final int TEXT_COLOR = 0xFFFFFFFF;
 
-	/** Wedge granularity for the recharge ring; coarser for the backdrop disc. */
-	private static final float RING_SEGMENT_DEG = 9f;
-	private static final float DISC_SEGMENT_DEG = 18f;
+	/** Wedge granularity for the progress split — the one shape that genuinely needs an angular cut. */
+	private static final float RING_SEGMENT_DEG = 2.5f;
 
-	/** Green fill, sweeping clockwise as the cooldown recharges (also the ready pulse). */
-	private static final int COLOR_PROGRESS = 0xFF4CD137;
-	/** Red base ring, shrinking as it's consumed by the green sweep. */
-	private static final int COLOR_BASE = 0xFFE74C3D;
+	/** Green fill, sweeping clockwise as the cooldown recharges (also the ready pulse). Sampled from reference. */
+	private static final int COLOR_PROGRESS = 0xFF00A500;
+	/** Orange base ring, shrinking as it's consumed by the green sweep. Sampled from reference. */
+	private static final int COLOR_BASE = 0xFFA24800;
 	private static final int COLOR_ACTIVE = 0xFF4FE3E3;
-	/**
-	 * Backdrop disc behind the icon. Always fully opaque: the disc/ring are drawn as
-	 * many overlapping rotated rectangles (see {@link #fillArcSector}), and any
-	 * translucency there compounds unevenly where wedges cross — visible as a
-	 * starburst moiré radiating from the center. Opaque paint is overlap-proof:
-	 * painting the same solid color twice looks identical to painting it once.
-	 */
-	private static final int COLOR_DISC_BG = 0xFF202020;
+	/** Thin rim framing both edges of the ring. Sampled from reference. */
+	private static final int COLOR_BORDER = 0xFF4C4C4C;
+	private static final int COLOR_DISC_BG = 0x99202020;
 	/** Ready-pulse period; ~3 breaths across the linger window. */
 	private static final long PULSE_PERIOD_MS = 800L;
 
@@ -134,8 +130,8 @@ public class CooldownHudObject extends HudObject {
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
 		TextRenderer font = font();
-		float cx = OUTER_RADIUS;
-		float cy = OUTER_RADIUS;
+		float cx = BORDER_OUTER_RADIUS;
+		float cy = BORDER_OUTER_RADIUS;
 		for (Ring ring : rings(preview)) {
 			drawRing(context, cx, cy, ring);
 			if (ring.icon() != null) {
@@ -160,35 +156,83 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
-		fillArcSector(context, cx, cy, 0f, DISC_RADIUS, 0f, 360f, COLOR_DISC_BG, DISC_SEGMENT_DEG);
+		fillDisc(context, cx, cy, BORDER_INNER_RADIUS, COLOR_DISC_BG);
+		fillAnnulus(context, cx, cy, BORDER_INNER_RADIUS, RING_INNER_RADIUS, COLOR_BORDER);
 		if (ring.active()) {
-			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, COLOR_ACTIVE, RING_SEGMENT_DEG);
-			return;
+			fillAnnulus(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, COLOR_ACTIVE);
+		} else if (ring.ready()) {
+			fillAnnulus(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, pulse(COLOR_PROGRESS));
+		} else {
+			float progressDeg = ring.elapsedFraction() * 360f;
+			fillArcSector(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, 0f, progressDeg, COLOR_PROGRESS);
+			fillArcSector(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, progressDeg, 360f - progressDeg,
+					COLOR_BASE);
 		}
-		if (ring.ready()) {
-			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, pulse(COLOR_PROGRESS), RING_SEGMENT_DEG);
-			return;
-		}
-		float progressDeg = ring.elapsedFraction() * 360f;
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, progressDeg, COLOR_PROGRESS, RING_SEGMENT_DEG);
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, progressDeg, 360f - progressDeg, COLOR_BASE,
-				RING_SEGMENT_DEG);
+		fillAnnulus(context, cx, cy, RING_OUTER_RADIUS, BORDER_OUTER_RADIUS, COLOR_BORDER);
 	}
 
 	/**
-	 * Fills an annulus sector (or, with {@code innerR = 0}, a disc) by approximating
-	 * it as a fan of thin rotated rectangles — {@link DrawContext} has no native arc
-	 * primitive, but {@code fill()} snapshots the current matrix per-quad, so a small
-	 * rotation between calls produces a rotated quad. {@code startDeg}/{@code sweepDeg}
-	 * are measured clockwise from the top (12 o'clock).
+	 * Fills a disc per horizontal scanline (one non-overlapping row per pixel, its
+	 * half-width from the circle equation) rather than approximating it from rotated
+	 * quads. This is pixel-accurate — no polygon faceting — and safe for translucent
+	 * colors: unlike overlapping rotated wedges, adjacent rows never double-paint the
+	 * same pixel, so alpha can't compound into visible seams.
+	 */
+	private static void fillDisc(DrawContext context, float cx, float cy, float radius, int color) {
+		int top = (int) Math.floor(cy - radius);
+		int bottom = (int) Math.ceil(cy + radius);
+		for (int y = top; y < bottom; y++) {
+			float dy = (y + 0.5f) - cy;
+			float discriminant = radius * radius - dy * dy;
+			if (discriminant <= 0f) {
+				continue;
+			}
+			float halfWidth = (float) Math.sqrt(discriminant);
+			context.fill(Math.round(cx - halfWidth), y, Math.round(cx + halfWidth), y + 1, color);
+		}
+	}
+
+	/** Same scanline technique as {@link #fillDisc}, hollowed out below {@code innerR}. */
+	private static void fillAnnulus(DrawContext context, float cx, float cy, float innerR, float outerR, int color) {
+		int top = (int) Math.floor(cy - outerR);
+		int bottom = (int) Math.ceil(cy + outerR);
+		for (int y = top; y < bottom; y++) {
+			float dy = (y + 0.5f) - cy;
+			float outerDisc = outerR * outerR - dy * dy;
+			if (outerDisc <= 0f) {
+				continue;
+			}
+			float outerHalf = (float) Math.sqrt(outerDisc);
+			float innerDisc = innerR * innerR - dy * dy;
+			if (innerDisc <= 0f) {
+				// This row is entirely above/below the inner circle — one continuous span.
+				context.fill(Math.round(cx - outerHalf), y, Math.round(cx + outerHalf), y + 1, color);
+			} else {
+				float innerHalf = (float) Math.sqrt(innerDisc);
+				context.fill(Math.round(cx - outerHalf), y, Math.round(cx - innerHalf), y + 1, color);
+				context.fill(Math.round(cx + innerHalf), y, Math.round(cx + outerHalf), y + 1, color);
+			}
+		}
+	}
+
+	/**
+	 * Fills an annulus sector by approximating it as a fan of thin rotated
+	 * rectangles — {@link DrawContext} has no native arc primitive, but {@code fill()}
+	 * snapshots the current matrix per-quad, so a small rotation between calls
+	 * produces a rotated quad. Only the progress/base split needs this: it's the one
+	 * ring shape whose color boundary sits at an arbitrary angle rather than following
+	 * a full circle, so {@link #fillAnnulus}'s per-row math doesn't apply. Every wedge
+	 * must stay fully opaque — translucency here compounds unevenly where wedges
+	 * overlap, visible as a starburst moiré. {@code startDeg}/{@code sweepDeg} are
+	 * measured clockwise from the top (12 o'clock).
 	 */
 	private static void fillArcSector(DrawContext context, float cx, float cy, float innerR, float outerR,
-			float startDeg, float sweepDeg, int color, float segmentDeg) {
+			float startDeg, float sweepDeg, int color) {
 		if (sweepDeg <= 0f) {
 			return;
 		}
 		sweepDeg = Math.min(360f, sweepDeg);
-		int segments = Math.max(1, (int) Math.ceil(sweepDeg / segmentDeg));
+		int segments = Math.max(1, (int) Math.ceil(sweepDeg / RING_SEGMENT_DEG));
 		float segDeg = sweepDeg / segments;
 		// Outer-edge arc length for one wedge, so neighboring wedges tile without gaps.
 		float halfThickness = (outerR * (float) Math.toRadians(segDeg)) / 2f + 0.5f;
@@ -220,12 +264,8 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	/**
-	 * The base color breathing in brightness (never alpha) between 70% and 100%.
-	 * Every wedge {@link #fillArcSector} paints must stay fully opaque: the ring/disc
-	 * are approximated as many overlapping rotated rectangles, and any translucency
-	 * there compounds unevenly where wedges cross, visible as a starburst moiré. An
-	 * opaque color painted twice looks identical to painted once, so pulsing via RGB
-	 * intensity gets the "breathing" effect with no overlap risk.
+	 * The base color breathing in brightness (never alpha) between 70% and 100%, so
+	 * the always-opaque-paint rule above still holds during the pulse.
 	 */
 	private static int pulse(int color) {
 		double phase = (System.currentTimeMillis() % PULSE_PERIOD_MS) / (double) PULSE_PERIOD_MS
