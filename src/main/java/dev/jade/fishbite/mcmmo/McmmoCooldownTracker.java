@@ -61,12 +61,14 @@ public final class McmmoCooldownTracker {
 	private static final Pattern READY_ROW = Pattern.compile(
 			"^\\s*(.+?)\\s*-\\s*Ready!", Pattern.CASE_INSENSITIVE);
 
-	/** Per-ability runtime state; readyAtMs is meaningless while active. */
+	/** Per-ability runtime state; readyAtMs/totalMs are meaningless while active. */
 	private static final class Slot {
 		boolean active;
 		long readyAtMs;
 		/** Countdown seeded from the default duration, not a server-stated value. */
 		boolean approximate;
+		/** Full cooldown length, for the HUD ring's recharge progress. */
+		long totalMs;
 	}
 
 	private static final Map<McmmoAbility, Slot> STATE = new EnumMap<>(McmmoAbility.class);
@@ -147,6 +149,7 @@ public final class McmmoCooldownTracker {
 		slot.active = false;
 		slot.readyAtMs = nowMs + durationMs;
 		slot.approximate = approximate;
+		slot.totalMs = durationMs;
 	}
 
 	/**
@@ -176,7 +179,8 @@ public final class McmmoCooldownTracker {
 				continue;
 			}
 			entries.add(new CooldownEntry(keyFor(entry.getKey()),
-					entry.getKey().displayName(), slot.readyAtMs, slot.active, slot.approximate));
+					entry.getKey().displayName(), slot.readyAtMs, slot.active, slot.approximate,
+					slot.totalMs));
 		}
 		entries.sort(Comparator.comparing((CooldownEntry e) -> !e.active())
 				.thenComparingLong(e -> e.remainingMs(nowMs))

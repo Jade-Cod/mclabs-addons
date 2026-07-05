@@ -32,6 +32,7 @@ import dev.jade.fishbite.chum.ChumHudObject;
 import dev.jade.fishbite.cooldown.CooldownHudObject;
 import dev.jade.fishbite.mcmmo.McmmoAbility;
 import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
+import dev.jade.fishbite.mcmmo.SmellingSaltsDetector;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
@@ -148,6 +149,8 @@ public class FishBiteClient implements ClientModInitializer {
 				var stack = player.getStackInHand(hand);
 				if (ChumDetector.isChumBucket(stack)) {
 					ChumDetector.tryActivate(player.getInventory().getSelectedSlot());
+				} else if (SmellingSaltsDetector.isSmellingSalts(stack)) {
+					McmmoCooldownTracker.clear();
 				} else {
 					RentalMountTimer.tryCoupon(stack);
 				}

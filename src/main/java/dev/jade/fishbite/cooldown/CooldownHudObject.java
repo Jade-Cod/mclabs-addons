@@ -2,35 +2,43 @@ package dev.jade.fishbite.cooldown;
 
 import dev.jade.fishbite.hud.HudObject;
 import dev.jade.fishbite.hud.HudObjectSettings;
-import dev.jade.fishbite.hud.TimeFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3x2fStack;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Generic multi-row cooldown widget (sibling of LabeledTimerHudObject, which is
- * single-timer): one row per tracked cooldown across every registered
- * {@link CooldownSource} — icon, ability name, and a right-aligned countdown
- * column so ticking digits never shift the names. A finished cooldown lingers
- * briefly as "Ready!" with a gentle alpha pulse (motion only on state change),
- * then its row disappears.
+ * Generic multi-cooldown widget: one circular icon per tracked cooldown across
+ * every registered {@link CooldownSource}, ringed by a two-tone recharge arc
+ * (no text — the ring alone reads as a MOBA-style ability cooldown). Orange
+ * is the elapsed portion, sweeping clockwise from the top; green is what's
+ * left. An active ability's ring is solid accent teal; a freshly finished one
+ * pulses solid green until it drops off.
  */
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
-	/** Echoes the HUD editor's aqua accent; overridable per-widget like all colors. */
-	private static final int DEFAULT_TEXT_COLOR = 0xFF4FE3E3;
+
+	private static final float OUTER_RADIUS = 14f;
+	private static final float INNER_RADIUS = 11f;
+	private static final float DISC_RADIUS = 10f;
+	private static final float DIAMETER = OUTER_RADIUS * 2f;
+	private static final float GAP = 6f;
 	private static final int ICON_SIZE = 16;
-	private static final int ICON_GAP = 4;
-	private static final int LINE_GAP = 2;
-	/** Minimum gap between the name and the countdown column. */
-	private static final int TIME_GAP = 8;
+
+	/** Wedge granularity for the recharge ring; coarser for the backdrop disc. */
+	private static final float RING_SEGMENT_DEG = 9f;
+	private static final float DISC_SEGMENT_DEG = 18f;
+
+	private static final int COLOR_ELAPSED = 0xFFFF8C1A;
+	private static final int COLOR_REMAINING = 0xFF4CD137;
+	private static final int COLOR_ACTIVE = 0xFF4FE3E3;
+	private static final int COLOR_READY = 0xFF4CD137;
+	private static final int COLOR_DISC_BG = 0x99202020;
 	/** Ready-pulse period; ~3 breaths across the linger window. */
 	private static final long PULSE_PERIOD_MS = 800L;
 
@@ -44,7 +52,8 @@ public class CooldownHudObject extends HudObject {
 		SOURCES.add(source);
 	}
 
-	private record Row(@Nullable ItemStack icon, String label, String time, boolean ready) {
+	private record Ring(@Nullable ItemStack icon, float elapsedFraction, boolean active, boolean ready,
+			boolean approximate) {
 	}
 
 	@Override
@@ -57,7 +66,6 @@ public class CooldownHudObject extends HudObject {
 		HudObjectSettings defaults = new HudObjectSettings();
 		defaults.x = 0.985f;
 		defaults.y = 0.30f;
-		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}
 
@@ -73,79 +81,105 @@ public class CooldownHudObject extends HudObject {
 				() -> SOURCES.forEach(CooldownSource::clear));
 	}
 
-	private List<Row> rows(boolean preview) {
+	private List<Ring> rings(boolean preview) {
 		long now = System.currentTimeMillis();
-		List<Row> rows = new ArrayList<>();
+		List<Ring> rings = new ArrayList<>();
 		for (CooldownSource source : SOURCES) {
 			for (CooldownEntry entry : source.entries(now)) {
-				boolean ready = entry.isReady(now);
-				String time = entry.active() ? "Active"
-						: ready ? "Ready!"
-						: (entry.approximate() ? "~" : "") + TimeFormat.hms(entry.remainingMs(now));
-				rows.add(new Row(source.iconFor(entry.key()), entry.label(), time, ready));
+				rings.add(new Ring(source.iconFor(entry.key()), entry.elapsedFraction(now),
+						entry.active(), entry.isReady(now), entry.approximate()));
 			}
 		}
-		if (rows.isEmpty() && preview) {
+		if (rings.isEmpty() && preview) {
 			if (previewPickaxe == null) {
 				previewPickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
 				previewAxe = new ItemStack(Items.DIAMOND_AXE);
 			}
-			rows.add(new Row(previewPickaxe, "Super Breaker", "3:12", false));
-			rows.add(new Row(previewAxe, "Tree Feller", "Ready!", true));
+			rings.add(new Ring(previewPickaxe, 0.8f, false, false, false));
+			rings.add(new Ring(previewAxe, 1f, false, true, false));
 		}
-		return rows;
-	}
-
-	private static TextRenderer font() {
-		return MinecraftClient.getInstance().textRenderer;
-	}
-
-	private int rowHeight() {
-		return Math.max(ICON_SIZE, font().fontHeight);
-	}
-
-	private static int maxLabelWidth(List<Row> rows) {
-		return rows.stream().mapToInt(row -> font().getWidth(row.label())).max().orElse(0);
-	}
-
-	private static int maxTimeWidth(List<Row> rows) {
-		return rows.stream().mapToInt(row -> font().getWidth(row.time())).max().orElse(0);
+		return rings;
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		List<Row> rows = rows(preview);
-		if (rows.isEmpty()) {
+		int count = rings(preview).size();
+		if (count == 0) {
 			return 0;
 		}
-		return ICON_SIZE + ICON_GAP + maxLabelWidth(rows) + TIME_GAP + maxTimeWidth(rows);
+		return Math.round(count * DIAMETER + (count - 1) * GAP);
 	}
 
 	@Override
 	public int contentHeight(boolean preview) {
-		int rowCount = Math.max(1, rows(preview).size());
-		return rowCount * rowHeight() + (rowCount - 1) * LINE_GAP;
+		return rings(preview).isEmpty() ? 0 : Math.round(DIAMETER);
 	}
 
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
-		List<Row> rows = rows(preview);
-		TextRenderer font = font();
-		int baseColor = settings().textColor | 0xFF000000;
-		int width = contentWidth(preview);
-		int y = 0;
-		for (Row row : rows) {
-			int textY = y + (rowHeight() - font.fontHeight) / 2 + 1;
-			if (row.icon() != null) {
-				context.drawItem(row.icon(), 0, y + (rowHeight() - ICON_SIZE) / 2);
+		float cx = OUTER_RADIUS;
+		float cy = OUTER_RADIUS;
+		for (Ring ring : rings(preview)) {
+			drawRing(context, cx, cy, ring);
+			if (ring.icon() != null) {
+				context.drawItem(ring.icon(), Math.round(cx - ICON_SIZE / 2f), Math.round(cy - ICON_SIZE / 2f));
 			}
-			context.drawText(font, Text.literal(row.label()),
-					ICON_SIZE + ICON_GAP, textY, baseColor, true);
-			int timeColor = row.ready() ? pulse(baseColor) : baseColor;
-			context.drawText(font, Text.literal(row.time()),
-					width - font.getWidth(row.time()), textY, timeColor, true);
-			y += rowHeight() + LINE_GAP;
+			cx += DIAMETER + GAP;
 		}
+	}
+
+	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
+		fillArcSector(context, cx, cy, 0f, DISC_RADIUS, 0f, 360f, COLOR_DISC_BG, DISC_SEGMENT_DEG);
+		if (ring.active()) {
+			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, COLOR_ACTIVE, RING_SEGMENT_DEG);
+			return;
+		}
+		if (ring.ready()) {
+			fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, 360f, pulse(COLOR_READY), RING_SEGMENT_DEG);
+			return;
+		}
+		float elapsedDeg = ring.elapsedFraction() * 360f;
+		boolean dim = ring.approximate();
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, elapsedDeg,
+				dim ? withAlpha(COLOR_ELAPSED, 0xE6) : COLOR_ELAPSED, RING_SEGMENT_DEG);
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, elapsedDeg, 360f - elapsedDeg,
+				dim ? withAlpha(COLOR_REMAINING, 0xE6) : COLOR_REMAINING, RING_SEGMENT_DEG);
+	}
+
+	/**
+	 * Fills an annulus sector (or, with {@code innerR = 0}, a disc) by approximating
+	 * it as a fan of thin rotated rectangles — {@link DrawContext} has no native arc
+	 * primitive, but {@code fill()} snapshots the current matrix per-quad, so a small
+	 * rotation between calls produces a rotated quad. {@code startDeg}/{@code sweepDeg}
+	 * are measured clockwise from the top (12 o'clock).
+	 */
+	private static void fillArcSector(DrawContext context, float cx, float cy, float innerR, float outerR,
+			float startDeg, float sweepDeg, int color, float segmentDeg) {
+		if (sweepDeg <= 0f) {
+			return;
+		}
+		sweepDeg = Math.min(360f, sweepDeg);
+		int segments = Math.max(1, (int) Math.ceil(sweepDeg / segmentDeg));
+		float segDeg = sweepDeg / segments;
+		// Outer-edge arc length for one wedge, so neighboring wedges tile without gaps.
+		float halfThickness = (outerR * (float) Math.toRadians(segDeg)) / 2f + 0.5f;
+		int x1 = Math.round(cx + innerR);
+		int x2 = Math.round(cx + outerR);
+		int y1 = Math.round(cy - halfThickness);
+		int y2 = Math.round(cy + halfThickness);
+		Matrix3x2fStack matrices = context.getMatrices();
+		for (int i = 0; i < segments; i++) {
+			float mid = startDeg + segDeg * (i + 0.5f);
+			matrices.pushMatrix();
+			// The un-rotated wedge points due east of center (logical angle 90 from top).
+			matrices.rotateAbout((float) Math.toRadians(mid - 90f), cx, cy);
+			context.fill(x1, y1, x2, y2, color);
+			matrices.popMatrix();
+		}
+	}
+
+	private static int withAlpha(int color, int alpha) {
+		return (alpha << 24) | (color & 0x00FFFFFF);
 	}
 
 	/** The base color breathing between 0xB4 and 0xFF alpha (state-change pulse). */
