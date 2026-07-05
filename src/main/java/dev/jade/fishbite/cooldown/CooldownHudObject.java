@@ -27,16 +27,15 @@ import java.util.List;
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
 
-	private static final float OUTER_RADIUS = 17f;
-	private static final float INNER_RADIUS = 14f;
-	private static final float DISC_RADIUS = 13.5f;
+	private static final float OUTER_RADIUS = 18f;
+	private static final float INNER_RADIUS = 15f;
+	private static final float DISC_RADIUS = 14.5f;
 	private static final float DIAMETER = OUTER_RADIUS * 2f;
 	private static final float GAP = 8f;
 	private static final int ICON_SIZE = 16;
 	/** Icon top-left and text top, both relative to the ring's vertical center. */
 	private static final float ICON_Y_OFFSET = -11f;
 	private static final float TEXT_Y_OFFSET = 6f;
-	private static final float TEXT_SCALE = 0.75f;
 	private static final int TEXT_COLOR = 0xFFFFFFFF;
 
 	/** Wedge granularity for the recharge ring; coarser for the backdrop disc. */
@@ -48,7 +47,14 @@ public class CooldownHudObject extends HudObject {
 	/** Red base ring, shrinking as it's consumed by the green sweep. */
 	private static final int COLOR_BASE = 0xFFE74C3D;
 	private static final int COLOR_ACTIVE = 0xFF4FE3E3;
-	private static final int COLOR_DISC_BG = 0x99202020;
+	/**
+	 * Backdrop disc behind the icon. Always fully opaque: the disc/ring are drawn as
+	 * many overlapping rotated rectangles (see {@link #fillArcSector}), and any
+	 * translucency there compounds unevenly where wedges cross — visible as a
+	 * starburst moiré radiating from the center. Opaque paint is overlap-proof:
+	 * painting the same solid color twice looks identical to painting it once.
+	 */
+	private static final int COLOR_DISC_BG = 0xFF202020;
 	/** Ready-pulse period; ~3 breaths across the linger window. */
 	private static final long PULSE_PERIOD_MS = 800L;
 
@@ -63,7 +69,7 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	private record Ring(@Nullable ItemStack icon, long remainingMs, float elapsedFraction, boolean active,
-			boolean ready, boolean approximate) {
+			boolean ready) {
 	}
 
 	@Override
@@ -97,7 +103,7 @@ public class CooldownHudObject extends HudObject {
 		for (CooldownSource source : SOURCES) {
 			for (CooldownEntry entry : source.entries(now)) {
 				rings.add(new Ring(source.iconFor(entry.key()), entry.remainingMs(now), entry.elapsedFraction(now),
-						entry.active(), entry.isReady(now), entry.approximate()));
+						entry.active(), entry.isReady(now)));
 			}
 		}
 		if (rings.isEmpty() && preview) {
@@ -105,8 +111,8 @@ public class CooldownHudObject extends HudObject {
 				previewPickaxe = new ItemStack(Items.DIAMOND_PICKAXE);
 				previewAxe = new ItemStack(Items.DIAMOND_AXE);
 			}
-			rings.add(new Ring(previewPickaxe, 48_000L, 0.8f, false, false, false));
-			rings.add(new Ring(previewAxe, 0L, 1f, false, true, false));
+			rings.add(new Ring(previewPickaxe, 48_000L, 0.8f, false, false));
+			rings.add(new Ring(previewAxe, 0L, 1f, false, true));
 		}
 		return rings;
 	}
@@ -137,7 +143,7 @@ public class CooldownHudObject extends HudObject {
 			}
 			String text = timeText(ring);
 			if (text != null) {
-				drawCenteredScaledText(context, font, text, cx, cy + TEXT_Y_OFFSET, TEXT_SCALE, TEXT_COLOR);
+				drawCenteredText(context, font, text, cx, cy + TEXT_Y_OFFSET, TEXT_COLOR);
 			}
 			cx += DIAMETER + GAP;
 		}
@@ -147,14 +153,10 @@ public class CooldownHudObject extends HudObject {
 		return MinecraftClient.getInstance().textRenderer;
 	}
 
-	/** M:SS remaining, "~" prefixed when only estimated; no label while actively channeling. */
+	/** M:SS remaining; no label while actively channeling (there's no countdown to show). */
 	@Nullable
 	private static String timeText(Ring ring) {
-		if (ring.active()) {
-			return null;
-		}
-		String formatted = TimeFormat.hms(ring.remainingMs());
-		return ring.approximate() ? "~" + formatted : formatted;
+		return ring.active() ? null : TimeFormat.hms(ring.remainingMs());
 	}
 
 	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
@@ -168,11 +170,9 @@ public class CooldownHudObject extends HudObject {
 			return;
 		}
 		float progressDeg = ring.elapsedFraction() * 360f;
-		boolean dim = ring.approximate();
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, progressDeg,
-				dim ? withAlpha(COLOR_PROGRESS, 0xE6) : COLOR_PROGRESS, RING_SEGMENT_DEG);
-		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, progressDeg, 360f - progressDeg,
-				dim ? withAlpha(COLOR_BASE, 0xE6) : COLOR_BASE, RING_SEGMENT_DEG);
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, 0f, progressDeg, COLOR_PROGRESS, RING_SEGMENT_DEG);
+		fillArcSector(context, cx, cy, INNER_RADIUS, OUTER_RADIUS, progressDeg, 360f - progressDeg, COLOR_BASE,
+				RING_SEGMENT_DEG);
 	}
 
 	/**
@@ -207,26 +207,37 @@ public class CooldownHudObject extends HudObject {
 		}
 	}
 
-	/** Draws text centered at ({@code cx}, {@code topY}) shrunk by {@code scale}. */
-	private static void drawCenteredScaledText(DrawContext context, TextRenderer font, String text, float cx,
-			float topY, float scale, int color) {
-		Matrix3x2fStack matrices = context.getMatrices();
-		matrices.pushMatrix();
-		matrices.translate(cx, topY);
-		matrices.scale(scale, scale);
-		context.drawCenteredTextWithShadow(font, text, 0, 0, color);
-		matrices.popMatrix();
+	/**
+	 * Draws text centered at ({@code cx}, {@code topY}) at native scale. Minecraft's
+	 * font is a fixed-resolution bitmap font; scaling it by a fractional matrix factor
+	 * (as an earlier version of this widget did) forces sub-pixel interpolation and
+	 * reads as blurry, uneven strokes. Sizing the ring to fit the text instead keeps
+	 * every glyph on the pixel grid.
+	 */
+	private static void drawCenteredText(DrawContext context, TextRenderer font, String text, float cx, float topY,
+			int color) {
+		context.drawCenteredTextWithShadow(font, text, Math.round(cx), Math.round(topY), color);
 	}
 
-	private static int withAlpha(int color, int alpha) {
-		return (alpha << 24) | (color & 0x00FFFFFF);
-	}
-
-	/** The base color breathing between 0xB4 and 0xFF alpha (state-change pulse). */
+	/**
+	 * The base color breathing in brightness (never alpha) between 70% and 100%.
+	 * Every wedge {@link #fillArcSector} paints must stay fully opaque: the ring/disc
+	 * are approximated as many overlapping rotated rectangles, and any translucency
+	 * there compounds unevenly where wedges cross, visible as a starburst moiré. An
+	 * opaque color painted twice looks identical to painted once, so pulsing via RGB
+	 * intensity gets the "breathing" effect with no overlap risk.
+	 */
 	private static int pulse(int color) {
 		double phase = (System.currentTimeMillis() % PULSE_PERIOD_MS) / (double) PULSE_PERIOD_MS
 				* Math.PI * 2.0;
-		int alpha = 0xB4 + (int) Math.round((Math.sin(phase) * 0.5 + 0.5) * (0xFF - 0xB4));
-		return (alpha << 24) | (color & 0x00FFFFFF);
+		double brightness = 0.7 + (Math.sin(phase) * 0.5 + 0.5) * 0.3;
+		int r = clampChannel(((color >> 16) & 0xFF) * brightness);
+		int g = clampChannel(((color >> 8) & 0xFF) * brightness);
+		int b = clampChannel((color & 0xFF) * brightness);
+		return 0xFF000000 | (r << 16) | (g << 8) | b;
+	}
+
+	private static int clampChannel(double value) {
+		return Math.max(0, Math.min(255, (int) Math.round(value)));
 	}
 }
