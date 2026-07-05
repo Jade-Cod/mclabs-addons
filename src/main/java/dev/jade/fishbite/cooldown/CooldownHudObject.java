@@ -10,7 +10,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix3x2fStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,34 +21,27 @@ import java.util.List;
  * sweeps clockwise from the top as the cooldown recharges, like a clock hand,
  * until the whole ring is green and ready. An active ability's ring is solid
  * accent teal instead; a freshly finished one pulses solid green until it
- * drops off. A thin gray rim frames both edges of the ring.
+ * drops off. The ring has a transparent center — only the ring itself is
+ * drawn, so the item icon sits directly on the surrounding HUD background.
  *
- * <p>Only the rim is anti-aliased (per-pixel coverage, see {@link #fillAnnulusAA}).
- * Everything it frames — the backdrop disc, the progress/base ring, the solid
- * active/ready ring — is drawn hard-edged but deliberately oversized by
- * {@link #BLEED} so the rim (drawn last, at its exact radius) trims it to a
- * clean edge. That means only two small, thin annuli need the more expensive
- * per-pixel treatment instead of every filled shape.
+ * <p>The ring is anti-aliased directly (per-pixel coverage, see
+ * {@link #fillRingAA}): every pixel in the ring's bounding box gets its own
+ * fractional coverage from supersampling, and its color is chosen by its
+ * angle around the center. That naturally smooths both the inner and outer
+ * edge in one pass, with no separate outline layer needed.
  */
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
 
 	private static final float RING_OUTER_RADIUS = 18f;
 	private static final float RING_INNER_RADIUS = 15f;
-	private static final float RIM_THICKNESS = 1.5f;
-	private static final float RIM_OUTER_RADIUS = RING_OUTER_RADIUS + RIM_THICKNESS;
-	private static final float RIM_INNER_RADIUS = RING_INNER_RADIUS - RIM_THICKNESS;
-	/** How far the hard-edged fills underneath the rim overshoot its radius, so the rim fully hides their edge. */
-	private static final float BLEED = 1f;
-	private static final float DIAMETER = RIM_OUTER_RADIUS * 2f;
+	private static final float DIAMETER = RING_OUTER_RADIUS * 2f;
 	private static final float GAP = 10f;
 	private static final int ICON_SIZE = 16;
 	private static final float TEXT_GAP = 3f;
 	private static final int TEXT_COLOR = 0xFFFFFFFF;
 
-	/** Wedge granularity for the progress split — the one shape that genuinely needs an angular cut. */
-	private static final float RING_SEGMENT_DEG = 2.5f;
-	/** Supersample grid per edge pixel for {@link #fillAnnulusAA}; 4x4 is smooth enough at this size. */
+	/** Supersample grid per pixel for {@link #fillRingAA}; 4x4 is smooth enough at this size. */
 	private static final int AA_SAMPLES = 4;
 
 	/** Green fill, sweeping clockwise as the cooldown recharges (also the ready pulse). Sampled from reference. */
@@ -57,9 +49,6 @@ public class CooldownHudObject extends HudObject {
 	/** Orange base ring, shrinking as it's consumed by the green sweep. Sampled from reference. */
 	private static final int COLOR_BASE = 0xFFA24800;
 	private static final int COLOR_ACTIVE = 0xFF4FE3E3;
-	/** Thin rim framing both edges of the ring. Sampled from reference. */
-	private static final int COLOR_RIM = 0xFF4C4C4C;
-	private static final int COLOR_DISC_BG = 0xFF202020;
 	/** Ready-pulse period; ~3 breaths across the linger window. */
 	private static final long PULSE_PERIOD_MS = 800L;
 
@@ -143,8 +132,8 @@ public class CooldownHudObject extends HudObject {
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
 		TextRenderer font = font();
-		float cx = RIM_OUTER_RADIUS;
-		float cy = RIM_OUTER_RADIUS;
+		float cx = RING_OUTER_RADIUS;
+		float cy = RING_OUTER_RADIUS;
 		for (Ring ring : rings(preview)) {
 			drawRing(context, cx, cy, ring);
 			if (ring.icon() != null) {
@@ -166,79 +155,39 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
-		fillDisc(context, cx, cy, RING_INNER_RADIUS + BLEED, COLOR_DISC_BG);
 		if (ring.active()) {
-			fillAnnulus(context, cx, cy, RING_INNER_RADIUS - BLEED, RING_OUTER_RADIUS + BLEED, COLOR_ACTIVE);
+			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, angleDeg -> COLOR_ACTIVE);
 		} else if (ring.ready()) {
-			fillAnnulus(context, cx, cy, RING_INNER_RADIUS - BLEED, RING_OUTER_RADIUS + BLEED, pulse(COLOR_PROGRESS));
+			int color = pulse(COLOR_PROGRESS);
+			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, angleDeg -> color);
 		} else {
 			float progressDeg = ring.elapsedFraction() * 360f;
-			fillArcSector(context, cx, cy, RING_INNER_RADIUS - BLEED, RING_OUTER_RADIUS + BLEED, 0f, progressDeg,
-					COLOR_PROGRESS);
-			fillArcSector(context, cx, cy, RING_INNER_RADIUS - BLEED, RING_OUTER_RADIUS + BLEED, progressDeg,
-					360f - progressDeg, COLOR_BASE);
-		}
-		// Drawn last, at their exact radii: these crisp, anti-aliased edges are what the
-		// player actually perceives as "the ring's boundary" — everything underneath just
-		// needs to fully cover up to here, which BLEED guarantees regardless of how
-		// precisely it was rasterized.
-		fillAnnulusAA(context, cx, cy, RIM_INNER_RADIUS, RING_INNER_RADIUS, COLOR_RIM);
-		fillAnnulusAA(context, cx, cy, RING_OUTER_RADIUS, RIM_OUTER_RADIUS, COLOR_RIM);
-	}
-
-	/** Hard-edged scanline disc fill — fine here since it's fully covered by the rim drawn on top. */
-	private static void fillDisc(DrawContext context, float cx, float cy, float radius, int color) {
-		int top = (int) Math.floor(cy - radius);
-		int bottom = (int) Math.ceil(cy + radius);
-		for (int y = top; y < bottom; y++) {
-			float dy = (y + 0.5f) - cy;
-			float discriminant = radius * radius - dy * dy;
-			if (discriminant <= 0f) {
-				continue;
-			}
-			float halfWidth = (float) Math.sqrt(discriminant);
-			context.fill(Math.round(cx - halfWidth), y, Math.round(cx + halfWidth), y + 1, color);
+			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS,
+					angleDeg -> angleDeg < progressDeg ? COLOR_PROGRESS : COLOR_BASE);
 		}
 	}
 
-	/** Hard-edged scanline annulus fill — fine here since it's fully covered by the rim drawn on top. */
-	private static void fillAnnulus(DrawContext context, float cx, float cy, float innerR, float outerR, int color) {
-		int top = (int) Math.floor(cy - outerR);
-		int bottom = (int) Math.ceil(cy + outerR);
-		for (int y = top; y < bottom; y++) {
-			float dy = (y + 0.5f) - cy;
-			float outerDisc = outerR * outerR - dy * dy;
-			if (outerDisc <= 0f) {
-				continue;
-			}
-			float outerHalf = (float) Math.sqrt(outerDisc);
-			float innerDisc = innerR * innerR - dy * dy;
-			if (innerDisc <= 0f) {
-				context.fill(Math.round(cx - outerHalf), y, Math.round(cx + outerHalf), y + 1, color);
-			} else {
-				float innerHalf = (float) Math.sqrt(innerDisc);
-				context.fill(Math.round(cx - outerHalf), y, Math.round(cx - innerHalf), y + 1, color);
-				context.fill(Math.round(cx + innerHalf), y, Math.round(cx + outerHalf), y + 1, color);
-			}
-		}
+	@FunctionalInterface
+	private interface AngleColorFn {
+		/** @param angleDeg clockwise from the top (12 o'clock), in [0, 360). */
+		int colorAt(float angleDeg);
 	}
 
 	/**
-	 * Fills a thin annulus with real anti-aliasing: every candidate pixel gets its own
+	 * Fills an annulus with real anti-aliasing: every candidate pixel gets its own
 	 * fractional coverage (outer-circle coverage minus inner-circle coverage, each via
-	 * {@link #pixelDiscCoverage} supersampling) instead of a hard round. Each pixel is
-	 * touched exactly once, so — unlike the earlier rotated-wedge approach — there's no
-	 * overlap for translucency to compound into a moiré. Reserved for the rim: it's
-	 * thin enough that per-pixel iteration over its bounding box is cheap, and it's the
-	 * only edge that actually needs to look smooth (see the class doc).
+	 * {@link #pixelDiscCoverage} supersampling) instead of a hard round, and its color
+	 * comes from {@code colorFn} evaluated at that pixel's angle around the center. One
+	 * pass smooths both the inner and outer edge with no separate outline needed, and
+	 * each pixel is touched exactly once, so there's no overlap for translucency to
+	 * compound into a moiré.
 	 */
-	private static void fillAnnulusAA(DrawContext context, float cx, float cy, float innerR, float outerR,
-			int color) {
+	private static void fillRingAA(DrawContext context, float cx, float cy, float innerR, float outerR,
+			AngleColorFn colorFn) {
 		int top = (int) Math.floor(cy - outerR - 1);
 		int bottom = (int) Math.ceil(cy + outerR + 1);
 		int left = (int) Math.floor(cx - outerR - 1);
 		int right = (int) Math.ceil(cx + outerR + 1);
-		int baseAlpha = color >>> 24;
 		for (int y = top; y < bottom; y++) {
 			for (int x = left; x < right; x++) {
 				float outerCoverage = pixelDiscCoverage(x, y, cx, cy, outerR);
@@ -250,7 +199,14 @@ public class CooldownHudObject extends HudObject {
 				if (coverage <= 0.02f) {
 					continue;
 				}
-				int alpha = Math.round(baseAlpha * coverage);
+				float dx = (x + 0.5f) - cx;
+				float dy = (y + 0.5f) - cy;
+				float angleDeg = (float) Math.toDegrees(Math.atan2(dx, -dy));
+				if (angleDeg < 0f) {
+					angleDeg += 360f;
+				}
+				int color = colorFn.colorAt(angleDeg);
+				int alpha = Math.round((color >>> 24) * coverage);
 				if (alpha <= 0) {
 					continue;
 				}
@@ -273,41 +229,6 @@ public class CooldownHudObject extends HudObject {
 			}
 		}
 		return hits / (float) (AA_SAMPLES * AA_SAMPLES);
-	}
-
-	/**
-	 * Fills an annulus sector by approximating it as a fan of thin rotated
-	 * rectangles — {@link DrawContext} has no native arc primitive, but {@code fill()}
-	 * snapshots the current matrix per-quad, so a small rotation between calls
-	 * produces a rotated quad. Only the progress/base split needs this: it's the one
-	 * ring shape whose color boundary sits at an arbitrary angle. Every wedge must stay
-	 * fully opaque — translucency here compounds unevenly where wedges overlap,
-	 * visible as a starburst moiré. {@code startDeg}/{@code sweepDeg} are measured
-	 * clockwise from the top (12 o'clock).
-	 */
-	private static void fillArcSector(DrawContext context, float cx, float cy, float innerR, float outerR,
-			float startDeg, float sweepDeg, int color) {
-		if (sweepDeg <= 0f) {
-			return;
-		}
-		sweepDeg = Math.min(360f, sweepDeg);
-		int segments = Math.max(1, (int) Math.ceil(sweepDeg / RING_SEGMENT_DEG));
-		float segDeg = sweepDeg / segments;
-		// Outer-edge arc length for one wedge, so neighboring wedges tile without gaps.
-		float halfThickness = (outerR * (float) Math.toRadians(segDeg)) / 2f + 0.5f;
-		int x1 = Math.round(cx + innerR);
-		int x2 = Math.round(cx + outerR);
-		int y1 = Math.round(cy - halfThickness);
-		int y2 = Math.round(cy + halfThickness);
-		Matrix3x2fStack matrices = context.getMatrices();
-		for (int i = 0; i < segments; i++) {
-			float mid = startDeg + segDeg * (i + 0.5f);
-			matrices.pushMatrix();
-			// The un-rotated wedge points due east of center (logical angle 90 from top).
-			matrices.rotateAbout((float) Math.toRadians(mid - 90f), cx, cy);
-			context.fill(x1, y1, x2, y2, color);
-			matrices.popMatrix();
-		}
 	}
 
 	/**
