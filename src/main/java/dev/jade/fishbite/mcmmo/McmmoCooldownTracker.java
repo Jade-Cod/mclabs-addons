@@ -40,15 +40,17 @@ public final class McmmoCooldownTracker {
 	/** How long a finished cooldown lingers as a pulsing "Ready!" row. */
 	public static final long READY_LINGER_MS = 2_500L;
 
+	/** Some servers replace mcMMO's ** emphasis with ×× — accept either. */
+	private static final String MARK = "[*×]{2}";
 	private static final Pattern ACTIVATED = Pattern.compile(
-			"\\*\\*(.+?) ACTIVATED\\*\\*", Pattern.CASE_INSENSITIVE);
+			MARK + "(.+?) ACTIVATED" + MARK, Pattern.CASE_INSENSITIVE);
 	/** Self only — the "worn off for PlayerName" broadcast has no ** markers. */
 	private static final Pattern WORN_OFF = Pattern.compile(
-			"\\*\\*(.+?) has worn off\\*\\*", Pattern.CASE_INSENSITIVE);
+			MARK + "(.+?) has worn off" + MARK, Pattern.CASE_INSENSITIVE);
 	private static final Pattern REFRESHED = Pattern.compile(
 			"Your (.+?) ability is refreshed!", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ALL_REFRESHED = Pattern.compile(
-			"\\*\\*ABILITIES REFRESHED!\\*\\*", Pattern.CASE_INSENSITIVE);
+			MARK + "ABILITIES REFRESHED!" + MARK, Pattern.CASE_INSENSITIVE);
 	private static final Pattern TOO_TIRED = Pattern.compile(
 			"too tired to use that ability again.*?\\((\\d+)\\s*s\\)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern NAMED_COOLDOWN = Pattern.compile(
@@ -81,7 +83,9 @@ public final class McmmoCooldownTracker {
 		onMessage(text, System.currentTimeMillis());
 	}
 
-	static void onMessage(String text, long nowMs) {
+	static void onMessage(String rawText, long nowMs) {
+		// Servers sometimes embed legacy §-format codes in the literal text.
+		String text = rawText.indexOf('§') >= 0 ? rawText.replaceAll("§.", "") : rawText;
 		Matcher activated = ACTIVATED.matcher(text);
 		if (activated.find()) {
 			McmmoAbility ability = McmmoAbility.fromName(activated.group(1));

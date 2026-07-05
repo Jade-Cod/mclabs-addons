@@ -1,9 +1,11 @@
 package dev.jade.fishbite.mixin;
 
 import dev.jade.fishbite.hud.HudRenderDispatcher;
+import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,5 +28,22 @@ public abstract class InGameHudMixin {
 	)
 	private void fishbite$renderHudElements(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
 		HudRenderDispatcher.renderAll(context, tickCounter);
+	}
+
+	/**
+	 * Actionbar text can arrive two ways: system chat with the overlay flag, or
+	 * the dedicated Set Action Bar Text packet. Fabric's
+	 * {@code ClientReceiveMessageEvents.GAME} only fires for the former — mcMMO
+	 * on Paper uses the packet, so both paths are captured here where they
+	 * converge instead.
+	 */
+	@Inject(
+			method = "setOverlayMessage(Lnet/minecraft/text/Text;Z)V",
+			at = @At("HEAD")
+	)
+	private void fishbite$captureOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
+		if (message != null) {
+			McmmoCooldownTracker.onMessage(message.getString());
+		}
 	}
 }

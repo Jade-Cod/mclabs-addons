@@ -110,12 +110,11 @@ public class FishBiteClient implements ClientModInitializer {
 		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
+		// Actionbar (overlay) text is captured in InGameHudMixin instead: servers
+		// that send it via the Set Action Bar Text packet never reach this event.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
 				dispatchChat(message.getString());
-			} else {
-				// mcMMO delivers ability notices to the actionbar on many setups.
-				McmmoCooldownTracker.onMessage(message.getString());
 			}
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->

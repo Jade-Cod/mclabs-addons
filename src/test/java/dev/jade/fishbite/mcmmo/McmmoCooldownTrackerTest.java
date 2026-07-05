@@ -42,6 +42,23 @@ public class McmmoCooldownTrackerTest {
 	}
 
 	@Test
+	public void activationAcceptsCrossMarkerVariant() {
+		// Some servers restyle mcMMO's ** emphasis as ×× (seen on MCLabs).
+		McmmoCooldownTracker.onMessage("××GIGA DRILL BREAKER ACTIVATED××", NOW);
+		CooldownEntry entry = only(NOW);
+		assertEquals("Giga Drill Breaker", entry.label());
+		assertTrue(entry.active());
+	}
+
+	@Test
+	public void legacyFormatCodesAreStrippedBeforeMatching() {
+		McmmoCooldownTracker.onMessage("§a**§lGiga Drill Breaker§r§a has worn off**", NOW);
+		CooldownEntry entry = only(NOW);
+		assertEquals("Giga Drill Breaker", entry.label());
+		assertFalse(entry.active());
+	}
+
+	@Test
 	public void wornOffForAnotherPlayerIsIgnored() {
 		McmmoCooldownTracker.onMessage("Super Breaker has worn off for SomeoneElse", NOW);
 		assertTrue(McmmoCooldownTracker.entries(NOW).isEmpty());
