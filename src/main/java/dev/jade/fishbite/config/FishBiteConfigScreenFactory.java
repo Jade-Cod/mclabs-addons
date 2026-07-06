@@ -1,5 +1,6 @@
 package dev.jade.fishbite.config;
 
+import dev.jade.fishbite.item.ItemUsesCorner;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
@@ -7,8 +8,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import dev.jade.fishbite.hud.HudObjects;
-import dev.jade.fishbite.hud.HudWidgetConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +21,9 @@ public final class FishBiteConfigScreenFactory {
 	private static final int SCALE_SLIDER_MAX = 400;
 	private static final int SCALE_SLIDER_DEFAULT = 100;
 	private static final float PERCENT = 100.0f;
+	private static final int ITEM_USES_SCALE_SLIDER_MIN = 80;
+	private static final int ITEM_USES_SCALE_SLIDER_MAX = 110;
+	private static final int ITEM_USES_SCALE_SLIDER_DEFAULT = 100;
 
 	private FishBiteConfigScreenFactory() {
 	}
@@ -89,11 +91,50 @@ public final class FishBiteConfigScreenFactory {
 				.build());
 
 
-		// One category per registered HUD widget, all sharing the same entries.
-		HudObjects.all().forEach(object -> HudWidgetConfig.addEntries(entries,
-				builder.getOrCreateCategory(object.displayName()), object));
+		addItemUsesEntries(entries, builder.getOrCreateCategory(
+				Text.translatable("fishbite.config.category.item_uses")), config);
 
 		return builder.build();
+	}
+
+	private static void addItemUsesEntries(ConfigEntryBuilder entries, ConfigCategory category,
+			FishBiteConfig config) {
+		String prefix = "fishbite.config.item_uses";
+
+		category.addEntry(entries
+				.startBooleanToggle(Text.translatable(prefix + ".enabled"), config.itemUsesEnabled)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable(prefix + ".enabled.tooltip"))
+				.setSaveConsumer(value -> config.itemUsesEnabled = value)
+				.build());
+
+		category.addEntry(entries
+				.startEnumSelector(Text.translatable(prefix + ".corner"),
+						ItemUsesCorner.class, ItemUsesCorner.valueOf(config.itemUsesCorner))
+				.setDefaultValue(ItemUsesCorner.TOP_LEFT)
+				.setEnumNameProvider(value -> Text.translatable(
+						prefix + ".corner." + ((ItemUsesCorner) value).name().toLowerCase(java.util.Locale.ROOT)))
+				.setTooltip(Text.translatable(prefix + ".corner.tooltip"))
+				.setSaveConsumer(value -> config.itemUsesCorner = value.name())
+				.build());
+
+		category.addEntry(entries
+				.startColorField(Text.translatable(prefix + ".color"), config.itemUsesColor & 0xFFFFFF)
+				.setDefaultValue(FishBiteConfig.DEFAULT_ITEM_USES_COLOR & 0xFFFFFF)
+				.setTooltip(Text.translatable(prefix + ".color.tooltip"))
+				.setSaveConsumer(value -> config.itemUsesColor = 0xFF000000 | value)
+				.build());
+
+		category.addEntry(entries
+				.startIntSlider(Text.translatable(prefix + ".scale"),
+						Math.round(config.itemUsesScale / FishBiteConfig.DEFAULT_ITEM_USES_SCALE * PERCENT),
+						ITEM_USES_SCALE_SLIDER_MIN, ITEM_USES_SCALE_SLIDER_MAX)
+				.setDefaultValue(ITEM_USES_SCALE_SLIDER_DEFAULT)
+				.setTooltip(Text.translatable(prefix + ".scale.tooltip"))
+				.setTextGetter(value -> Text.literal(value + "%"))
+				.setSaveConsumer(value -> config.itemUsesScale =
+						value / PERCENT * FishBiteConfig.DEFAULT_ITEM_USES_SCALE)
+				.build());
 	}
 
 	/**

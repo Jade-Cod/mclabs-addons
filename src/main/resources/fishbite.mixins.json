@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"CameraAccessor",
+		"DrawContextMixin",
 		"FishingBobberEntityAccessor",
 		"InGameHudMixin",
 		"KeyBindingCategoryAccessor",

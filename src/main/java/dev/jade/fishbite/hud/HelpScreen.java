@@ -41,6 +41,7 @@ public class HelpScreen extends Screen {
 	 */
 	private static final String[][] SYNC_COMMANDS = {
 			{"/checkboost", "Syncs your Personal boost timers (chem price + prestige)."},
+			{"/mccooldown", "Run it any time to sync exact mcMMO ability cooldowns."},
 			{"/lw rates", "Open it once to sync your Lab Wars revenue boosters."},
 			{"/chems booster", "Open it once to sync server-wide booster rates."},
 			{"/sm claim", "Auto-marks your daily SM claim the instant you send it."},

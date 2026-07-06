@@ -4,12 +4,14 @@ import dev.jade.fishbite.config.FishBiteConfig;
 import dev.jade.fishbite.hud.editor.EditorPainter;
 import dev.jade.fishbite.hud.editor.EditorTheme;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
@@ -37,6 +39,9 @@ public class HudEditScreen extends Screen {
 	private static final int MARQUEE_THRESHOLD = 3;
 	private static final float SCALE_STEP = 0.25f;
 	private static final float SCALE_SNAP_TOLERANCE = 0.04f;
+	private static final int GROUP_INDENT = 6;
+	/** Extra breathing room between Reset Widget and the "Ability Visibility" heading below it. */
+	private static final int GROUPS_HEADING_EXTRA = 6;
 
 	/** Resize-handle roles: {signX, signY} in {-1,0,1}, excluding the centre. */
 	private static final int[][] HANDLE_SPECS = {
@@ -96,6 +101,17 @@ public class HudEditScreen extends Screen {
 	private int textSwatchY;
 	private int bgSwatchX;
 	private int bgSwatchY;
+	private int groupsLabelY;
+	private Text groupsLabelText;
+
+	// Which toggle groups (by label) are expanded in the current inspector.
+	private final Set<String> expandedGroups = new LinkedHashSet<>();
+
+	/** A single collapsed-group ability row, painted and hit-tested like the Widgets rail. */
+	private record AbilityRow(int[] rect, HudObject.ToggleOption option) {
+	}
+
+	private final List<AbilityRow> abilityRows = new ArrayList<>();
 
 	public HudEditScreen(Screen parent) {
 		super(Text.translatable("fishbite.hud.editor.title"));
@@ -183,13 +199,28 @@ public class HudEditScreen extends Screen {
 		int innerW = EditorTheme.PANEL_W - 2 * EditorTheme.PAD;
 		boolean hasAction = widget.editorAction() != null;
 		List<HudObject.ToggleOption> toggles = widget.toggleOptions();
+		HudObject.SwitchOption switchOption = widget.switchOption();
+		List<HudObject.ToggleGroup> groups = widget.toggleGroups();
+		boolean hasGroups = !groups.isEmpty();
 
 		int rowStep = EditorTheme.ROW + EditorTheme.GAP;
+		int groupsRows = 0;
+		if (hasGroups) {
+			for (HudObject.ToggleGroup group : groups) {
+				groupsRows += 1; // collapsible header
+				if (expandedGroups.contains(group.label().getString())) {
+					groupsRows += group.options().size();
+				}
+			}
+		}
 		int contentH = EditorTheme.NAME_H
 				+ rowStep * 4
 				+ rowStep * toggles.size()
+				+ (switchOption != null ? rowStep : 0)
 				+ (hasAction ? rowStep : 0)
-				+ EditorTheme.ROW;
+				+ rowStep
+				+ (hasGroups ? GROUPS_HEADING_EXTRA + EditorTheme.NAME_H : 0)
+				+ rowStep * groupsRows;
 		int panelH = contentH + 2 * EditorTheme.PAD;
 
 		int panelX = dockLeft(widget)
@@ -241,6 +272,11 @@ public class HudEditScreen extends Screen {
 			y += rowStep;
 		}
 
+		if (switchOption != null) {
+			this.addDrawableChild(new DirectionSwitch(innerX, y, innerW, EditorTheme.ROW, switchOption));
+			y += rowStep;
+		}
+
 		HudObject.EditorAction action = widget.editorAction();
 		if (action != null) {
 			this.addDrawableChild(ButtonWidget.builder(action.label(), b -> action.action().run())
@@ -254,6 +290,124 @@ public class HudEditScreen extends Screen {
 							clearAndInit();
 						})
 				.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+		y += rowStep;
+
+		this.groupsLabelText = hasGroups ? widget.toggleGroupsLabel() : null;
+		this.abilityRows.clear();
+		if (hasGroups) {
+			y += GROUPS_HEADING_EXTRA;
+			this.groupsLabelY = y;
+			y += EditorTheme.NAME_H;
+			for (HudObject.ToggleGroup group : groups) {
+				String groupKey = group.label().getString();
+				boolean expanded = expandedGroups.contains(groupKey);
+				this.addDrawableChild(ButtonWidget.builder(groupHeaderLabel(group.label(), expanded), b -> {
+							if (!expandedGroups.remove(groupKey)) {
+								expandedGroups.add(groupKey);
+							}
+							clearAndInit();
+						})
+						.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+				y += rowStep;
+				if (expanded) {
+					for (HudObject.ToggleOption option : group.options()) {
+						int[] rect = {innerX + GROUP_INDENT, y, innerW - GROUP_INDENT, EditorTheme.ROW};
+						this.abilityRows.add(new AbilityRow(rect, option));
+						y += rowStep;
+					}
+				}
+			}
+		}
+	}
+
+	private static Text groupHeaderLabel(Text label, boolean expanded) {
+		return Text.literal(expanded ? "v " : "> ").append(label);
+	}
+
+	/**
+	 * A pill-shaped two-position switch: a sliding accent thumb spanning half the
+	 * track, labelled with whichever side it currently occupies. Clicking anywhere
+	 * on the switch flips it; the thumb eases to its new side over
+	 * {@value #ANIM_MS}ms rather than jumping instantly.
+	 */
+	private static final class DirectionSwitch extends SliderWidget {
+		private static final long ANIM_MS = 150L;
+
+		private final HudObject.SwitchOption option;
+		private boolean currentRight;
+		private double animFrom;
+		private long animStartMs;
+
+		DirectionSwitch(int x, int y, int width, int height, HudObject.SwitchOption option) {
+			super(x, y, width, height, Text.empty(), option.isRight().getAsBoolean() ? 1.0 : 0.0);
+			this.option = option;
+			this.currentRight = option.isRight().getAsBoolean();
+			this.animFrom = this.currentRight ? 1.0 : 0.0;
+			updateMessage();
+		}
+
+		@Override
+		protected void updateMessage() {
+			setMessage(currentRight ? option.rightLabel() : option.leftLabel());
+		}
+
+		@Override
+		protected void applyValue() {
+			setRight(value >= 0.5);
+		}
+
+		/** A click anywhere on the switch flips it — where exactly you click doesn't matter. */
+		@Override
+		public void onClick(Click click, boolean doubled) {
+			setRight(!currentRight);
+		}
+
+		private void setRight(boolean right) {
+			if (right != currentRight) {
+				animFrom = currentRight ? 1.0 : 0.0;
+				animStartMs = System.currentTimeMillis();
+				currentRight = right;
+				option.onChange().accept(right);
+			}
+			this.value = right ? 1.0 : 0.0;
+			updateMessage();
+		}
+
+		private float progress() {
+			float t = Math.min(1f, (System.currentTimeMillis() - animStartMs) / (float) ANIM_MS);
+			float eased = 1f - (1f - t) * (1f - t);
+			double target = currentRight ? 1.0 : 0.0;
+			return (float) (animFrom + (target - animFrom) * eased);
+		}
+
+		@Override
+		public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(), EditorTheme.SWITCH_TRACK);
+
+			float progress = progress();
+			int thumbW = getWidth() / 2;
+			int thumbX = getX() + Math.round(progress * (getWidth() - thumbW));
+			EditorPainter.pill(context, thumbX, getY(), thumbW, getHeight(), EditorTheme.ACCENT);
+
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
+			Text label = progress < 0.5f ? option.leftLabel() : option.rightLabel();
+			int textX = thumbX + (thumbW - font.getWidth(label)) / 2;
+			int textY = getY() + (getHeight() - font.fontHeight) / 2 + 1;
+			context.drawText(font, label, textX, textY, EditorTheme.SWITCH_THUMB_TEXT, false);
+		}
+	}
+
+	/** Toggles the ability row under (mx,my), if any; true if the click was consumed. */
+	private boolean clickAbilityRow(double mx, double my) {
+		for (AbilityRow row : abilityRows) {
+			if (contains(row.rect(), mx, my)) {
+				HudObject.ToggleOption option = row.option();
+				option.onChange().accept(!option.value().getAsBoolean());
+				clearAndInit();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Dock the inspector on the left when the selected widget sits on the right half. */
@@ -361,7 +515,7 @@ public class HudEditScreen extends Screen {
 
 		drawRail(context, mouseX, mouseY);
 		if (one != null && panel != null) {
-			drawInspector(context, one);
+			drawInspector(context, one, mouseX, mouseY);
 		} else if (selection.size() > 1) {
 			context.drawCenteredTextWithShadow(this.textRenderer,
 					Text.translatable("fishbite.hud.editor.multi_hint", selection.size()),
@@ -429,7 +583,7 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
-	private void drawInspector(DrawContext context, HudObject widget) {
+	private void drawInspector(DrawContext context, HudObject widget, int mouseX, int mouseY) {
 		HudObjectSettings s = widget.settings();
 		EditorPainter.panel(context, panel, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
 		int innerX = panel[0] + EditorTheme.PAD;
@@ -440,6 +594,44 @@ public class HudEditScreen extends Screen {
 
 		EditorPainter.swatch(context, textSwatchX, textSwatchY, EditorTheme.SWATCH, s.textColor | 0xFF000000);
 		EditorPainter.swatch(context, bgSwatchX, bgSwatchY, EditorTheme.SWATCH, s.backgroundColor);
+
+		if (groupsLabelText != null) {
+			drawGroupsHeading(context);
+		}
+		drawAbilityRows(context, mouseX, mouseY);
+	}
+
+	/** The "Ability Visibility" heading, styled identically to the widget name above it. */
+	private void drawGroupsHeading(DrawContext context) {
+		int innerX = panel[0] + EditorTheme.PAD;
+		int innerW = panel[2] - 2 * EditorTheme.PAD;
+		String name = this.textRenderer.trimToWidth(groupsLabelText.getString(), innerW);
+		context.drawText(this.textRenderer, Text.literal(name), innerX, groupsLabelY, EditorTheme.TEXT, false);
+	}
+
+	/** Ability toggle rows, styled like the Widgets rail: filled/hollow tick + normal/italic-red label. */
+	private void drawAbilityRows(DrawContext context, int mouseX, int mouseY) {
+		for (AbilityRow row : abilityRows) {
+			int[] r = row.rect();
+			if (contains(r, mouseX, mouseY)) {
+				context.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], EditorTheme.ROW_HOVER);
+			}
+
+			boolean on = row.option().value().getAsBoolean();
+			int[] tb = toggleRect(r);
+			if (on) {
+				context.fill(tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], EditorTheme.TOGGLE_ON);
+			} else {
+				EditorPainter.outline(context, tb[0], tb[1], tb[2], tb[3], EditorTheme.TOGGLE_OFF);
+			}
+
+			int textMaxW = r[2] - EditorTheme.RAIL_TOGGLE - 10;
+			String name = this.textRenderer.trimToWidth(row.option().label().getString(), textMaxW);
+			Text label = Text.literal(name).styled(style -> style.withItalic(!on));
+			context.drawText(this.textRenderer, label, r[0] + 4,
+					r[1] + (r[3] - this.textRenderer.fontHeight) / 2 + 1,
+					on ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
+		}
 	}
 
 	// --- geometry -------------------------------------------------------------
@@ -566,6 +758,9 @@ public class HudEditScreen extends Screen {
 			int handle = handleAt(one, mx, my);
 			if (handle >= 0) {
 				startResize(one, handle);
+				return true;
+			}
+			if (clickAbilityRow(mx, my)) {
 				return true;
 			}
 			if (panel != null && contains(panel, mx, my)) {

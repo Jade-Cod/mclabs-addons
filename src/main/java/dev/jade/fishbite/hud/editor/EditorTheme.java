@@ -43,6 +43,11 @@ public final class EditorTheme {
 	public static final int TOGGLE_ON = 0xFF4FE3E3;
 	public static final int TOGGLE_OFF = 0x66FFFFFF;
 
+	// --- pill switch ------------------------------------------------------------
+	public static final int SWITCH_TRACK = 0xFF23262E;
+	/** Dark, unshadowed label colour for legible text on the bright accent thumb. */
+	public static final int SWITCH_THUMB_TEXT = 0xFF0B1013;
+
 	// --- swatch checkerboard --------------------------------------------------
 	public static final int CHECK_A = 0xFF9A9A9A;
 	public static final int CHECK_B = 0xFF666666;

@@ -29,6 +29,10 @@ import dev.jade.fishbite.chem.ChemtainerReader;
 import dev.jade.fishbite.chem.ChemtainerTracker;
 import dev.jade.fishbite.chum.ChumDetector;
 import dev.jade.fishbite.chum.ChumHudObject;
+import dev.jade.fishbite.cooldown.CooldownHudObject;
+import dev.jade.fishbite.mcmmo.McmmoAbility;
+import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
+import dev.jade.fishbite.pititem.PitItemCooldownTracker;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
@@ -102,8 +106,14 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
+		HudObjects.register(new CooldownHudObject());
+		CooldownHudObject.addSource(McmmoCooldownTracker.source());
+		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
+		CooldownHudObject.addSource(PitItemCooldownTracker.source());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
+		// Actionbar (overlay) text is captured in InGameHudMixin instead: servers
+		// that send it via the Set Action Bar Text packet never reach this event.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
 				dispatchChat(message.getString());
@@ -140,6 +150,8 @@ public class FishBiteClient implements ClientModInitializer {
 				var stack = player.getStackInHand(hand);
 				if (ChumDetector.isChumBucket(stack)) {
 					ChumDetector.tryActivate(player.getInventory().getSelectedSlot());
+				} else if (McmmoCooldownTracker.isSmellingSalts(stack)) {
+					McmmoCooldownTracker.clear();
 				} else {
 					RentalMountTimer.tryCoupon(stack);
 				}
@@ -211,6 +223,20 @@ public class FishBiteClient implements ClientModInitializer {
 		}
 	}
 
+	/** The mcMMO tool kind the player is holding (FISTS for an empty hand). */
+	private static McmmoAbility.Tool heldTool() {
+		var player = MinecraftClient.getInstance().player;
+		if (player == null) {
+			return null;
+		}
+		var held = player.getMainHandStack();
+		if (held.isEmpty()) {
+			return McmmoAbility.Tool.FISTS;
+		}
+		return McmmoAbility.Tool.fromItemId(
+				net.minecraft.registry.Registries.ITEM.getId(held.getItem()).toString());
+	}
+
 	/** Send a chat command (no leading slash); no-op when not connected. */
 	private static void sendChatCommand(String command) {
 		var network = MinecraftClient.getInstance().getNetworkHandler();
@@ -231,5 +257,7 @@ public class FishBiteClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		McmmoCooldownTracker.onMessage(text);
+		PitItemCooldownTracker.onMessage(text);
 	}
 }
