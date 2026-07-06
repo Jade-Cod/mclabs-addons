@@ -1,5 +1,6 @@
 package dev.jade.fishbite.cooldown;
 
+import dev.jade.fishbite.config.FishBiteConfig;
 import dev.jade.fishbite.hud.HudObject;
 import dev.jade.fishbite.hud.HudObjectSettings;
 import dev.jade.fishbite.hud.TimeFormat;
@@ -91,11 +92,63 @@ public class CooldownHudObject extends HudObject {
 				() -> SOURCES.forEach(CooldownSource::clear));
 	}
 
+	private static boolean vertical() {
+		return FishBiteConfig.get().cooldownsStackVertical;
+	}
+
+	@Override
+	public SwitchOption switchOption() {
+		return new SwitchOption(
+				Text.translatable("fishbite.hud.ability_cooldowns.horizontal_label"),
+				Text.translatable("fishbite.hud.ability_cooldowns.vertical_label"),
+				CooldownHudObject::vertical,
+				isVertical -> {
+					FishBiteConfig.get().cooldownsStackVertical = isVertical;
+					FishBiteConfig.get().save();
+				});
+	}
+
+	@Override
+	public Text toggleGroupsLabel() {
+		return Text.translatable("fishbite.hud.ability_cooldowns.visibility");
+	}
+
+	@Override
+	public List<ToggleGroup> toggleGroups() {
+		List<ToggleGroup> groups = new ArrayList<>();
+		for (CooldownSource source : SOURCES) {
+			String category = source.categoryLabel();
+			List<CooldownSource.Toggleable> keys = source.allKeys();
+			if (category == null || keys.isEmpty()) {
+				continue;
+			}
+			List<ToggleOption> options = keys.stream()
+					.map(k -> new ToggleOption(Text.literal(k.label()),
+							() -> !FishBiteConfig.get().hiddenCooldownKeys.contains(k.key()),
+							visible -> {
+								var hidden = FishBiteConfig.get().hiddenCooldownKeys;
+								if (visible) {
+									hidden.remove(k.key());
+								} else {
+									hidden.add(k.key());
+								}
+								FishBiteConfig.get().save();
+							}))
+					.toList();
+			groups.add(new ToggleGroup(Text.literal(category), options));
+		}
+		return groups;
+	}
+
 	private List<Ring> rings(boolean preview) {
 		long now = System.currentTimeMillis();
 		List<Ring> rings = new ArrayList<>();
+		var hidden = FishBiteConfig.get().hiddenCooldownKeys;
 		for (CooldownSource source : SOURCES) {
 			for (CooldownEntry entry : source.entries(now)) {
+				if (hidden.contains(entry.key())) {
+					continue;
+				}
 				rings.add(new Ring(source.iconFor(entry.key()), entry.remainingMs(now), entry.elapsedFraction(now),
 						entry.active(), entry.isReady(now)));
 			}
@@ -115,23 +168,34 @@ public class CooldownHudObject extends HudObject {
 		return MinecraftClient.getInstance().textRenderer;
 	}
 
+	private static float itemLength() {
+		return DIAMETER + TEXT_GAP + font().fontHeight;
+	}
+
 	@Override
 	public int contentWidth(boolean preview) {
 		int count = rings(preview).size();
 		if (count == 0) {
 			return 0;
 		}
-		return Math.round(count * DIAMETER + (count - 1) * GAP);
+		return vertical() ? Math.round(DIAMETER) : Math.round(count * DIAMETER + (count - 1) * GAP);
 	}
 
 	@Override
 	public int contentHeight(boolean preview) {
-		return rings(preview).isEmpty() ? 0 : Math.round(DIAMETER + TEXT_GAP + font().fontHeight);
+		int count = rings(preview).size();
+		if (count == 0) {
+			return 0;
+		}
+		return vertical()
+				? Math.round(count * itemLength() + (count - 1) * GAP)
+				: Math.round(itemLength());
 	}
 
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
 		TextRenderer font = font();
+		boolean vertical = vertical();
 		float cx = RING_OUTER_RADIUS;
 		float cy = RING_OUTER_RADIUS;
 		for (Ring ring : rings(preview)) {
@@ -141,10 +205,14 @@ public class CooldownHudObject extends HudObject {
 			}
 			String text = timeText(ring);
 			if (text != null) {
-				context.drawCenteredTextWithShadow(font, text, Math.round(cx), Math.round(DIAMETER + TEXT_GAP),
-						TEXT_COLOR);
+				int textY = Math.round(cy - RING_OUTER_RADIUS + DIAMETER + TEXT_GAP);
+				context.drawCenteredTextWithShadow(font, text, Math.round(cx), textY, TEXT_COLOR);
 			}
-			cx += DIAMETER + GAP;
+			if (vertical) {
+				cy += itemLength() + GAP;
+			} else {
+				cx += DIAMETER + GAP;
+			}
 		}
 	}
 

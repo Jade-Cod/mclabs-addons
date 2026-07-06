@@ -54,6 +54,30 @@ public abstract class HudObject {
 		return java.util.List.of();
 	}
 
+	/** A two-position switch (e.g. layout direction), shown as a slider in the inspector. */
+	public record SwitchOption(net.minecraft.text.Text leftLabel, net.minecraft.text.Text rightLabel,
+			java.util.function.BooleanSupplier isRight, java.util.function.Consumer<Boolean> onChange) {
+	}
+
+	/** @return a left/right switch for this widget's settings, or null for none. */
+	public SwitchOption switchOption() {
+		return null;
+	}
+
+	/** A collapsible, titled group of related toggles (e.g. per-entry visibility for one category). */
+	public record ToggleGroup(net.minecraft.text.Text label, java.util.List<ToggleOption> options) {
+	}
+
+	/** @return heading shown above {@link #toggleGroups()}, or null if this widget has none. */
+	public net.minecraft.text.Text toggleGroupsLabel() {
+		return null;
+	}
+
+	/** @return collapsible toggle groups shown under {@link #toggleGroupsLabel()} (empty by default). */
+	public java.util.List<ToggleGroup> toggleGroups() {
+		return java.util.List.of();
+	}
+
 	private HudObjectSettings cachedSettings;
 
 	public HudObjectSettings settings() {

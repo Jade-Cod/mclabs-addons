@@ -21,4 +21,19 @@ public interface CooldownSource {
 
 	/** Drops all tracked state (editor "clear" action). */
 	void clear();
+
+	/** A key/label pair for the widget's per-entry visibility flyout. */
+	record Toggleable(String key, String label) {
+	}
+
+	/** Heading for this source's group in the widget's visibility flyout, or null to omit it. */
+	@Nullable
+	default String categoryLabel() {
+		return null;
+	}
+
+	/** Every key (and display label) this source can ever produce, for the visibility flyout. */
+	default List<Toggleable> allKeys() {
+		return List.of();
+	}
 }

@@ -54,6 +54,60 @@ public final class EditorPainter {
 		outline(ctx, rect[0], rect[1], rect[2], rect[3], border);
 	}
 
+	/** Supersample grid per pixel for {@link #fillHalfDiscAA}; 4x4 is smooth enough at this size. */
+	private static final int PILL_AA_SAMPLES = 4;
+
+	/** A stadium/pill shape: a rect with fully rounded (semicircular), anti-aliased ends. */
+	public static void pill(DrawContext ctx, int x, int y, int w, int h, int color) {
+		int r = h / 2;
+		ctx.fill(x + r, y, x + w - r, y + h, color);
+		fillHalfDiscAA(ctx, x + r, y + r, r, color, false);
+		fillHalfDiscAA(ctx, x + w - r, y + r, r, color, true);
+	}
+
+	/**
+	 * Anti-aliased filled semicircle of radius {@code r} centred at (cx,cy); the flat
+	 * edge runs through the centre. Each candidate pixel gets its own fractional
+	 * coverage from supersampling (same technique as
+	 * {@code CooldownHudObject.pixelDiscCoverage}), so the curved edge reads smooth
+	 * instead of stair-stepped.
+	 */
+	private static void fillHalfDiscAA(DrawContext ctx, int cx, int cy, int r, int color, boolean rightHalf) {
+		int top = cy - r - 1;
+		int bottom = cy + r + 1;
+		int xStart = rightHalf ? cx : cx - r - 1;
+		int xEnd = rightHalf ? cx + r + 1 : cx;
+		for (int py = top; py <= bottom; py++) {
+			for (int px = xStart; px <= xEnd; px++) {
+				float coverage = discCoverage(px, py, cx, cy, r);
+				if (coverage <= 0.02f) {
+					continue;
+				}
+				int alpha = Math.round(((color >>> 24) & 0xFF) * coverage);
+				if (alpha <= 0) {
+					continue;
+				}
+				ctx.fill(px, py, px + 1, py + 1, (alpha << 24) | (color & 0x00FFFFFF));
+			}
+		}
+	}
+
+	/** Fraction of unit pixel cell (px,py) covered by a disc of radius {@code r} centred at (cx,cy). */
+	private static float discCoverage(int px, int py, int cx, int cy, int r) {
+		float radiusSq = r * r;
+		int hits = 0;
+		for (int sy = 0; sy < PILL_AA_SAMPLES; sy++) {
+			float sampleY = (py + (sy + 0.5f) / PILL_AA_SAMPLES) - cy;
+			for (int sx = 0; sx < PILL_AA_SAMPLES; sx++) {
+				float sampleX = (px + (sx + 0.5f) / PILL_AA_SAMPLES) - cx;
+				if (sampleX * sampleX + sampleY * sampleY <= radiusSq) {
+					hits++;
+				}
+			}
+		}
+		return hits / (float) (PILL_AA_SAMPLES * PILL_AA_SAMPLES);
+	}
+
 	/** Colour swatch over a checkerboard so transparency reads clearly. */
 	public static void swatch(DrawContext ctx, int x, int y, int size, int color) {
 		for (int i = 0; i * 5 < size; i++) {

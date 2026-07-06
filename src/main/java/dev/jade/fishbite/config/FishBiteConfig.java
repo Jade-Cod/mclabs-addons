@@ -89,6 +89,12 @@ public class FishBiteConfig {
 	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
 	public boolean chemtainerSatchel = true;
 
+	// --- Ability cooldowns widget (mcMMO + future cooldown sources) ---
+	/** Stack cooldown rings in a column instead of a row. */
+	public boolean cooldownsStackVertical = false;
+	/** Cooldown entry keys (e.g. "mcmmo:super_breaker") hidden from the widget. */
+	public java.util.Set<String> hiddenCooldownKeys = new java.util.LinkedHashSet<>();
+
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
 
@@ -158,6 +164,11 @@ public class FishBiteConfig {
 		clean.chemtainerSnapshotMs = Math.max(0L, this.chemtainerSnapshotMs);
 		clean.chemtainerStale = this.chemtainerStale;
 		clean.chemtainerSatchel = this.chemtainerSatchel;
+		clean.cooldownsStackVertical = this.cooldownsStackVertical;
+		if (this.hiddenCooldownKeys != null) {
+			this.hiddenCooldownKeys.stream().filter(java.util.Objects::nonNull)
+					.forEach(clean.hiddenCooldownKeys::add);
+		}
 		if (this.labWarsActive != null) {
 			for (LabWarsBooster b : this.labWarsActive) {
 				if (b != null && b.key != null) {

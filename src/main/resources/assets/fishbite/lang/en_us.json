@@ -74,5 +74,8 @@
 	"fishbite.hud.help.title": "MCLabs Addons Help",
 	"fishbite.hud.help.dismiss": "Got it",
 	"fishbite.hud.ability_cooldowns.name": "Ability Cooldowns",
-	"fishbite.hud.ability_cooldowns.clear": "Clear Cooldowns"
+	"fishbite.hud.ability_cooldowns.clear": "Clear Cooldowns",
+	"fishbite.hud.ability_cooldowns.vertical_label": "Vertical",
+	"fishbite.hud.ability_cooldowns.horizontal_label": "Horizontal",
+	"fishbite.hud.ability_cooldowns.visibility": "Ability Visibility"
 }

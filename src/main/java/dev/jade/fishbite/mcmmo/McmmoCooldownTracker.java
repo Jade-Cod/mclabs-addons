@@ -241,6 +241,18 @@ public final class McmmoCooldownTracker {
 				public void clear() {
 					McmmoCooldownTracker.clear();
 				}
+
+				@Override
+				public String categoryLabel() {
+					return "MCMMO";
+				}
+
+				@Override
+				public List<CooldownSource.Toggleable> allKeys() {
+					return java.util.Arrays.stream(McmmoAbility.values())
+							.map(ability -> new CooldownSource.Toggleable(keyFor(ability), ability.displayName()))
+							.toList();
+				}
 			};
 		}
 		return source;
