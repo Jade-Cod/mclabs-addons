@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.13.0] - 2026-07-05
+
+### Added
+- **A new Ability Cooldowns HUD widget tracks your mcMMO super abilities.** Super Breaker, Giga Drill Breaker, Tree Feller, Skull Splitter, Green Terra, Serrated Strikes, Berserk, Explosive Shot, Super Shotgun, and Blast Mining are now picked up straight from chat/actionbar and drawn as circular cooldown rings — an orange-to-green arc sweeps clockwise as each ability recharges, the ring glows solid teal while active, and pulses green the moment it's ready. Using a Smelling Salts instantly clears every tracked cooldown, instead of waiting on the "ABILITIES REFRESHED!" chat line.
+- **The same widget now also tracks Pit item cooldowns**: Stormbreaker, Heavy Steel Chestplate, Excalibur, Blink Boots, Body Slam, and Scythe Sweep all show up alongside your mcMMO abilities.
+- **Per-cooldown visibility toggles and a horizontal/vertical layout switch** for the Ability Cooldowns widget, both available in the HUD editor's inspector panel — hide the ones you don't care about, or stack them in a column instead of a row.
+- **Cooldowns under a minute now show a precise decimal timer** (e.g. `10.5`) instead of a coarse `0:11`, and any HUD widget pinned near the bottom or right edge of the screen now grows away from that edge as its content changes size, instead of running off-screen.
+- **The remaining-uses count on charge items (Whetstones, etc.) is now configurable.** A new Item Uses section in Mod Menu lets you turn it on or off, pick which corner of the item slot it's drawn in, and adjust its color and size (80%-110% of default).
+
+### Changed
+- **Mod Menu no longer lists a settings category for every HUD widget.** Those categories only duplicated what the in-game HUD editor (`;`) already lets you edit — position, size, colors, background — so widget appearance is now managed entirely in the editor, and Mod Menu is limited to the Bite Marker and the new Item Uses settings.
+
 ## [1.12.1] - 2026-07-04
 
 ### Added
@@ -76,6 +88,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.13.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.13.0
 [1.12.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.1
 [1.12.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.0
 [1.11.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.11.1

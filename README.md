@@ -174,7 +174,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | required (config widgets) |
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 
-Current mod version: **1.12.0-dev**.
+Current mod version: **1.13.0**.
 
 ## Building
 
