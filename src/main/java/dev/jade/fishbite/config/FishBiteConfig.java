@@ -5,6 +5,7 @@ import dev.jade.fishbite.booster.BoosterState;
 import dev.jade.fishbite.chem.ChemtainerEntry;
 import dev.jade.fishbite.labwars.LabWarsBooster;
 import dev.jade.fishbite.hud.HudObjectSettings;
+import dev.jade.fishbite.item.ItemUsesCorner;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import net.fabricmc.loader.api.FabricLoader;
@@ -34,9 +35,13 @@ public class FishBiteConfig {
 
 	public static final int DEFAULT_WAITING_COLOR = 0xFFFF55;
 	public static final int DEFAULT_BITE_COLOR = 0xFF5555;
+	public static final int DEFAULT_ITEM_USES_COLOR = 0xFF55FF55;
+	public static final float DEFAULT_ITEM_USES_SCALE = 0.5f;
 	private static final float MIN_SCALE = 0.25f;
 	private static final float MAX_SCALE = 4.0f;
 	private static final int RGB_MASK = 0xFFFFFF;
+	private static final float MIN_ITEM_USES_SCALE = 0.4f;
+	private static final float MAX_ITEM_USES_SCALE = 0.55f;
 
 	private static FishBiteConfig instance;
 
@@ -97,6 +102,12 @@ public class FishBiteConfig {
 
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
+
+	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
+	public boolean itemUsesEnabled = true;
+	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();
+	public int itemUsesColor = DEFAULT_ITEM_USES_COLOR;
+	public float itemUsesScale = DEFAULT_ITEM_USES_SCALE;
 
 	// Legacy v1.2.x fields, migrated into hudObjects on load.
 	@Deprecated public Boolean chumTimerEnabled;
@@ -165,6 +176,10 @@ public class FishBiteConfig {
 		clean.chemtainerStale = this.chemtainerStale;
 		clean.chemtainerSatchel = this.chemtainerSatchel;
 		clean.cooldownsStackVertical = this.cooldownsStackVertical;
+		clean.itemUsesEnabled = this.itemUsesEnabled;
+		clean.itemUsesCorner = parseCorner(this.itemUsesCorner).name();
+		clean.itemUsesColor = this.itemUsesColor;
+		clean.itemUsesScale = Math.clamp(this.itemUsesScale, MIN_ITEM_USES_SCALE, MAX_ITEM_USES_SCALE);
 		if (this.hiddenCooldownKeys != null) {
 			this.hiddenCooldownKeys.stream().filter(java.util.Objects::nonNull)
 					.forEach(clean.hiddenCooldownKeys::add);
@@ -209,6 +224,14 @@ public class FishBiteConfig {
 			clean.hudObjects.put("chum_timer", chum);
 		}
 		return clean;
+	}
+
+	private static ItemUsesCorner parseCorner(String value) {
+		try {
+			return ItemUsesCorner.valueOf(value);
+		} catch (IllegalArgumentException | NullPointerException e) {
+			return ItemUsesCorner.TOP_LEFT;
+		}
 	}
 
 	public void save() {
