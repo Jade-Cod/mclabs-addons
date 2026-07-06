@@ -7,8 +7,6 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import dev.jade.fishbite.hud.HudObjects;
-import dev.jade.fishbite.hud.HudWidgetConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -87,11 +85,6 @@ public final class FishBiteConfigScreenFactory {
 				.setTooltip(Text.translatable("fishbite.config.catch_sound.tooltip"))
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
-
-
-		// One category per registered HUD widget, all sharing the same entries.
-		HudObjects.all().forEach(object -> HudWidgetConfig.addEntries(entries,
-				builder.getOrCreateCategory(object.displayName()), object));
 
 		return builder.build();
 	}
