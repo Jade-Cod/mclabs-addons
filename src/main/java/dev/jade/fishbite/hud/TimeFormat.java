@@ -1,8 +1,18 @@
 package dev.jade.fishbite.hud;
 
+import java.util.Locale;
+
 /** Shared remaining-time formatting for HUD timers. */
 public final class TimeFormat {
 	private TimeFormat() {
+	}
+
+	/** Same as {@link #hms}, but below a minute shows one decimal of seconds (e.g. "5.3"). */
+	public static String precise(long remainingMs) {
+		long clamped = Math.max(0L, remainingMs);
+		return clamped < 60_000L
+				? String.format(Locale.ROOT, "%.1f", clamped / 1000.0)
+				: hms(remainingMs);
 	}
 
 	/** {@code Xd Yh} from a day up, {@code H:MM:SS} from an hour up, otherwise {@code M:SS}. */

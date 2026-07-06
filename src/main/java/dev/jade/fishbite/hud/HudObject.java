@@ -106,6 +106,21 @@ public abstract class HudObject {
 				: anchorPx;
 	}
 
+	/**
+	 * Content-origin Y in screen pixels, auto-anchored the same way as
+	 * {@link #contentOriginXpx}: a widget whose anchor point is on the bottom
+	 * half of the screen pins its bottom edge and grows upward, so a widget
+	 * whose height varies at runtime (e.g. the cooldown widget's ring count)
+	 * never runs off the bottom.
+	 */
+	private int contentOriginYpx(int scaledHeight, boolean preview) {
+		HudObjectSettings settings = settings();
+		int anchorPx = Math.round(settings.y * scaledHeight);
+		return settings.y > 0.5f
+				? anchorPx - Math.round(contentHeight(preview) * settings.scale)
+				: anchorPx;
+	}
+
 	/** Renders background + content. {@code preview} forces visibility (editor). */
 	public final void render(DrawContext context, boolean preview) {
 		HudObjectSettings settings = settings();
@@ -114,7 +129,7 @@ public abstract class HudObject {
 		}
 
 		int x = contentOriginXpx(context.getScaledWindowWidth(), preview);
-		int y = Math.round(settings.y * context.getScaledWindowHeight());
+		int y = contentOriginYpx(context.getScaledWindowHeight(), preview);
 
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate(x, y);
@@ -130,19 +145,25 @@ public abstract class HudObject {
 
 	/**
 	 * Commits a desired background-box top-left (screen px) into {@code settings.x/y},
-	 * using the same auto-anchor rule as {@link #contentOriginXpx}: a box whose centre
-	 * lands on the right half of the screen pins its right edge (so it grows leftward).
+	 * using the same auto-anchor rule as {@link #contentOriginXpx}/{@link #contentOriginYpx}:
+	 * a box whose centre lands on the right half of the screen pins its right edge (so it
+	 * grows leftward), and likewise pins its bottom edge when its centre is on the bottom half.
 	 * Shared by the editor's drag, keyboard-nudge, and anchor-snap paths.
 	 */
 	public final void setScreenBoxPosition(int boxX, int boxY, int screenWidth, int screenHeight) {
 		HudObjectSettings settings = settings();
 		float scale = settings.scale;
-		int boxWidth = screenBounds(screenWidth, screenHeight, true)[2];
+		int[] bounds = screenBounds(screenWidth, screenHeight, true);
+		int boxWidth = bounds[2];
+		int boxHeight = bounds[3];
 		boolean anchorRight = (boxX + boxWidth / 2) > screenWidth / 2;
+		boolean anchorBottom = (boxY + boxHeight / 2) > screenHeight / 2;
 		settings.x = anchorRight
 				? (boxX + boxWidth - PADDING * scale) / screenWidth
 				: (boxX + PADDING * scale) / screenWidth;
-		settings.y = (boxY + PADDING * scale) / screenHeight;
+		settings.y = anchorBottom
+				? (boxY + boxHeight - PADDING * scale) / screenHeight
+				: (boxY + PADDING * scale) / screenHeight;
 	}
 
 	/** Background box in screen pixels: {x, y, w, h}. Used by the editor. */
@@ -150,7 +171,7 @@ public abstract class HudObject {
 		HudObjectSettings settings = settings();
 		float scale = settings.scale;
 		int x = contentOriginXpx(screenWidth, preview);
-		int y = Math.round(settings.y * screenHeight);
+		int y = contentOriginYpx(screenHeight, preview);
 		int bgX = Math.round(x - PADDING * scale);
 		int bgY = Math.round(y - PADDING * scale);
 		int bgW = Math.round((contentWidth(preview) + PADDING * 2) * scale);

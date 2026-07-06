@@ -219,7 +219,7 @@ public class CooldownHudObject extends HudObject {
 	/** M:SS remaining; no label while actively channeling (there's no countdown to show). */
 	@Nullable
 	private static String timeText(Ring ring) {
-		return ring.active() ? null : TimeFormat.hms(ring.remainingMs());
+		return ring.active() ? null : TimeFormat.precise(ring.remainingMs());
 	}
 
 	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
