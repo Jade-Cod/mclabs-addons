@@ -2,6 +2,7 @@ package dev.jade.fishbite.mixin;
 
 import dev.jade.fishbite.hud.HudRenderDispatcher;
 import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
+import dev.jade.fishbite.pititem.PitItemCooldownTracker;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
@@ -44,6 +45,7 @@ public abstract class InGameHudMixin {
 	private void fishbite$captureOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
 		if (message != null) {
 			McmmoCooldownTracker.onMessage(message.getString());
+			PitItemCooldownTracker.onMessage(message.getString());
 		}
 	}
 }

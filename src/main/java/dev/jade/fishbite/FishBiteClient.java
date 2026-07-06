@@ -32,6 +32,7 @@ import dev.jade.fishbite.chum.ChumHudObject;
 import dev.jade.fishbite.cooldown.CooldownHudObject;
 import dev.jade.fishbite.mcmmo.McmmoAbility;
 import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
+import dev.jade.fishbite.pititem.PitItemCooldownTracker;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
@@ -108,6 +109,7 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
 		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
+		CooldownHudObject.addSource(PitItemCooldownTracker.source());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
 		// Actionbar (overlay) text is captured in InGameHudMixin instead: servers
@@ -256,5 +258,6 @@ public class FishBiteClient implements ClientModInitializer {
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
+		PitItemCooldownTracker.onMessage(text);
 	}
 }
