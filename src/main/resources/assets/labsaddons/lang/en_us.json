@@ -75,6 +75,8 @@
 	"labsaddons.hud.chemtainer.name": "Chemtainer",
 	"labsaddons.hud.chemtainer.clear": "Clear Chemtainer",
 	"labsaddons.hud.chemtainer.satchel": "Using Satchel",
+	"labsaddons.hud.runner_jobs.name": "Runner Jobs",
+	"labsaddons.hud.runner_jobs.reset": "Reset Session",
 	"labsaddons.hud.editor.help": "Help",
 	"labsaddons.hud.editor.help.tooltip": "Mod guide & sync commands",
 	"labsaddons.hud.help.title": "MCLabs Addons Help",
