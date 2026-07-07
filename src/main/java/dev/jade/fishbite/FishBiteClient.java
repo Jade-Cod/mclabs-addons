@@ -33,6 +33,8 @@ import dev.jade.fishbite.cooldown.CooldownHudObject;
 import dev.jade.fishbite.mcmmo.McmmoAbility;
 import dev.jade.fishbite.mcmmo.McmmoCooldownTracker;
 import dev.jade.fishbite.pititem.PitItemCooldownTracker;
+import dev.jade.fishbite.runner.RunnerHudObject;
+import dev.jade.fishbite.runner.RunnerTracker;
 import dev.jade.fishbite.hud.HudEditScreen;
 import dev.jade.fishbite.hud.HudObjects;
 import dev.jade.fishbite.config.FishBiteConfig;
@@ -106,6 +108,7 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
+		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
 		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
@@ -257,6 +260,7 @@ public class FishBiteClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
 	}

@@ -76,6 +76,8 @@
 	"fishbite.hud.chemtainer.name": "Chemtainer",
 	"fishbite.hud.chemtainer.clear": "Clear Chemtainer",
 	"fishbite.hud.chemtainer.satchel": "Using Satchel",
+	"fishbite.hud.runner_jobs.name": "Runner Jobs",
+	"fishbite.hud.runner_jobs.reset": "Reset Session",
 	"fishbite.hud.editor.help": "Help",
 	"fishbite.hud.editor.help.tooltip": "Mod guide & sync commands",
 	"fishbite.hud.help.title": "MCLabs Addons Help",
