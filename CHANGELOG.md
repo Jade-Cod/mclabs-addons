@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.14.0] - 2026-07-07
+## [1.14.0] - 2026-07-08
 
 ### Changed
 - **The mod's internal id is now `labsaddons`, completing the rename to MCLabs Addons.** Nothing changes in how the mod looks or works — everything carries over automatically on first launch:
