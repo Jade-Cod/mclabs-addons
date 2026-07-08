@@ -2,6 +2,9 @@
 
 ## [1.14.0] - 2026-07-08
 
+### Added
+- **New Runner Jobs HUD widget.** Tracks MCLabs Runner job postings straight from chat — posted, completed, and failed counts plus the total money earned this session — drawn as a new draggable HUD widget, with a Reset Session action in the HUD editor's inspector panel.
+
 ### Changed
 - **The mod's internal id is now `labsaddons`, completing the rename to MCLabs Addons.** Nothing changes in how the mod looks or works — everything carries over automatically on first launch:
   - All settings — HUD layouts, colors, timers, and tracked state — move from `config/fishbite.json` to `config/labsaddons.json`. The old file is left in place as a backup.
