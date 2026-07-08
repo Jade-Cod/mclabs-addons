@@ -28,8 +28,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Modrinth down, bad response) is logged and swallowed.
  */
 public final class ModrinthUpdateChecker {
-	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
-	private static final String MOD_ID = "fishbite";
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
+	private static final String MOD_ID = "labsaddons";
 	private static final String VERSIONS_URL = "https://api.modrinth.com/v2/project/mclabs-addons/version";
 	private static final Duration TIMEOUT = Duration.ofSeconds(5);
 	private static final HttpClient CLIENT = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
@@ -55,14 +55,14 @@ public final class ModrinthUpdateChecker {
 
 		HttpRequest request = HttpRequest.newBuilder(URI.create(VERSIONS_URL))
 				.timeout(TIMEOUT)
-				.header("User-Agent", "fishbite-indicator/" + currentVersion + " (dev.jade.labsaddons)")
+				.header("User-Agent", "mclabs-addons/" + currentVersion + " (dev.jade.labsaddons)")
 				.GET()
 				.build();
 
 		CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
 				.thenAccept(response -> handleResponse(response, currentVersion))
 				.exceptionally(e -> {
-					LOGGER.debug("[fishbite] Update check failed (offline or Modrinth unreachable).", e);
+					LOGGER.debug("[labsaddons] Update check failed (offline or Modrinth unreachable).", e);
 					return null;
 				})
 				.whenComplete((unused, throwable) -> CHECK_IN_FLIGHT.set(false));
@@ -87,7 +87,7 @@ public final class ModrinthUpdateChecker {
 				return; // entries are newest-first; the first matching entry is the answer
 			}
 		} catch (RuntimeException e) {
-			LOGGER.debug("[fishbite] Failed to parse Modrinth version response.", e);
+			LOGGER.debug("[labsaddons] Failed to parse Modrinth version response.", e);
 		}
 	}
 

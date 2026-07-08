@@ -39,7 +39,7 @@ public abstract class SoundSystemMixin {
 			at = @At("HEAD"),
 			cancellable = true
 	)
-	private void fishbite$interceptBobberSounds(SoundInstance sound,
+	private void labsaddons$interceptBobberSounds(SoundInstance sound,
 			CallbackInfoReturnable<SoundSystem.PlayResult> cir) {
 		Identifier id = sound.getId();
 		if (id == null || !id.getPath().startsWith(BOBBER_SOUND_PREFIX)) {
@@ -52,7 +52,7 @@ public abstract class SoundSystemMixin {
 			return;
 		}
 
-		FishingBobberEntity bobber = fishbite$nearestBobber(client,
+		FishingBobberEntity bobber = labsaddons$nearestBobber(client,
 				new Vec3d(sound.getX(), sound.getY(), sound.getZ()));
 		if (bobber == null) {
 			return;
@@ -67,12 +67,12 @@ public abstract class SoundSystemMixin {
 		}
 
 		if (id.getPath().equals(SPLASH_SOUND_PATH)) {
-			fishbite$replaceCatchSound(config, client, sound, id, cir);
+			labsaddons$replaceCatchSound(config, client, sound, id, cir);
 		}
 	}
 
 	@Unique
-	private static FishingBobberEntity fishbite$nearestBobber(MinecraftClient client, Vec3d soundPos) {
+	private static FishingBobberEntity labsaddons$nearestBobber(MinecraftClient client, Vec3d soundPos) {
 		FishingBobberEntity nearest = null;
 		double bestDistanceSq = MAX_BOBBER_DISTANCE_SQ;
 		for (Entity entity : client.world.getEntities()) {
@@ -88,7 +88,7 @@ public abstract class SoundSystemMixin {
 	}
 
 	@Unique
-	private static void fishbite$replaceCatchSound(LabsAddonsConfig config, MinecraftClient client,
+	private static void labsaddons$replaceCatchSound(LabsAddonsConfig config, MinecraftClient client,
 			SoundInstance sound, Identifier originalId,
 			CallbackInfoReturnable<SoundSystem.PlayResult> cir) {
 		if (config.catchSound.isBlank()) {

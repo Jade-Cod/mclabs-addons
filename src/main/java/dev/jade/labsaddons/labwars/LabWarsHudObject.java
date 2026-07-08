@@ -40,7 +40,7 @@ public class LabWarsHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.lab_wars.clear"), LabWarsTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.lab_wars.clear"), LabWarsTracker::clear);
 	}
 
 	private record Row(ItemStack icon, String text) {

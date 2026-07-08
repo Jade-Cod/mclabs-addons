@@ -36,13 +36,13 @@ public class BountyHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.bounty.clear"), BountyTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.bounty.clear"), BountyTracker::clear);
 	}
 
 	@Override
 	@Nullable
 	protected Text header(boolean preview) {
-		return Text.translatable("fishbite.hud.bounty.name");
+		return Text.translatable("labsaddons.hud.bounty.name");
 	}
 
 	@Override

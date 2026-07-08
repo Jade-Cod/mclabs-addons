@@ -54,13 +54,13 @@ public class ChemtainerHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.chemtainer.clear"), ChemtainerTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.chemtainer.clear"), ChemtainerTracker::clear);
 	}
 
 	@Override
 	public List<ToggleOption> toggleOptions() {
 		return List.of(new ToggleOption(
-				Text.translatable("fishbite.hud.chemtainer.satchel"),
+				Text.translatable("labsaddons.hud.chemtainer.satchel"),
 				() -> LabsAddonsConfig.get().chemtainerSatchel,
 				value -> {
 					LabsAddonsConfig.get().chemtainerSatchel = value;

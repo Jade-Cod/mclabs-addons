@@ -88,7 +88,7 @@ public class CooldownHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.ability_cooldowns.clear"),
+		return new EditorAction(Text.translatable("labsaddons.hud.ability_cooldowns.clear"),
 				() -> SOURCES.forEach(CooldownSource::clear));
 	}
 
@@ -99,8 +99,8 @@ public class CooldownHudObject extends HudObject {
 	@Override
 	public SwitchOption switchOption() {
 		return new SwitchOption(
-				Text.translatable("fishbite.hud.ability_cooldowns.horizontal_label"),
-				Text.translatable("fishbite.hud.ability_cooldowns.vertical_label"),
+				Text.translatable("labsaddons.hud.ability_cooldowns.horizontal_label"),
+				Text.translatable("labsaddons.hud.ability_cooldowns.vertical_label"),
 				CooldownHudObject::vertical,
 				isVertical -> {
 					LabsAddonsConfig.get().cooldownsStackVertical = isVertical;
@@ -110,7 +110,7 @@ public class CooldownHudObject extends HudObject {
 
 	@Override
 	public Text toggleGroupsLabel() {
-		return Text.translatable("fishbite.hud.ability_cooldowns.visibility");
+		return Text.translatable("labsaddons.hud.ability_cooldowns.visibility");
 	}
 
 	@Override

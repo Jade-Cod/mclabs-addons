@@ -34,13 +34,13 @@ public class PitHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.pit.clear"), PitTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.pit.clear"), PitTracker::clear);
 	}
 
 	@Override
 	@Nullable
 	protected Text header(boolean preview) {
-		return Text.translatable("fishbite.hud.pit.name");
+		return Text.translatable("labsaddons.hud.pit.name");
 	}
 
 	@Override

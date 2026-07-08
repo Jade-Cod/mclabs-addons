@@ -26,7 +26,7 @@ import java.util.concurrent.Executors;
  * screen.
  */
 public class LabsAddonsConfig {
-	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path CONFIG_PATH =
 			FabricLoader.getInstance().getConfigDir().resolve("fishbite.json");
@@ -128,9 +128,9 @@ public class LabsAddonsConfig {
 				if (loaded != null) {
 					return loaded.sanitized();
 				}
-				LOGGER.warn("[fishbite] Config at {} was empty; restoring defaults.", CONFIG_PATH);
+				LOGGER.warn("[labsaddons] Config at {} was empty; restoring defaults.", CONFIG_PATH);
 			} catch (IOException | JsonParseException e) {
-				LOGGER.warn("[fishbite] Failed to read config at {}; using defaults.", CONFIG_PATH, e);
+				LOGGER.warn("[labsaddons] Failed to read config at {}; using defaults.", CONFIG_PATH, e);
 			}
 		}
 
@@ -242,7 +242,7 @@ public class LabsAddonsConfig {
 					GSON.toJson(this, writer);
 				}
 			} catch (IOException e) {
-				LOGGER.warn("[fishbite] Failed to write config at {}.", CONFIG_PATH, e);
+				LOGGER.warn("[labsaddons] Failed to write config at {}.", CONFIG_PATH, e);
 			}
 		}
 	}

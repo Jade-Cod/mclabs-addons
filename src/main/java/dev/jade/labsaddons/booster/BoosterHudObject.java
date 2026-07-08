@@ -42,7 +42,7 @@ public class BoosterHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.booster.clear"), BoosterTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.booster.clear"), BoosterTracker::clear);
 	}
 
 	private record Row(ItemStack icon, String text) {

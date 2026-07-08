@@ -74,7 +74,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 	 *  (mod categories are otherwise appended last). Best-effort: if the registry
 	 *  list can't be reordered the category simply stays at the bottom. */
 	private static KeyBinding.Category registerCategory() {
-		KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("fishbite", "main"));
+		KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("labsaddons", "main"));
 		try {
 			List<KeyBinding.Category> categories = KeyBindingCategoryAccessor.getCategories();
 			if (categories.remove(category)) {
@@ -161,15 +161,15 @@ public class LabsAddonsClient implements ClientModInitializer {
 
 		// Keybind to open the draggable chum HUD editor (unbound by default).
 		chumEditorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.fishbite.chum_editor", InputUtil.Type.KEYSYM,
+				"key.labsaddons.chum_editor", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_SEMICOLON, MCLAB_CATEGORY));
 		// Chemtainer deposit (default B): send "/ch qd" and track what gets banked.
 		chemDepositKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.fishbite.chem_deposit", InputUtil.Type.KEYSYM,
+				"key.labsaddons.chem_deposit", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_B, MCLAB_CATEGORY));
 		// Chemtainer withdraw (default N): pull back the largest chem you have.
 		chemWithdrawKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.fishbite.chem_withdraw", InputUtil.Type.KEYSYM,
+				"key.labsaddons.chem_withdraw", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (McLabsSession.tick(client)) {

@@ -114,7 +114,7 @@ public class HudEditScreen extends Screen {
 	private final List<AbilityRow> abilityRows = new ArrayList<>();
 
 	public HudEditScreen(Screen parent) {
-		super(Text.translatable("fishbite.hud.editor.title"));
+		super(Text.translatable("labsaddons.hud.editor.title"));
 		this.parent = parent;
 	}
 
@@ -159,39 +159,39 @@ public class HudEditScreen extends Screen {
 				.dimensions(x, y, 48, 20).build());
 		x += 52;
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.hud.editor.open_config"), b -> openMainConfig())
+						Text.translatable("labsaddons.hud.editor.open_config"), b -> openMainConfig())
 				.dimensions(x, y, 96, 20).build());
 		x += 100;
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.hud.editor.reset_all"), b -> resetAll())
+						Text.translatable("labsaddons.hud.editor.reset_all"), b -> resetAll())
 				.dimensions(x, y, 78, 20)
-				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.reset_all.tooltip"))).build());
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.reset_all.tooltip"))).build());
 		x += 82;
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.hud.editor.help"), b -> openHelp())
+						Text.translatable("labsaddons.hud.editor.help"), b -> openHelp())
 				.dimensions(x, y, 48, 20)
-				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.help.tooltip"))).build());
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.help.tooltip"))).build());
 
 		int rx = this.width - EditorTheme.MARGIN - 64;
 		this.addDrawableChild(ButtonWidget.builder(snapLabel(), b -> {
 					snapEnabled = !snapEnabled;
 					b.setMessage(snapLabel());
 				}).dimensions(rx, y, 64, 20)
-				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.snap.tooltip"))).build());
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.snap.tooltip"))).build());
 		rx -= 68;
 		this.addDrawableChild(ButtonWidget.builder(gridLabel(), b -> {
 					gridEnabled = !gridEnabled;
 					b.setMessage(gridLabel());
 				}).dimensions(rx, y, 64, 20)
-				.tooltip(Tooltip.of(Text.translatable("fishbite.hud.editor.grid.tooltip"))).build());
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.grid.tooltip"))).build());
 	}
 
 	private Text snapLabel() {
-		return Text.translatable("fishbite.hud.editor.snap").append(": ").append(ScreenTexts.onOrOff(snapEnabled));
+		return Text.translatable("labsaddons.hud.editor.snap").append(": ").append(ScreenTexts.onOrOff(snapEnabled));
 	}
 
 	private Text gridLabel() {
-		return Text.translatable("fishbite.hud.editor.grid").append(": ").append(ScreenTexts.onOrOff(gridEnabled));
+		return Text.translatable("labsaddons.hud.editor.grid").append(": ").append(ScreenTexts.onOrOff(gridEnabled));
 	}
 
 	private void buildInspector(HudObject widget) {
@@ -241,12 +241,12 @@ public class HudEditScreen extends Screen {
 
 		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.enabled).build(
 				innerX, y, innerW, EditorTheme.ROW,
-				Text.translatable("fishbite.config.hud.enabled"),
+				Text.translatable("labsaddons.config.hud.enabled"),
 				(b, v) -> s.enabled = v));
 		y += rowStep;
 
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.config.hud.text_color"), b -> openPicker(widget, false))
+						Text.translatable("labsaddons.config.hud.text_color"), b -> openPicker(widget, false))
 				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.textSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.textSwatchY = y;
@@ -254,12 +254,12 @@ public class HudEditScreen extends Screen {
 
 		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.backgroundEnabled).build(
 				innerX, y, innerW, EditorTheme.ROW,
-				Text.translatable("fishbite.config.hud.background"),
+				Text.translatable("labsaddons.config.hud.background"),
 				(b, v) -> s.backgroundEnabled = v));
 		y += rowStep;
 
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.config.hud.background_color"), b -> openPicker(widget, true))
+						Text.translatable("labsaddons.config.hud.background_color"), b -> openPicker(widget, true))
 				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.bgSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.bgSwatchY = y;
@@ -285,7 +285,7 @@ public class HudEditScreen extends Screen {
 		}
 
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.hud.editor.reset_widget"), b -> {
+						Text.translatable("labsaddons.hud.editor.reset_widget"), b -> {
 							widget.settings().resetTo(widget.defaultSettings());
 							clearAndInit();
 						})
@@ -423,11 +423,11 @@ public class HudEditScreen extends Screen {
 		HudObjectSettings s = widget.settings();
 		if (background) {
 			this.client.setScreen(new ColorPickerScreen(this,
-					Text.translatable("fishbite.config.hud.background_color"),
+					Text.translatable("labsaddons.config.hud.background_color"),
 					s.backgroundColor, true, color -> s.backgroundColor = color));
 		} else {
 			this.client.setScreen(new ColorPickerScreen(this,
-					Text.translatable("fishbite.config.hud.text_color"),
+					Text.translatable("labsaddons.config.hud.text_color"),
 					s.textColor, false, color -> s.textColor = 0xFF000000 | (color & 0xFFFFFF)));
 		}
 	}
@@ -475,7 +475,7 @@ public class HudEditScreen extends Screen {
 
 		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, EditorTheme.TITLE);
 		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("fishbite.hud.editor.hint"), this.width / 2, 24, EditorTheme.TEXT_DIM);
+				Text.translatable("labsaddons.hud.editor.hint"), this.width / 2, 24, EditorTheme.TEXT_DIM);
 
 		HudObject one = singleSelected();
 		for (HudObject obj : HudObjects.all()) {
@@ -518,13 +518,13 @@ public class HudEditScreen extends Screen {
 			drawInspector(context, one, mouseX, mouseY);
 		} else if (selection.size() > 1) {
 			context.drawCenteredTextWithShadow(this.textRenderer,
-					Text.translatable("fishbite.hud.editor.multi_hint", selection.size()),
+					Text.translatable("labsaddons.hud.editor.multi_hint", selection.size()),
 					this.width / 2, this.height - EditorTheme.TOOLBAR_H - 12, EditorTheme.TEXT_ACCENT);
 		}
 
 		context.fill(0, this.height - EditorTheme.TOOLBAR_H, this.width, this.height, EditorTheme.TOOLBAR_BG);
 		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("fishbite.hud.editor.nudge_hint"),
+				Text.translatable("labsaddons.hud.editor.nudge_hint"),
 				this.width / 2, this.height - EditorTheme.TOOLBAR_H / 2 - 4, EditorTheme.TEXT_DIM);
 
 		super.render(context, mouseX, mouseY, delta);
@@ -542,7 +542,7 @@ public class HudEditScreen extends Screen {
 	private void drawNameChip(DrawContext context, HudObject obj, int[] b) {
 		boolean enabled = obj.settings().enabled;
 		Text label = enabled ? obj.displayName()
-				: Text.translatable("fishbite.hud.editor.hidden_suffix", obj.displayName());
+				: Text.translatable("labsaddons.hud.editor.hidden_suffix", obj.displayName());
 		int color = enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN;
 		boolean above = b[1] - (this.textRenderer.fontHeight + 4) >= EditorTheme.TOP + 4;
 		int chipY = above ? b[1] - this.textRenderer.fontHeight - 3 : b[1] + b[3] + 3;
@@ -554,7 +554,7 @@ public class HudEditScreen extends Screen {
 	private void drawRail(DrawContext context, int mouseX, int mouseY) {
 		int[] r = railRect();
 		EditorPainter.panel(context, r, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
-		context.drawText(this.textRenderer, Text.translatable("fishbite.hud.editor.layers"),
+		context.drawText(this.textRenderer, Text.translatable("labsaddons.hud.editor.layers"),
 				r[0] + 5, r[1] + 3, EditorTheme.TEXT_ACCENT, false);
 
 		List<HudObject> objects = HudObjects.all();

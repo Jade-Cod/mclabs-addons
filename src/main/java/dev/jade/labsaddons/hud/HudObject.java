@@ -21,7 +21,7 @@ public abstract class HudObject {
 
 	/** Human-readable widget name, shown in the editor and settings. */
 	public net.minecraft.text.Text displayName() {
-		return net.minecraft.text.Text.translatable("fishbite.hud." + id() + ".name");
+		return net.minecraft.text.Text.translatable("labsaddons.hud." + id() + ".name");
 	}
 
 	public abstract int contentWidth(boolean preview);

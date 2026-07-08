@@ -42,7 +42,7 @@ public class PersonalBoosterHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.personal_boosters.clear"), PersonalBoosters::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.personal_boosters.clear"), PersonalBoosters::clear);
 	}
 
 	private record Row(ItemStack icon, String text) {

@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * </ol>
  */
 public final class LabWarsTracker {
-	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
 	private static final double MULT_EPSILON = 0.005;
 
 	private static final Pattern ACTIVATED = Pattern.compile(
@@ -82,7 +82,7 @@ public final class LabWarsTracker {
 			list().add(new LabWarsBooster(key, multiplier, expiry, true));
 		}
 		LabsAddonsConfig.get().save();
-		LOGGER.info("[fishbite] Lab Wars booster: {} {}x", key, multiplier);
+		LOGGER.info("[labsaddons] Lab Wars booster: {} {}x", key, multiplier);
 	}
 
 	private static void extend(String key, double multiplier, long durationMs) {

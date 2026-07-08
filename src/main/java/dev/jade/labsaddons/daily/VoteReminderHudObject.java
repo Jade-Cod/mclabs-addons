@@ -37,7 +37,7 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 	@Override
 	@Nullable
 	protected Text header(boolean preview) {
-		return Text.translatable("fishbite.hud.votes.name");
+		return Text.translatable("labsaddons.hud.votes.name");
 	}
 
 	@Override
@@ -58,6 +58,6 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 	// Cross-machine sync is intentionally out of scope; this is local-only.
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.votes.mark_voted"), VoteTracker::markAllDone);
+		return new EditorAction(Text.translatable("labsaddons.hud.votes.mark_voted"), VoteTracker::markAllDone);
 	}
 }

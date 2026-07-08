@@ -33,73 +33,73 @@ public final class LabsAddonsConfigScreenFactory {
 
 		ConfigBuilder builder = ConfigBuilder.create()
 				.setParentScreen(parent)
-				.setTitle(Text.translatable("fishbite.config.title"))
+				.setTitle(Text.translatable("labsaddons.config.title"))
 				.setSavingRunnable(config::save);
 
 		ConfigEntryBuilder entries = builder.entryBuilder();
 		ConfigCategory general = builder.getOrCreateCategory(
-				Text.translatable("fishbite.config.category.general"));
+				Text.translatable("labsaddons.config.category.general"));
 
 		general.addEntry(entries
-				.startBooleanToggle(Text.translatable("fishbite.config.enabled"), config.enabled)
+				.startBooleanToggle(Text.translatable("labsaddons.config.enabled"), config.enabled)
 				.setDefaultValue(true)
-				.setTooltip(Text.translatable("fishbite.config.enabled.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.enabled.tooltip"))
 				.setSaveConsumer(value -> config.enabled = value)
 				.build());
 
 		general.addEntry(entries
-				.startIntSlider(Text.translatable("fishbite.config.scale"),
+				.startIntSlider(Text.translatable("labsaddons.config.scale"),
 						Math.round(config.markerScale * PERCENT), SCALE_SLIDER_MIN, SCALE_SLIDER_MAX)
 				.setDefaultValue(SCALE_SLIDER_DEFAULT)
-				.setTooltip(Text.translatable("fishbite.config.scale.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.scale.tooltip"))
 				.setTextGetter(value -> Text.literal(value + "%"))
 				.setSaveConsumer(value -> config.markerScale = value / PERCENT)
 				.build());
 
 		general.addEntry(entries
-				.startColorField(Text.translatable("fishbite.config.waiting_color"), config.waitingColor)
+				.startColorField(Text.translatable("labsaddons.config.waiting_color"), config.waitingColor)
 				.setDefaultValue(LabsAddonsConfig.DEFAULT_WAITING_COLOR)
-				.setTooltip(Text.translatable("fishbite.config.waiting_color.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.waiting_color.tooltip"))
 				.setSaveConsumer(value -> config.waitingColor = value)
 				.build());
 
 		general.addEntry(entries
-				.startColorField(Text.translatable("fishbite.config.bite_color"), config.biteColor)
+				.startColorField(Text.translatable("labsaddons.config.bite_color"), config.biteColor)
 				.setDefaultValue(LabsAddonsConfig.DEFAULT_BITE_COLOR)
-				.setTooltip(Text.translatable("fishbite.config.bite_color.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.bite_color.tooltip"))
 				.setSaveConsumer(value -> config.biteColor = value)
 				.build());
 
 		general.addEntry(entries
-				.startBooleanToggle(Text.translatable("fishbite.config.mute_others"), config.muteOtherBobbers)
+				.startBooleanToggle(Text.translatable("labsaddons.config.mute_others"), config.muteOtherBobbers)
 				.setDefaultValue(false)
-				.setTooltip(Text.translatable("fishbite.config.mute_others.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.mute_others.tooltip"))
 				.setSaveConsumer(value -> config.muteOtherBobbers = value)
 				.build());
 
 		general.addEntry(entries
-				.startDropdownMenu(Text.translatable("fishbite.config.catch_sound"),
+				.startDropdownMenu(Text.translatable("labsaddons.config.catch_sound"),
 						config.catchSound, value -> value,
 						value -> Text.literal(value.isEmpty()
-								? Text.translatable("fishbite.config.catch_sound.vanilla").getString()
+								? Text.translatable("labsaddons.config.catch_sound.vanilla").getString()
 								: value))
 				.setSelections(soundIdSuggestions())
 				.setSuggestionMode(false)
 				.setDefaultValue("")
-				.setTooltip(Text.translatable("fishbite.config.catch_sound.tooltip"))
+				.setTooltip(Text.translatable("labsaddons.config.catch_sound.tooltip"))
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
 
 
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
-				Text.translatable("fishbite.config.category.item_uses")), config);
+				Text.translatable("labsaddons.config.category.item_uses")), config);
 
 		return builder.build();
 	}
 
 	private static void addItemUsesEntries(ConfigEntryBuilder entries, ConfigCategory category,
 			LabsAddonsConfig config) {
-		String prefix = "fishbite.config.item_uses";
+		String prefix = "labsaddons.config.item_uses";
 
 		category.addEntry(entries
 				.startBooleanToggle(Text.translatable(prefix + ".enabled"), config.itemUsesEnabled)

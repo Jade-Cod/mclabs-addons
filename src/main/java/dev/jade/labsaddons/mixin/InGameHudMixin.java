@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Draws all fishbite HUD elements at the tail of the vanilla HUD render.
+ * Draws all labsaddons HUD elements at the tail of the vanilla HUD render.
  *
  * <p>This replaces Fabric's {@code HudElementRegistry.addLast} dispatch, which
  * client overlays such as Feather break by replacing the per-element vanilla
@@ -27,7 +27,7 @@ public abstract class InGameHudMixin {
 			method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V",
 			at = @At("TAIL")
 	)
-	private void fishbite$renderHudElements(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+	private void labsaddons$renderHudElements(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
 		HudRenderDispatcher.renderAll(context, tickCounter);
 	}
 
@@ -42,7 +42,7 @@ public abstract class InGameHudMixin {
 			method = "setOverlayMessage(Lnet/minecraft/text/Text;Z)V",
 			at = @At("HEAD")
 	)
-	private void fishbite$captureOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
+	private void labsaddons$captureOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
 		if (message != null) {
 			McmmoCooldownTracker.onMessage(message.getString());
 			PitItemCooldownTracker.onMessage(message.getString());

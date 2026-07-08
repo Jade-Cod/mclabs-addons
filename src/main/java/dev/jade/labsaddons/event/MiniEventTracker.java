@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * of chum time, matching the server's behaviour.
  */
 public final class MiniEventTracker {
-	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
 
 	private static final Pattern UPCOMING =
 			Pattern.compile("Mini-?Event will begin in\\s+(.+?)\\s*[!.\\n\\r]", Pattern.CASE_INSENSITIVE);
@@ -69,7 +69,7 @@ public final class MiniEventTracker {
 		config.miniEventExpiryEpochMs = System.currentTimeMillis() + DEFAULT_EVENT_MS;
 		config.miniEventUpcomingEpochMs = 0L;
 		config.save();
-		LOGGER.info("[fishbite] Mini-event started: {}", type);
+		LOGGER.info("[labsaddons] Mini-event started: {}", type);
 
 		if (type.toLowerCase(Locale.ROOT).contains("fishing")) {
 			long now = System.currentTimeMillis();

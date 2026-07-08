@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * applies to everyone, so inventory state says nothing about active boosts.
  */
 public final class BoosterTracker {
-	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
 
 	private static final Pattern ANNOUNCEMENT = Pattern.compile(
 			"Booster activated!\\s+(.+?)\\s+boosted\\s+([0-9]+(?:\\.[0-9]+)?)x\\s+by\\s+.+?\\s+for\\s+((?:\\d+[dhms])+)",
@@ -49,7 +49,7 @@ public final class BoosterTracker {
 		}
 
 		track(item, multiplier, System.currentTimeMillis() + durationMs);
-		LOGGER.info("[fishbite] Tracked booster: {} {}x for {}", item, multiplier, matcher.group(3));
+		LOGGER.info("[labsaddons] Tracked booster: {} {}x for {}", item, multiplier, matcher.group(3));
 	}
 
 	/**

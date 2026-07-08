@@ -36,7 +36,7 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.mini_event.clear"), MiniEventTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.mini_event.clear"), MiniEventTracker::clear);
 	}
 
 	@Override
@@ -46,7 +46,7 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 			return Text.literal(MiniEventTracker.type() + " Event");
 		}
 		if (MiniEventTracker.isUpcoming()) {
-			return Text.translatable("fishbite.hud.mini_event.upcoming");
+			return Text.translatable("labsaddons.hud.mini_event.upcoming");
 		}
 		return Text.literal("Fishing Event");
 	}

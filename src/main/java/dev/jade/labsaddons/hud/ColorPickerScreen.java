@@ -98,7 +98,7 @@ public class ColorPickerScreen extends Screen {
 		y += ROW_GAP * 3;
 
 		hexField = new TextFieldWidget(this.textRenderer, x, y, ROW_WIDTH, ROW_HEIGHT,
-				Text.translatable("fishbite.color.hex"));
+				Text.translatable("labsaddons.color.hex"));
 		hexField.setMaxLength(9);
 		hexField.setChangedListener(this::onHexTyped);
 		this.addDrawableChild(hexField);

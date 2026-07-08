@@ -6,7 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
 
 /**
- * Draws every fishbite HUD element from a single hook at the tail of the vanilla
+ * Draws every labsaddons HUD element from a single hook at the tail of the vanilla
  * HUD render (see {@code InGameHudMixin}).
  *
  * <p>Historically these elements were registered through Fabric's

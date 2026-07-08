@@ -64,7 +64,7 @@ public class HelpScreen extends Screen {
 	}
 
 	public HelpScreen(Screen parent, boolean firstRun) {
-		super(Text.translatable("fishbite.hud.help.title"));
+		super(Text.translatable("labsaddons.hud.help.title"));
 		this.parent = parent;
 		this.firstRun = firstRun;
 		// Persist "seen" immediately so the welcome can never reappear, even if the
@@ -90,7 +90,7 @@ public class HelpScreen extends Screen {
 
 		int buttonY = cardY + cardH - PAD - BUTTON_H;
 		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("fishbite.hud.help.dismiss"), b -> this.close())
+						Text.translatable("labsaddons.hud.help.dismiss"), b -> this.close())
 				.dimensions(this.width / 2 - BUTTON_W / 2, buttonY, BUTTON_W, BUTTON_H).build());
 	}
 

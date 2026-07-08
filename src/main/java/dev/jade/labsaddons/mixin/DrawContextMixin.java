@@ -27,7 +27,7 @@ public abstract class DrawContextMixin {
 			method = "drawStackOverlay(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/item/ItemStack;IILjava/lang/String;)V",
 			at = @At("TAIL")
 	)
-	private void fishbite$drawRemainingUses(TextRenderer textRenderer, ItemStack stack,
+	private void labsaddons$drawRemainingUses(TextRenderer textRenderer, ItemStack stack,
 			int x, int y, String countOverride, CallbackInfo ci) {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.itemUsesEnabled) {

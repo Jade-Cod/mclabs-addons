@@ -43,7 +43,7 @@ public class ChumHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.chum.reset"), ChumTimer::reset);
+		return new EditorAction(Text.translatable("labsaddons.hud.chum.reset"), ChumTimer::reset);
 	}
 
 	private String timeText(boolean preview) {

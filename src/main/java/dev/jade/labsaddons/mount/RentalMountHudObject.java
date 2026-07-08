@@ -34,13 +34,13 @@ public class RentalMountHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("fishbite.hud.rental_mount.clear"), RentalMountTimer::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.rental_mount.clear"), RentalMountTimer::clear);
 	}
 
 	@Override
 	@Nullable
 	protected Text header(boolean preview) {
-		return Text.translatable("fishbite.hud.rental_mount.name");
+		return Text.translatable("labsaddons.hud.rental_mount.name");
 	}
 
 	@Override
