@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.14.0] - 2026-07-07
+
+### Changed
+- **The mod's internal id is now `labsaddons`, completing the rename to MCLabs Addons.** Nothing changes in how the mod looks or works — everything carries over automatically on first launch:
+  - All settings — HUD layouts, colors, timers, and tracked state — move from `config/fishbite.json` to `config/labsaddons.json`. The old file is left in place as a backup.
+  - Custom key bindings for **Open HUD Editor**, **Deposit Chemtainer**, and **Withdraw Chemtainer** are carried over from Minecraft's `options.txt`, so rebound keys stay exactly where you put them.
+- **Remove the old jar when updating.** If a 1.13.x-or-older jar is still in your `mods` folder, the game now stops at launch with a clear incompatibility message instead of silently running two copies of the mod — delete the old jar and relaunch.
+- The build now produces `mclabs-addons-<version>.jar` directly (previously it built as `fishbite-indicator-<version>.jar` and was renamed at release time).
+
 ## [1.13.0] - 2026-07-05
 
 ### Added
@@ -88,6 +97,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.14.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.14.0
 [1.13.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.13.0
 [1.12.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.1
 [1.12.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.0

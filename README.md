@@ -7,9 +7,6 @@ GUIs **passively**. Tracking never automates anything on its own; the only
 commands it ever sends are the optional **Chemtainer deposit/withdraw keybinds**
 you press yourself.
 
-> Internal mod id is still `fishbite` (config lives at `config/fishbite.json`);
-> the display name is "MCLabs Addons".
-
 ## Features
 
 **Bite marker** — floats an exclamation mark over your own fishing bobber:
@@ -50,7 +47,7 @@ booster shows an end crystal labelled "All").
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**,
    **Cloth Config**, and (optionally) **Mod Menu** into your `mods` folder — see
    *Requirements* below.
-2. Put `mclabs-addons-1.11.1.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.14.0.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -127,11 +124,12 @@ Open **Mods → MCLabs Addons → Config** (requires
 [Mod Menu](https://modrinth.com/mod/modmenu)). The screen has a **General**
 category (bite-marker enable/size/colors, mute-others, catch sound) plus one
 category per HUD widget (enable, size, text color, background). Saved to
-`config/fishbite.json`.
+`config/labsaddons.json` (settings from older versions in `config/fishbite.json`
+are migrated over automatically on first launch).
 
 ## Architecture
 
-- `FishBiteClient` (entrypoint) registers the bite-marker render callbacks, all
+- `LabsAddonsClient` (entrypoint) registers the bite-marker render callbacks, all
   HUD widgets via `hud/HudObjects`, the chat dispatch (`ClientReceiveMessageEvents`
   → per-feature trackers), the outgoing-command hook (`ClientSendMessageEvents`,
   used to clear the `/sm claim` reminder and to arm the Chemtainer deposit diff),
@@ -174,14 +172,14 @@ Drop these in your `mods` folder alongside the mod:
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | required (config widgets) |
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 
-Current mod version: **1.13.0**.
+Current mod version: **1.14.0**.
 
 ## Building
 
 Requires a **JDK 21**.
 
 ```bash
-./gradlew build      # builds build/libs/fishbite-indicator-<version>.jar
+./gradlew build      # builds build/libs/mclabs-addons-<version>.jar
 ./gradlew runClient  # launches a dev client
 ```
 

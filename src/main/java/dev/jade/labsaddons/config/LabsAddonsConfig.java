@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Mod configuration persisted to {@code config/fishbite.json}. Loaded lazily and
+ * Mod configuration persisted to {@code config/labsaddons.json}. Loaded lazily and
  * shared as a singleton across the renderer, sound hook, chum timer, and config
  * screen.
  */
@@ -29,6 +29,9 @@ public class LabsAddonsConfig {
 	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path CONFIG_PATH =
+			FabricLoader.getInstance().getConfigDir().resolve("labsaddons.json");
+	/** Pre-rename (v1.13.x and older) location; read once, left in place as a backup. */
+	private static final Path LEGACY_CONFIG_PATH =
 			FabricLoader.getInstance().getConfigDir().resolve("fishbite.json");
 	private static final ExecutorService SAVE_EXECUTOR = Executors.newSingleThreadExecutor();
 	private static final Object SAVE_LOCK = new Object();
@@ -84,6 +87,8 @@ public class LabsAddonsConfig {
 	// --- Onboarding ---
 	/** True once the first-run welcome guide has been shown in the HUD editor. */
 	public boolean hasSeenWelcome = false;
+	/** True once the one-time pre-rename keybind carry-over has run (v1.14.0). */
+	public boolean keybindsMigrated = false;
 
 	// --- Chemtainer contents (authoritative snapshot scraped from the /ch GUI) ---
 	public java.util.List<ChemtainerEntry> chemtainer = new java.util.ArrayList<>();
@@ -122,6 +127,7 @@ public class LabsAddonsConfig {
 	}
 
 	private static LabsAddonsConfig load() {
+		ConfigMigration.migrate(CONFIG_PATH, LEGACY_CONFIG_PATH);
 		if (Files.exists(CONFIG_PATH)) {
 			try (BufferedReader reader = Files.newBufferedReader(CONFIG_PATH)) {
 				LabsAddonsConfig loaded = GSON.fromJson(reader, LabsAddonsConfig.class);
@@ -161,6 +167,7 @@ public class LabsAddonsConfig {
 		clean.voteCount = Math.max(0, this.voteCount);
 		clean.voteBoundaryMs = Math.max(0L, this.voteBoundaryMs);
 		clean.hasSeenWelcome = this.hasSeenWelcome;
+		clean.keybindsMigrated = this.keybindsMigrated;
 		if (this.chemtainer != null) {
 			for (ChemtainerEntry entry : this.chemtainer) {
 				if (entry != null && entry.chem != null && entry.count > 0) {
