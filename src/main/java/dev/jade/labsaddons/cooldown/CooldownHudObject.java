@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.cooldown;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.TimeFormat;
@@ -93,7 +93,7 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	private static boolean vertical() {
-		return FishBiteConfig.get().cooldownsStackVertical;
+		return LabsAddonsConfig.get().cooldownsStackVertical;
 	}
 
 	@Override
@@ -103,8 +103,8 @@ public class CooldownHudObject extends HudObject {
 				Text.translatable("fishbite.hud.ability_cooldowns.vertical_label"),
 				CooldownHudObject::vertical,
 				isVertical -> {
-					FishBiteConfig.get().cooldownsStackVertical = isVertical;
-					FishBiteConfig.get().save();
+					LabsAddonsConfig.get().cooldownsStackVertical = isVertical;
+					LabsAddonsConfig.get().save();
 				});
 	}
 
@@ -124,15 +124,15 @@ public class CooldownHudObject extends HudObject {
 			}
 			List<ToggleOption> options = keys.stream()
 					.map(k -> new ToggleOption(Text.literal(k.label()),
-							() -> !FishBiteConfig.get().hiddenCooldownKeys.contains(k.key()),
+							() -> !LabsAddonsConfig.get().hiddenCooldownKeys.contains(k.key()),
 							visible -> {
-								var hidden = FishBiteConfig.get().hiddenCooldownKeys;
+								var hidden = LabsAddonsConfig.get().hiddenCooldownKeys;
 								if (visible) {
 									hidden.remove(k.key());
 								} else {
 									hidden.add(k.key());
 								}
-								FishBiteConfig.get().save();
+								LabsAddonsConfig.get().save();
 							}))
 					.toList();
 			groups.add(new ToggleGroup(Text.literal(category), options));
@@ -143,7 +143,7 @@ public class CooldownHudObject extends HudObject {
 	private List<Ring> rings(boolean preview) {
 		long now = System.currentTimeMillis();
 		List<Ring> rings = new ArrayList<>();
-		var hidden = FishBiteConfig.get().hiddenCooldownKeys;
+		var hidden = LabsAddonsConfig.get().hiddenCooldownKeys;
 		for (CooldownSource source : SOURCES) {
 			for (CooldownEntry entry : source.entries(now)) {
 				if (hidden.contains(entry.key())) {

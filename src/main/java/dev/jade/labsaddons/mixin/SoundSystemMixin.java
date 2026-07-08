@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.BiteMarker;
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.sound.SoundInstance;
@@ -46,7 +46,7 @@ public abstract class SoundSystemMixin {
 			return;
 		}
 
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client.world == null || client.player == null) {
 			return;
@@ -88,7 +88,7 @@ public abstract class SoundSystemMixin {
 	}
 
 	@Unique
-	private static void fishbite$replaceCatchSound(FishBiteConfig config, MinecraftClient client,
+	private static void fishbite$replaceCatchSound(LabsAddonsConfig config, MinecraftClient client,
 			SoundInstance sound, Identifier originalId,
 			CallbackInfoReturnable<SoundSystem.PlayResult> cir) {
 		if (config.catchSound.isBlank()) {

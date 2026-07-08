@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.daily;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 
 import java.util.regex.Pattern;
 
@@ -22,7 +22,7 @@ public final class VoteTracker {
 		if (!VOTE.matcher(text).find()) {
 			return;
 		}
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		long boundary = DailyReset.currentBoundaryMs();
 		if (config.voteBoundaryMs < boundary) {
 			config.voteCount = 0;
@@ -34,7 +34,7 @@ public final class VoteTracker {
 
 	/** Votes registered since the current reset (0..VOTE_GOAL). */
 	public static int votesDone() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (config.voteBoundaryMs < DailyReset.currentBoundaryMs()) {
 			return 0;
 		}
@@ -47,7 +47,7 @@ public final class VoteTracker {
 
 	/** Marks all votes done for the current reset window (local-only override). */
 	public static void markAllDone() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.voteBoundaryMs = DailyReset.currentBoundaryMs();
 		config.voteCount = VOTE_GOAL;
 		config.save();

@@ -35,7 +35,7 @@ import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.hud.HudEditScreen;
 import dev.jade.labsaddons.hud.HudObjects;
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
 import dev.jade.labsaddons.update.ModrinthUpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
@@ -61,7 +61,7 @@ import java.util.Locale;
  * Client entrypoint. Wires up the bite marker (HUD-projected, see
  * {@link BiteMarkerHud}) and the Chum Bucket timer (detection + HUD + editor).
  */
-public class FishBiteClient implements ClientModInitializer {
+public class LabsAddonsClient implements ClientModInitializer {
 	/** The mod's own keybind category, moved near the top of the Controls screen. */
 	public static final KeyBinding.Category MCLAB_CATEGORY = registerCategory();
 
@@ -88,7 +88,7 @@ public class FishBiteClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		FishBiteConfig.get();
+		LabsAddonsConfig.get();
 
 		// Bite marker: capture frame matrices; the projected "!" is drawn by
 		// HudRenderDispatcher (InGameHudMixin tail hook) alongside the widgets.
@@ -108,7 +108,7 @@ public class FishBiteClient implements ClientModInitializer {
 		HudObjects.register(new ChemtainerHudObject());
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
-		McmmoCooldownTracker.setHeldToolResolver(FishBiteClient::heldTool);
+		McmmoCooldownTracker.setHeldToolResolver(LabsAddonsClient::heldTool);
 		CooldownHudObject.addSource(PitItemCooldownTracker.source());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.hud;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
 import net.minecraft.client.gui.DrawContext;
 
@@ -82,7 +82,7 @@ public abstract class HudObject {
 
 	public HudObjectSettings settings() {
 		if (cachedSettings == null) {
-			FishBiteConfig config = FishBiteConfig.get();
+			LabsAddonsConfig config = LabsAddonsConfig.get();
 			cachedSettings = config.hudObjects.get(id());
 			if (cachedSettings == null) {
 				cachedSettings = defaultSettings().copy();

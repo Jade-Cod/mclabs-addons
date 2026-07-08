@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.mixin;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.item.ItemUses;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import net.minecraft.client.font.TextRenderer;
@@ -29,7 +29,7 @@ public abstract class DrawContextMixin {
 	)
 	private void fishbite$drawRemainingUses(TextRenderer textRenderer, ItemStack stack,
 			int x, int y, String countOverride, CallbackInfo ci) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.itemUsesEnabled) {
 			return;
 		}

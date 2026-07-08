@@ -1,6 +1,6 @@
 package dev.jade.labsaddons;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.mixin.FishingBobberEntityAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
@@ -40,7 +40,7 @@ public final class BiteMarker {
 	 *         should be drawn (mod disabled, or not the local player's bobber).
 	 */
 	public static Text markerFor(FishingBobberEntity bobber) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.enabled || !isOwnBobber(bobber)) {
 			return null;
 		}

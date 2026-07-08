@@ -11,10 +11,10 @@
 	"environment": "client",
 	"entrypoints": {
 		"client": [
-			"dev.jade.labsaddons.FishBiteClient"
+			"dev.jade.labsaddons.LabsAddonsClient"
 		],
 		"modmenu": [
-			"dev.jade.labsaddons.config.FishBiteModMenu"
+			"dev.jade.labsaddons.config.LabsAddonsModMenu"
 		]
 	},
 	"mixins": [

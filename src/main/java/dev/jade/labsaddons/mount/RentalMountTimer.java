@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.mount;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.Durations;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.CustomModelDataComponent;
@@ -55,14 +55,14 @@ public final class RentalMountTimer {
 	}
 
 	public static void addDuration(long durationMs) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		long base = Math.max(System.currentTimeMillis(), config.rentalMountExpiryEpochMs);
 		config.rentalMountExpiryEpochMs = base + durationMs;
 		config.save();
 	}
 
 	public static long remainingMs() {
-		return Math.max(0L, FishBiteConfig.get().rentalMountExpiryEpochMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().rentalMountExpiryEpochMs - System.currentTimeMillis());
 	}
 
 	public static boolean isActive() {
@@ -70,7 +70,7 @@ public final class RentalMountTimer {
 	}
 
 	public static void clear() {
-		FishBiteConfig.get().rentalMountExpiryEpochMs = 0L;
-		FishBiteConfig.get().save();
+		LabsAddonsConfig.get().rentalMountExpiryEpochMs = 0L;
+		LabsAddonsConfig.get().save();
 	}
 }

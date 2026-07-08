@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.chem;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
@@ -61,10 +61,10 @@ public class ChemtainerHudObject extends HudObject {
 	public List<ToggleOption> toggleOptions() {
 		return List.of(new ToggleOption(
 				Text.translatable("fishbite.hud.chemtainer.satchel"),
-				() -> FishBiteConfig.get().chemtainerSatchel,
+				() -> LabsAddonsConfig.get().chemtainerSatchel,
 				value -> {
-					FishBiteConfig.get().chemtainerSatchel = value;
-					FishBiteConfig.get().save();
+					LabsAddonsConfig.get().chemtainerSatchel = value;
+					LabsAddonsConfig.get().save();
 				}));
 	}
 
@@ -114,7 +114,7 @@ public class ChemtainerHudObject extends HudObject {
 	}
 
 	private static String inventoriesLine(long total) {
-		int divisor = FishBiteConfig.get().chemtainerSatchel ? SATCHEL_DIVISOR : BASE_DIVISOR;
+		int divisor = LabsAddonsConfig.get().chemtainerSatchel ? SATCHEL_DIVISOR : BASE_DIVISOR;
 		return String.format(Locale.US, "%.1f Inventories", total / (double) divisor);
 	}
 

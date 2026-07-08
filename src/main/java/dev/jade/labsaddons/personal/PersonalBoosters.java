@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.personal;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.Durations;
 
 import java.util.regex.Matcher;
@@ -47,24 +47,24 @@ public final class PersonalBoosters {
 
 	private static void setChem(long ms) {
 		if (ms > 0) {
-			FishBiteConfig.get().personalChemPriceExpiryMs = System.currentTimeMillis() + ms;
-			FishBiteConfig.get().save();
+			LabsAddonsConfig.get().personalChemPriceExpiryMs = System.currentTimeMillis() + ms;
+			LabsAddonsConfig.get().save();
 		}
 	}
 
 	private static void setPrestige(long ms) {
 		if (ms > 0) {
-			FishBiteConfig.get().personalPrestigeExpiryMs = System.currentTimeMillis() + ms;
-			FishBiteConfig.get().save();
+			LabsAddonsConfig.get().personalPrestigeExpiryMs = System.currentTimeMillis() + ms;
+			LabsAddonsConfig.get().save();
 		}
 	}
 
 	public static long chemRemainingMs() {
-		return Math.max(0L, FishBiteConfig.get().personalChemPriceExpiryMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().personalChemPriceExpiryMs - System.currentTimeMillis());
 	}
 
 	public static long prestigeRemainingMs() {
-		return Math.max(0L, FishBiteConfig.get().personalPrestigeExpiryMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().personalPrestigeExpiryMs - System.currentTimeMillis());
 	}
 
 	public static boolean anyActive() {
@@ -72,7 +72,7 @@ public final class PersonalBoosters {
 	}
 
 	public static void clear() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.personalChemPriceExpiryMs = 0L;
 		config.personalPrestigeExpiryMs = 0L;
 		config.save();

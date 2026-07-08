@@ -25,7 +25,7 @@ import java.util.concurrent.Executors;
  * shared as a singleton across the renderer, sound hook, chum timer, and config
  * screen.
  */
-public class FishBiteConfig {
+public class LabsAddonsConfig {
 	private static final Logger LOGGER = LoggerFactory.getLogger("fishbite");
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final Path CONFIG_PATH =
@@ -43,7 +43,7 @@ public class FishBiteConfig {
 	private static final float MIN_ITEM_USES_SCALE = 0.4f;
 	private static final float MAX_ITEM_USES_SCALE = 0.55f;
 
-	private static FishBiteConfig instance;
+	private static LabsAddonsConfig instance;
 
 	// --- Bite marker ---
 	public boolean enabled = true;
@@ -114,17 +114,17 @@ public class FishBiteConfig {
 	@Deprecated public Float chumHudX;
 	@Deprecated public Float chumHudY;
 
-	public static FishBiteConfig get() {
+	public static LabsAddonsConfig get() {
 		if (instance == null) {
 			instance = load();
 		}
 		return instance;
 	}
 
-	private static FishBiteConfig load() {
+	private static LabsAddonsConfig load() {
 		if (Files.exists(CONFIG_PATH)) {
 			try (BufferedReader reader = Files.newBufferedReader(CONFIG_PATH)) {
-				FishBiteConfig loaded = GSON.fromJson(reader, FishBiteConfig.class);
+				LabsAddonsConfig loaded = GSON.fromJson(reader, LabsAddonsConfig.class);
 				if (loaded != null) {
 					return loaded.sanitized();
 				}
@@ -134,14 +134,14 @@ public class FishBiteConfig {
 			}
 		}
 
-		FishBiteConfig defaults = new FishBiteConfig();
+		LabsAddonsConfig defaults = new LabsAddonsConfig();
 		defaults.save();
 		return defaults;
 	}
 
 	/** Clamps loaded values into valid ranges without mutating this instance. */
-	private FishBiteConfig sanitized() {
-		FishBiteConfig clean = new FishBiteConfig();
+	private LabsAddonsConfig sanitized() {
+		LabsAddonsConfig clean = new LabsAddonsConfig();
 		clean.enabled = this.enabled;
 		clean.markerScale = Math.clamp(this.markerScale, MIN_SCALE, MAX_SCALE);
 		clean.waitingColor = this.waitingColor & RGB_MASK;
@@ -248,7 +248,7 @@ public class FishBiteConfig {
 	}
 
 	public void saveAsync() {
-		FishBiteConfig snapshot = this.sanitized();
+		LabsAddonsConfig snapshot = this.sanitized();
 		SAVE_EXECUTOR.submit(snapshot::save);
 	}
 }

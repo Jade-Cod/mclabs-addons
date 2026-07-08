@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.booster;
 
 import dev.jade.labsaddons.chem.ChemIcons;
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +58,7 @@ public final class BoosterTracker {
 	 * "Time left" simply refreshes the countdown, the same way /lw rates does.
 	 */
 	public static synchronized void track(String item, double multiplier, long expiryEpochMs) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.boosters.put(storageKey(item), new BoosterState(item, multiplier, expiryEpochMs));
 		config.saveAsync();
 	}
@@ -86,7 +86,7 @@ public final class BoosterTracker {
 
 	/** Active boosters sorted by soonest expiry; prunes expired entries. */
 	public static synchronized List<BoosterState> active() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		boolean pruned = config.boosters.values()
 				.removeIf(booster -> booster == null || booster.remainingMs() <= 0);
 		if (pruned) {
@@ -98,7 +98,7 @@ public final class BoosterTracker {
 	}
 
 	public static synchronized void clear() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.boosters.clear();
 		config.saveAsync();
 	}

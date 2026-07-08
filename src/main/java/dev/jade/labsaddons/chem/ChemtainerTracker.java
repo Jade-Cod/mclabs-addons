@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.chem;
 
 import dev.jade.labsaddons.chem.ChemItems.ChemKey;
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +53,7 @@ public final class ChemtainerTracker {
 		// An authoritative scrape supersedes any in-flight deposit diff; discard it so
 		// a pending flush can't double-count chems this scrape already reflects.
 		ChemtainerDepositCapture.cancel();
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.chemtainer = new ArrayList<>(entries);
 		config.chemtainerSnapshotMs = System.currentTimeMillis();
 		config.saveAsync();
@@ -61,7 +61,7 @@ public final class ChemtainerTracker {
 
 	/** Add a captured deposit (from the inventory diff) to the ledger. */
 	public static synchronized void applyDeposit(Map<ChemKey, Long> deposited) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		for (Map.Entry<ChemKey, Long> entry : deposited.entrySet()) {
 			add(config.chemtainer, entry.getKey(), entry.getValue());
 		}
@@ -71,7 +71,7 @@ public final class ChemtainerTracker {
 
 	/** Subtract a withdrawn amount (from the "Withdrew N …" chat line) from the ledger. */
 	public static synchronized void applyWithdraw(ChemKey key, long count) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		ChemtainerEntry entry = find(config.chemtainer, key);
 		if (entry != null) {
 			entry.count -= count;
@@ -104,19 +104,19 @@ public final class ChemtainerTracker {
 	}
 
 	public static synchronized List<ChemtainerEntry> entries() {
-		return new ArrayList<>(FishBiteConfig.get().chemtainer);
+		return new ArrayList<>(LabsAddonsConfig.get().chemtainer);
 	}
 
 	public static long snapshotMs() {
-		return FishBiteConfig.get().chemtainerSnapshotMs;
+		return LabsAddonsConfig.get().chemtainerSnapshotMs;
 	}
 
 	public static boolean hasSnapshot() {
-		return FishBiteConfig.get().chemtainerSnapshotMs > 0;
+		return LabsAddonsConfig.get().chemtainerSnapshotMs > 0;
 	}
 
 	public static synchronized void clear() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.chemtainer = new ArrayList<>();
 		config.chemtainerSnapshotMs = 0L;
 		config.saveAsync();

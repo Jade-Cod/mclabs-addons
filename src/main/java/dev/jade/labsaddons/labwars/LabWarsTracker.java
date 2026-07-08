@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.labwars;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +69,7 @@ public final class LabWarsTracker {
 	}
 
 	private static List<LabWarsBooster> list() {
-		return FishBiteConfig.get().labWarsActive;
+		return LabsAddonsConfig.get().labWarsActive;
 	}
 
 	/** Adds a new booster, or refreshes the timer of an equal-multiplier one in the same category. */
@@ -81,7 +81,7 @@ public final class LabWarsTracker {
 		} else {
 			list().add(new LabWarsBooster(key, multiplier, expiry, true));
 		}
-		FishBiteConfig.get().save();
+		LabsAddonsConfig.get().save();
 		LOGGER.info("[fishbite] Lab Wars booster: {} {}x", key, multiplier);
 	}
 
@@ -92,7 +92,7 @@ public final class LabWarsTracker {
 		} else if (match == null) {
 			list().add(new LabWarsBooster(key, multiplier, 0L, false));
 		}
-		FishBiteConfig.get().save();
+		LabsAddonsConfig.get().save();
 	}
 
 	private static LabWarsBooster find(String key, double multiplier) {
@@ -106,7 +106,7 @@ public final class LabWarsTracker {
 
 	/** Combined-multiplier login summary: only seeds a placeholder for categories we know nothing about. */
 	private static void applyActiveSummary(String text) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		Set<String> listed = new HashSet<>();
 		Matcher line = ACTIVE_LINE.matcher(text);
 		while (line.find()) {
@@ -127,7 +127,7 @@ public final class LabWarsTracker {
 
 	/** Authoritative per-category breakdown from /lw rates: replaces this category's boosters. */
 	public static void setCategory(String key, List<LabWarsBooster> boosters) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.labWarsActive.removeIf(b -> b.key.equals(key));
 		config.labWarsActive.addAll(boosters);
 		config.save();
@@ -135,7 +135,7 @@ public final class LabWarsTracker {
 
 	/** Active boosters, known-timers first (soonest expiry), then placeholders. Prunes expired. */
 	public static List<LabWarsBooster> active() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (config.labWarsActive.removeIf(b -> b == null || (b.timerKnown && b.remainingMs() <= 0))) {
 			config.save();
 		}
@@ -147,8 +147,8 @@ public final class LabWarsTracker {
 	}
 
 	public static void clear() {
-		FishBiteConfig.get().labWarsActive.clear();
-		FishBiteConfig.get().save();
+		LabsAddonsConfig.get().labWarsActive.clear();
+		LabsAddonsConfig.get().save();
 	}
 
 	private static double parseDouble(String value) {

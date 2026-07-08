@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.hud;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import net.minecraft.client.MinecraftClient;
@@ -141,7 +141,7 @@ public class HudEditScreen extends Screen {
 			return;
 		}
 		welcomeChecked = true;
-		if (!FishBiteConfig.get().hasSeenWelcome && this.client != null) {
+		if (!LabsAddonsConfig.get().hasSeenWelcome && this.client != null) {
 			this.client.setScreen(new HelpScreen(this, true));
 		}
 	}
@@ -434,7 +434,7 @@ public class HudEditScreen extends Screen {
 
 	private void openMainConfig() {
 		MinecraftClient.getInstance().setScreen(
-				dev.jade.labsaddons.config.FishBiteConfigScreenFactory.create(this));
+				dev.jade.labsaddons.config.LabsAddonsConfigScreenFactory.create(this));
 	}
 
 	private void resetAll() {
@@ -1034,7 +1034,7 @@ public class HudEditScreen extends Screen {
 
 	@Override
 	public void close() {
-		FishBiteConfig.get().save();
+		LabsAddonsConfig.get().save();
 		if (this.client != null) {
 			this.client.setScreen(this.parent);
 		}

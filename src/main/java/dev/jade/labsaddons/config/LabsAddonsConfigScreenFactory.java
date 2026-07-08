@@ -16,7 +16,7 @@ import java.util.List;
  * Builds the Cloth Config screen shown from Mod Menu: marker toggle, size
  * slider, two colour pickers, other-bobber muting, and the catch-sound picker.
  */
-public final class FishBiteConfigScreenFactory {
+public final class LabsAddonsConfigScreenFactory {
 	private static final int SCALE_SLIDER_MIN = 25;
 	private static final int SCALE_SLIDER_MAX = 400;
 	private static final int SCALE_SLIDER_DEFAULT = 100;
@@ -25,11 +25,11 @@ public final class FishBiteConfigScreenFactory {
 	private static final int ITEM_USES_SCALE_SLIDER_MAX = 110;
 	private static final int ITEM_USES_SCALE_SLIDER_DEFAULT = 100;
 
-	private FishBiteConfigScreenFactory() {
+	private LabsAddonsConfigScreenFactory() {
 	}
 
 	public static Screen create(Screen parent) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 
 		ConfigBuilder builder = ConfigBuilder.create()
 				.setParentScreen(parent)
@@ -58,14 +58,14 @@ public final class FishBiteConfigScreenFactory {
 
 		general.addEntry(entries
 				.startColorField(Text.translatable("fishbite.config.waiting_color"), config.waitingColor)
-				.setDefaultValue(FishBiteConfig.DEFAULT_WAITING_COLOR)
+				.setDefaultValue(LabsAddonsConfig.DEFAULT_WAITING_COLOR)
 				.setTooltip(Text.translatable("fishbite.config.waiting_color.tooltip"))
 				.setSaveConsumer(value -> config.waitingColor = value)
 				.build());
 
 		general.addEntry(entries
 				.startColorField(Text.translatable("fishbite.config.bite_color"), config.biteColor)
-				.setDefaultValue(FishBiteConfig.DEFAULT_BITE_COLOR)
+				.setDefaultValue(LabsAddonsConfig.DEFAULT_BITE_COLOR)
 				.setTooltip(Text.translatable("fishbite.config.bite_color.tooltip"))
 				.setSaveConsumer(value -> config.biteColor = value)
 				.build());
@@ -98,7 +98,7 @@ public final class FishBiteConfigScreenFactory {
 	}
 
 	private static void addItemUsesEntries(ConfigEntryBuilder entries, ConfigCategory category,
-			FishBiteConfig config) {
+			LabsAddonsConfig config) {
 		String prefix = "fishbite.config.item_uses";
 
 		category.addEntry(entries
@@ -120,20 +120,20 @@ public final class FishBiteConfigScreenFactory {
 
 		category.addEntry(entries
 				.startColorField(Text.translatable(prefix + ".color"), config.itemUsesColor & 0xFFFFFF)
-				.setDefaultValue(FishBiteConfig.DEFAULT_ITEM_USES_COLOR & 0xFFFFFF)
+				.setDefaultValue(LabsAddonsConfig.DEFAULT_ITEM_USES_COLOR & 0xFFFFFF)
 				.setTooltip(Text.translatable(prefix + ".color.tooltip"))
 				.setSaveConsumer(value -> config.itemUsesColor = 0xFF000000 | value)
 				.build());
 
 		category.addEntry(entries
 				.startIntSlider(Text.translatable(prefix + ".scale"),
-						Math.round(config.itemUsesScale / FishBiteConfig.DEFAULT_ITEM_USES_SCALE * PERCENT),
+						Math.round(config.itemUsesScale / LabsAddonsConfig.DEFAULT_ITEM_USES_SCALE * PERCENT),
 						ITEM_USES_SCALE_SLIDER_MIN, ITEM_USES_SCALE_SLIDER_MAX)
 				.setDefaultValue(ITEM_USES_SCALE_SLIDER_DEFAULT)
 				.setTooltip(Text.translatable(prefix + ".scale.tooltip"))
 				.setTextGetter(value -> Text.literal(value + "%"))
 				.setSaveConsumer(value -> config.itemUsesScale =
-						value / PERCENT * FishBiteConfig.DEFAULT_ITEM_USES_SCALE)
+						value / PERCENT * LabsAddonsConfig.DEFAULT_ITEM_USES_SCALE)
 				.build());
 	}
 

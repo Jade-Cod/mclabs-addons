@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.chum;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.Durations;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,7 +57,7 @@ public final class ChumTimer {
 
 	/** Adds an arbitrary amount of chum time, stacking on remaining time. */
 	public static void addDuration(long durationMs) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		long base = Math.max(System.currentTimeMillis(), config.chumExpiryEpochMs);
 		config.chumExpiryEpochMs = base + durationMs;
 		config.save();
@@ -68,19 +68,19 @@ public final class ChumTimer {
 	 * sync). {@code durationMs <= 0} clears the timer.
 	 */
 	public static void setRemaining(long durationMs) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.chumExpiryEpochMs = durationMs <= 0L ? 0L : System.currentTimeMillis() + durationMs;
 		config.save();
 	}
 
 	public static void reset() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.chumExpiryEpochMs = 0L;
 		config.save();
 	}
 
 	public static long remainingMs() {
-		return Math.max(0L, FishBiteConfig.get().chumExpiryEpochMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().chumExpiryEpochMs - System.currentTimeMillis());
 	}
 
 	public static boolean isActive() {

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.mixin.CameraAccessor;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldExtractionContext;
 import net.minecraft.client.MinecraftClient;
@@ -85,7 +85,7 @@ public final class BiteMarkerHud {
 		float screenY = (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * drawContext.getScaledWindowHeight();
 
 		TextRenderer textRenderer = client.textRenderer;
-		float scale = BASE_SCALE * FishBiteConfig.get().markerScale;
+		float scale = BASE_SCALE * LabsAddonsConfig.get().markerScale;
 		float halfWidth = textRenderer.getWidth(marker) / 2.0f;
 
 		drawContext.getMatrices().pushMatrix();

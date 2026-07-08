@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.event;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,7 +22,7 @@ public final class PitTracker {
 	}
 
 	public static void onMessage(String text) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		Matcher open = OPEN.matcher(text);
 		if (open.find()) {
 			long ms = dev.jade.labsaddons.hud.Durations.parseMs(open.group(1));
@@ -43,15 +43,15 @@ public final class PitTracker {
 	}
 
 	public static boolean isActive() {
-		return FishBiteConfig.get().pitExpiryEpochMs > System.currentTimeMillis();
+		return LabsAddonsConfig.get().pitExpiryEpochMs > System.currentTimeMillis();
 	}
 
 	public static long remainingMs() {
-		return Math.max(0L, FishBiteConfig.get().pitExpiryEpochMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().pitExpiryEpochMs - System.currentTimeMillis());
 	}
 
 	public static void clear() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.pitExpiryEpochMs = 0L;
 		config.save();
 	}

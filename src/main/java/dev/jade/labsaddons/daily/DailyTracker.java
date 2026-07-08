@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.daily;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 
 import java.util.regex.Pattern;
 
@@ -22,7 +22,7 @@ public final class DailyTracker {
 	}
 
 	public static void onMessage(String text) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		boolean changed = false;
 		if (SPIN_DONE.matcher(text).find()) {
 			config.dailySpinClaimedMs = System.currentTimeMillis();
@@ -39,16 +39,16 @@ public final class DailyTracker {
 
 	/** Called immediately when the player types "/sm claim", before server confirmation. */
 	public static void markSmClaimed() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.smClaimedMs = System.currentTimeMillis();
 		config.save();
 	}
 
 	public static boolean dailyPending() {
-		return DailyReset.isPending(FishBiteConfig.get().dailySpinClaimedMs);
+		return DailyReset.isPending(LabsAddonsConfig.get().dailySpinClaimedMs);
 	}
 
 	public static boolean smPending() {
-		return DailyReset.isPending(FishBiteConfig.get().smClaimedMs);
+		return DailyReset.isPending(LabsAddonsConfig.get().smClaimedMs);
 	}
 }

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.hud;
 
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import net.minecraft.client.gui.DrawContext;
@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * Welcome / Help guide shown over the HUD editor. On the player's very first
- * open of the editor it appears once (gated by {@link FishBiteConfig#hasSeenWelcome});
+ * open of the editor it appears once (gated by {@link LabsAddonsConfig#hasSeenWelcome});
  * afterwards it only opens from the editor's "Help" button. A single card with a
  * short, scannable tour — restrained hierarchy, a subtle fade-in, one primary
  * action.
@@ -69,9 +69,9 @@ public class HelpScreen extends Screen {
 		this.firstRun = firstRun;
 		// Persist "seen" immediately so the welcome can never reappear, even if the
 		// editor re-inits before this screen is dismissed.
-		if (firstRun && !FishBiteConfig.get().hasSeenWelcome) {
-			FishBiteConfig.get().hasSeenWelcome = true;
-			FishBiteConfig.get().save();
+		if (firstRun && !LabsAddonsConfig.get().hasSeenWelcome) {
+			LabsAddonsConfig.get().hasSeenWelcome = true;
+			LabsAddonsConfig.get().save();
 		}
 	}
 

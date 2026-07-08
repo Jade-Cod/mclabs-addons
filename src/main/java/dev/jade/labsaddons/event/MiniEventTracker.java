@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.event;
 
 import dev.jade.labsaddons.chum.ChumTimer;
-import dev.jade.labsaddons.config.FishBiteConfig;
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public final class MiniEventTracker {
 		if (upcoming.find()) {
 			long ms = parseDuration(upcoming.group(1));
 			if (ms > 0) {
-				FishBiteConfig config = FishBiteConfig.get();
+				LabsAddonsConfig config = LabsAddonsConfig.get();
 				config.miniEventUpcomingEpochMs = System.currentTimeMillis() + ms;
 				config.save();
 			}
@@ -50,7 +50,7 @@ public final class MiniEventTracker {
 			startEvent(begun.group(1).trim());
 		}
 
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.miniEventType.isEmpty()) {
 			Matcher ends = ENDS.matcher(text);
 			if (ends.find()) {
@@ -64,7 +64,7 @@ public final class MiniEventTracker {
 	}
 
 	private static void startEvent(String type) {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.miniEventType = type;
 		config.miniEventExpiryEpochMs = System.currentTimeMillis() + DEFAULT_EVENT_MS;
 		config.miniEventUpcomingEpochMs = 0L;
@@ -96,29 +96,29 @@ public final class MiniEventTracker {
 	}
 
 	public static boolean isActive() {
-		return !FishBiteConfig.get().miniEventType.isEmpty()
-				&& FishBiteConfig.get().miniEventExpiryEpochMs > System.currentTimeMillis();
+		return !LabsAddonsConfig.get().miniEventType.isEmpty()
+				&& LabsAddonsConfig.get().miniEventExpiryEpochMs > System.currentTimeMillis();
 	}
 
 	public static boolean isUpcoming() {
 		return !isActive()
-				&& FishBiteConfig.get().miniEventUpcomingEpochMs > System.currentTimeMillis();
+				&& LabsAddonsConfig.get().miniEventUpcomingEpochMs > System.currentTimeMillis();
 	}
 
 	public static long activeRemainingMs() {
-		return Math.max(0L, FishBiteConfig.get().miniEventExpiryEpochMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().miniEventExpiryEpochMs - System.currentTimeMillis());
 	}
 
 	public static long upcomingRemainingMs() {
-		return Math.max(0L, FishBiteConfig.get().miniEventUpcomingEpochMs - System.currentTimeMillis());
+		return Math.max(0L, LabsAddonsConfig.get().miniEventUpcomingEpochMs - System.currentTimeMillis());
 	}
 
 	public static String type() {
-		return FishBiteConfig.get().miniEventType;
+		return LabsAddonsConfig.get().miniEventType;
 	}
 
 	public static void clear() {
-		FishBiteConfig config = FishBiteConfig.get();
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.miniEventType = "";
 		config.miniEventExpiryEpochMs = 0L;
 		config.miniEventUpcomingEpochMs = 0L;
