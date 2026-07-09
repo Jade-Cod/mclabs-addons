@@ -48,6 +48,7 @@ public class HelpScreen extends Screen {
 			{"Deposit key (B)", "Sends /ch qd and tracks the chems you banked on the HUD."},
 			{"Withdraw key (N)", "Pulls back whichever chem you have the most of."},
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
+			{"/supplier", "Open it to re-sync your posted runner-job count."},
 			{"Vote on all 7 sites", "Every ‘Vote registered!’ counts toward your daily 7."},
 	};
 
@@ -58,6 +59,11 @@ public class HelpScreen extends Screen {
 	private int cardX;
 	private int cardY;
 	private int cardH;
+	private int linesViewTop;
+	private int linesViewBottom;
+	private int linesContentH;
+	private int scrollOffset;
+	private int maxScroll;
 
 	/** A single rendered line: its text, colour, left indent and the gap above it. */
 	private record Line(OrderedText text, int color, int indent, int gapAbove) {
@@ -80,15 +86,24 @@ public class HelpScreen extends Screen {
 		this.openTimeMs = System.currentTimeMillis();
 		buildLines();
 
-		int contentH = 0;
+		this.linesContentH = 0;
 		for (Line line : lines) {
-			contentH += line.gapAbove() + LINE_H;
+			linesContentH += line.gapAbove() + LINE_H;
 		}
-		this.cardH = PAD + contentH + SECTION_GAP + BUTTON_H + PAD;
+		int desiredCardH = PAD + linesContentH + SECTION_GAP + BUTTON_H + PAD;
+		// Never let the card exceed the window — at small window sizes (e.g. GUI
+		// scale "Auto" picking a low resolution) the full content wouldn't fit and
+		// the dismiss button would render below the visible screen.
+		this.cardH = Math.min(desiredCardH, Math.max(8, this.height - 16));
 		this.cardX = (this.width - CARD_W) / 2;
 		this.cardY = Math.max(8, (this.height - cardH) / 2);
 
 		int buttonY = cardY + cardH - PAD - BUTTON_H;
+		this.linesViewTop = cardY + PAD;
+		this.linesViewBottom = buttonY - SECTION_GAP;
+		this.maxScroll = Math.max(0, linesContentH - (linesViewBottom - linesViewTop));
+		this.scrollOffset = 0;
+
 		this.addDrawableChild(ButtonWidget.builder(
 						Text.translatable("labsaddons.hud.help.dismiss"), b -> this.close())
 				.dimensions(this.width / 2 - BUTTON_W / 2, buttonY, BUTTON_W, BUTTON_H).build());
@@ -151,12 +166,22 @@ public class HelpScreen extends Screen {
 		EditorPainter.outline(context, cardX, cardY, CARD_W, cardH, mul(EditorTheme.PANEL_BORDER, fade));
 
 		int x = cardX + PAD;
-		int y = cardY + PAD;
+		int y = linesViewTop - scrollOffset;
+		context.enableScissor(cardX, linesViewTop, cardX + CARD_W, linesViewBottom);
 		for (Line line : lines) {
 			y += line.gapAbove();
-			context.drawText(this.textRenderer, line.text(), x + line.indent(), y, mul(line.color(), fade), false);
+			if (y + LINE_H >= linesViewTop && y <= linesViewBottom) {
+				context.drawText(this.textRenderer, line.text(), x + line.indent(), y, mul(line.color(), fade), false);
+			}
 			y += LINE_H;
 		}
+		context.disableScissor();
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+		scrollOffset = MathHelper.clamp(scrollOffset - (int) Math.round(verticalAmount) * LINE_H * 2, 0, maxScroll);
+		return true;
 	}
 
 	/** Smoothstep 0..1 over the first {@link #FADE_MS} after the screen opens. */
