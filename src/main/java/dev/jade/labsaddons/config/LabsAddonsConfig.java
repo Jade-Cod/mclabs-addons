@@ -111,6 +111,11 @@ public class LabsAddonsConfig {
 	// --- Runner leaderboard (per-runner all-time stats; supplier side) ---
 	public java.util.Map<String, RunnerStats> runnerStats = new java.util.LinkedHashMap<>();
 
+	// --- Runner job alarm (low-jobs alert) ---
+	public boolean runnerAlarmEnabled = false;
+	public int runnerAlarmThreshold = 1;
+	public String runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
+
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;
 	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();
@@ -190,6 +195,10 @@ public class LabsAddonsConfig {
 		clean.itemUsesCorner = parseCorner(this.itemUsesCorner).name();
 		clean.itemUsesColor = this.itemUsesColor;
 		clean.itemUsesScale = Math.clamp(this.itemUsesScale, MIN_ITEM_USES_SCALE, MAX_ITEM_USES_SCALE);
+		clean.runnerAlarmEnabled = this.runnerAlarmEnabled;
+		clean.runnerAlarmThreshold = Math.max(0, this.runnerAlarmThreshold);
+		clean.runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.isValidSound(this.runnerAlarmSound)
+				? this.runnerAlarmSound : dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
 		if (this.hiddenCooldownKeys != null) {
 			this.hiddenCooldownKeys.stream().filter(java.util.Objects::nonNull)
 					.forEach(clean.hiddenCooldownKeys::add);

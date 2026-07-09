@@ -3,6 +3,8 @@ package dev.jade.labsaddons.hud;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
+import dev.jade.labsaddons.runner.RunnerAlarm;
+import dev.jade.labsaddons.runner.RunnerHudObject;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.Click;
@@ -12,6 +14,7 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
@@ -42,6 +45,8 @@ public class HudEditScreen extends Screen {
 	private static final int GROUP_INDENT = 6;
 	/** Extra breathing room between Reset Widget and the "Ability Visibility" heading below it. */
 	private static final int GROUPS_HEADING_EXTRA = 6;
+	/** {@link #expandedGroups} key for the Runner Jobs widget's low-job alarm section. */
+	private static final String ALARM_GROUP_KEY = "runner_alarm";
 
 	/** Resize-handle roles: {signX, signY} in {-1,0,1}, excluding the centre. */
 	private static final int[][] HANDLE_SPECS = {
@@ -213,6 +218,8 @@ public class HudEditScreen extends Screen {
 		HudObject.SwitchOption switchOption = widget.switchOption();
 		List<HudObject.ToggleGroup> groups = widget.toggleGroups();
 		boolean hasGroups = !groups.isEmpty();
+		boolean isRunnerJobs = widget instanceof RunnerHudObject;
+		boolean alarmExpanded = isRunnerJobs && expandedGroups.contains(ALARM_GROUP_KEY);
 
 		int rowStep = EditorTheme.ROW + EditorTheme.GAP;
 		int groupsRows = 0;
@@ -230,6 +237,8 @@ public class HudEditScreen extends Screen {
 				+ (switchOption != null ? rowStep : 0)
 				+ (hasAction ? rowStep : 0)
 				+ rowStep
+				+ (isRunnerJobs ? rowStep : 0)
+				+ (alarmExpanded ? rowStep * 3 : 0)
 				+ (hasGroups ? GROUPS_HEADING_EXTRA + EditorTheme.NAME_H : 0)
 				+ rowStep * groupsRows;
 		int panelH = contentH + 2 * EditorTheme.PAD;
@@ -302,6 +311,49 @@ public class HudEditScreen extends Screen {
 						})
 				.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
 		y += rowStep;
+
+		if (isRunnerJobs) {
+			LabsAddonsConfig config = LabsAddonsConfig.get();
+			this.addDrawableChild(ButtonWidget.builder(
+							groupHeaderLabel(Text.translatable("labsaddons.hud.runner_jobs.alarm"), alarmExpanded),
+							b -> {
+								if (!expandedGroups.remove(ALARM_GROUP_KEY)) {
+									expandedGroups.add(ALARM_GROUP_KEY);
+								}
+								clearAndInit();
+							})
+					.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+			y += rowStep;
+
+			if (alarmExpanded) {
+				this.addDrawableChild(CyclingButtonWidget.onOffBuilder(config.runnerAlarmEnabled).build(
+						innerX, y, innerW, EditorTheme.ROW,
+						Text.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
+						(b, v) -> config.runnerAlarmEnabled = v));
+				y += rowStep;
+
+				TextFieldWidget thresholdField = new TextFieldWidget(this.textRenderer,
+						innerX, y, innerW, EditorTheme.ROW,
+						Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
+				thresholdField.setMaxLength(4);
+				thresholdField.setPlaceholder(Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
+				thresholdField.setText(String.valueOf(config.runnerAlarmThreshold));
+				thresholdField.setChangedListener(text -> {
+					if (text.matches("\\d+")) {
+						config.runnerAlarmThreshold = Integer.parseInt(text);
+					}
+				});
+				this.addDrawableChild(thresholdField);
+				y += rowStep;
+
+				this.addDrawableChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
+						.values(RunnerAlarm.SOUND_IDS)
+						.build(innerX, y, innerW, EditorTheme.ROW,
+								Text.translatable("labsaddons.hud.runner_jobs.alarm.sound"),
+								(b, v) -> config.runnerAlarmSound = v));
+				y += rowStep;
+			}
+		}
 
 		this.groupsLabelText = hasGroups ? widget.toggleGroupsLabel() : null;
 		this.abilityRows.clear();

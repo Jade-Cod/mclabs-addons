@@ -58,12 +58,14 @@ public final class RunnerTracker {
 				postedJobs = Math.max(0, postedJobs - 1);
 				totalEarned += event.value();
 				recordCompleted(event, pendingByRunner.remove(event.runner()));
+				RunnerAlarm.checkThreshold();
 			}
 			case FAILED -> {
 				failedJobs++;
 				postedJobs = Math.max(0, postedJobs - 1);
 				pendingByRunner.remove(event.runner()); // failed jobs don't count toward avg time
 				recordFailed(event.runner());
+				RunnerAlarm.checkThreshold();
 			}
 		}
 	}
@@ -71,6 +73,7 @@ public final class RunnerTracker {
 	/** Set the outstanding posted count from a /supplier scrape (see {@link SupplierJobsReader}). */
 	public static synchronized void reconcilePosted(int openCount) {
 		postedJobs = Math.max(0, openCount);
+		RunnerAlarm.checkThreshold();
 	}
 
 	private static void recordCompleted(RunnerMessages.Event event, PendingJob pending) {
@@ -156,5 +159,6 @@ public final class RunnerTracker {
 		failedJobs = 0;
 		totalEarned = 0.0;
 		pendingByRunner.clear();
+		RunnerAlarm.reset();
 	}
 }
