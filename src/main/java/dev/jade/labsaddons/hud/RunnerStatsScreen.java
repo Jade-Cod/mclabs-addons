@@ -374,8 +374,10 @@ public class RunnerStatsScreen extends Screen {
 	/**
 	 * Draws {@code entry}'s job-history shutter beneath its row. Content is always
 	 * drawn at the offsets it would occupy fully open; a scissor narrowed to the
-	 * currently animated height does the actual "rolling" reveal, then the outer
-	 * viewport scissor is restored so the row loop can continue clipping normally.
+	 * currently animated height does the actual "rolling" reveal. {@code DrawContext}'s
+	 * scissor is a stack, not a single rect — {@code disableScissor} pops back to
+	 * whatever was active before this call (the outer viewport scissor from the row
+	 * loop), so the row loop can keep clipping normally for the rows that follow.
 	 */
 	private void drawAccordionShutter(DrawContext context, int x, int y, int w, int h,
 			RunnerLeaderboard.Entry entry, int viewTop, int viewBottom) {
@@ -386,7 +388,7 @@ public class RunnerStatsScreen extends Screen {
 		}
 		context.enableScissor(x, clipTop, x + w, clipBottom);
 		drawAccordionContent(context, x, y, w, entry);
-		context.enableScissor(rowsX, viewTop, rowsX + rowsW, viewBottom);
+		context.disableScissor();
 	}
 
 	private void drawAccordionContent(DrawContext context, int x, int y, int w, RunnerLeaderboard.Entry entry) {
