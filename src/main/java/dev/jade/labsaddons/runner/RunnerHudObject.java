@@ -75,7 +75,7 @@ public class RunnerHudObject extends HudObject {
         return rows;
     }
 
-    static String formatMoney(double amount) {
+    public static String formatMoney(double amount) {
         if (amount >= 1_000_000) {
             return String.format(Locale.US, "%.1fm", amount / 1_000_000);
         }

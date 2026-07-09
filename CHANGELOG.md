@@ -4,6 +4,7 @@
 
 ### Added
 - **New Runner Jobs HUD widget.** Tracks MCLabs Runner job postings straight from chat — posted, completed, and failed counts plus the total money earned this session — drawn as a new draggable HUD widget, with a Reset Session action in the HUD editor's inspector panel.
+- **A Runner Leaderboard ranks the runners working your jobs.** The HUD Studio has a new **Stats** button that opens a full-screen table of everyone who's completed a job you posted — each row shows their **player head**, jobs done and failed, **Completion %**, **Avg Time**, and total value sold, ranked by jobs completed. **Hover** a runner to watch their character model run beside the list, and **click** a runner to page through their most recent completed jobs — drug, value, time taken and date, ten to a page with `<` / `>` turners. It fills in automatically from chat as jobs finish and persists across relogs (average time is a rough estimate); open `/supplier` any time to re-sync how many jobs you have posted. Clearing the board now asks for confirmation first, so an accidental click can't wipe it.
 
 ### Changed
 - **The mod's internal id is now `labsaddons`, completing the rename to MCLabs Addons.** Nothing changes in how the mod looks or works — everything carries over automatically on first launch:

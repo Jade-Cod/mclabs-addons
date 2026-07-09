@@ -35,6 +35,7 @@ import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
+import dev.jade.labsaddons.runner.SupplierJobsReader;
 import dev.jade.labsaddons.hud.HudEditScreen;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
@@ -207,7 +208,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 					lastRatesScreen = current;
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
-							ChemtainerReader.tryRead(handledScreen);
+							if (!ChemtainerReader.tryRead(handledScreen)) {
+								SupplierJobsReader.tryRead(handledScreen);
+							}
 						}
 					}
 				}

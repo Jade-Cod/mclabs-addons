@@ -152,6 +152,12 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
+	private void openStatistics() {
+		if (this.client != null) {
+			this.client.setScreen(new RunnerStatsScreen(this));
+		}
+	}
+
 	private void buildToolbar() {
 		int y = this.height - EditorTheme.TOOLBAR_H + (EditorTheme.TOOLBAR_H - 20) / 2;
 		int x = EditorTheme.MARGIN;
@@ -171,6 +177,11 @@ public class HudEditScreen extends Screen {
 						Text.translatable("labsaddons.hud.editor.help"), b -> openHelp())
 				.dimensions(x, y, 48, 20)
 				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.help.tooltip"))).build());
+		x += 52;
+		this.addDrawableChild(ButtonWidget.builder(
+						Text.translatable("labsaddons.hud.editor.stats"), b -> openStatistics())
+				.dimensions(x, y, 48, 20)
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.stats.tooltip"))).build());
 
 		int rx = this.width - EditorTheme.MARGIN - 64;
 		this.addDrawableChild(ButtonWidget.builder(snapLabel(), b -> {

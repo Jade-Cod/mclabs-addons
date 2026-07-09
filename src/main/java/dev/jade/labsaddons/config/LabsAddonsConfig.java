@@ -108,6 +108,9 @@ public class LabsAddonsConfig {
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
 
+	// --- Runner leaderboard (per-runner all-time stats; supplier side) ---
+	public java.util.Map<String, RunnerStats> runnerStats = new java.util.LinkedHashMap<>();
+
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;
 	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();
@@ -217,6 +220,14 @@ public class LabsAddonsConfig {
 				if (id != null && settings != null) {
 					settings.sanitize();
 					clean.hudObjects.put(id, settings);
+				}
+			});
+		}
+		if (this.runnerStats != null) {
+			this.runnerStats.forEach((name, stats) -> {
+				if (name != null && stats != null) {
+					stats.sanitize();
+					clean.runnerStats.put(name, stats);
 				}
 			});
 		}
