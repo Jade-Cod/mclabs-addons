@@ -5,9 +5,10 @@
 	"name": "MCLabs Addons",
 	"description": "MCLabs server HUD addons: fish-bite indicator, chum & booster timers, mini-event/pit trackers, and Lab Wars revenue boosters. Configurable, draggable HUD widgets.",
 	"authors": [
-		"jade"
+		"Jade"
 	],
 	"license": "MIT",
+	"icon": "assets/labsaddons/icon.png",
 	"environment": "client",
 	"entrypoints": {
 		"client": [

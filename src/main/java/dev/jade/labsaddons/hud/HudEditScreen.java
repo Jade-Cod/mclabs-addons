@@ -108,6 +108,7 @@ public class HudEditScreen extends Screen {
 	private int bgSwatchY;
 	private int groupsLabelY;
 	private Text groupsLabelText;
+	private int thresholdLabelY;
 
 	// Which toggle groups (by label) are expanded in the current inspector.
 	private final Set<String> expandedGroups = new LinkedHashSet<>();
@@ -238,7 +239,7 @@ public class HudEditScreen extends Screen {
 				+ (hasAction ? rowStep : 0)
 				+ rowStep
 				+ (isRunnerJobs ? rowStep : 0)
-				+ (alarmExpanded ? rowStep * 3 : 0)
+				+ (alarmExpanded ? rowStep * 3 + EditorTheme.NAME_H : 0)
 				+ (hasGroups ? GROUPS_HEADING_EXTRA + EditorTheme.NAME_H : 0)
 				+ rowStep * groupsRows;
 		int panelH = contentH + 2 * EditorTheme.PAD;
@@ -331,6 +332,9 @@ public class HudEditScreen extends Screen {
 						Text.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
 						(b, v) -> config.runnerAlarmEnabled = v));
 				y += rowStep;
+
+				this.thresholdLabelY = y;
+				y += EditorTheme.NAME_H;
 
 				TextFieldWidget thresholdField = new TextFieldWidget(this.textRenderer,
 						innerX, y, innerW, EditorTheme.ROW,
@@ -660,6 +664,11 @@ public class HudEditScreen extends Screen {
 
 		if (groupsLabelText != null) {
 			drawGroupsHeading(context);
+		}
+		if (widget instanceof RunnerHudObject && expandedGroups.contains(ALARM_GROUP_KEY)) {
+			context.drawText(this.textRenderer,
+					Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"),
+					innerX, thresholdLabelY, EditorTheme.TEXT_DIM, false);
 		}
 		drawAbilityRows(context, mouseX, mouseY);
 	}
