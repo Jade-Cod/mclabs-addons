@@ -29,7 +29,7 @@ import java.util.Map;
  * Rows are the per-runner all-time stats persisted in
  * {@link dev.jade.labsaddons.config.LabsAddonsConfig#runnerStats}, ranked by
  * {@link RunnerLeaderboard}. Each row shows the runner's head; hovering renders
- * their 3D model, standing and turned toward the panel, on the right; clicking opens their
+ * their 3D model, running in place and turned toward the panel, on the right; clicking opens their
  * {@link RunnerJobsScreen} history. Hand-drawn (the mod has no scrollable list
  * widget) with a simple scroll offset; reset goes through a {@link ConfirmScreen}.
  */
@@ -46,6 +46,11 @@ public class RunnerStatsScreen extends Screen {
 	private static final int MODEL_BOX_H = 190;
 	private static final int MODEL_SIZE = 72;
 	private static final int MODEL_MARGIN = 12;
+	private static final float LIMB_SPEED = 0.9f;
+	/** One game tick — {@link net.minecraft.entity.LimbAnimator#updateLimbs} is meant to be
+	 *  called this often (that's how {@link net.minecraft.entity.LivingEntity#tick()} drives
+	 *  it); calling it once per render frame instead plays the run cycle at frame rate. */
+	private static final long LIMB_TICK_MS = 50L;
 
 	// Column x offsets within the content area.
 	private static final int COL_RANK = 0;
@@ -71,6 +76,7 @@ public class RunnerStatsScreen extends Screen {
 	private final Map<String, OtherClientPlayerEntity> entityCache = new HashMap<>();
 	private int scrollOffset = 0;
 	private int lastMaxScroll = 0;
+	private long lastLimbTickMs = 0L;
 
 	// Geometry + entries cached each frame for row hit-testing / hover.
 	private List<RunnerLeaderboard.Entry> lastEntries = List.of();
@@ -212,7 +218,7 @@ public class RunnerStatsScreen extends Screen {
 	}
 
 	/**
-	 * Draws the hovered runner's 3D model, standing still, to the right of the
+	 * Draws the hovered runner's 3D model, running in place, to the right of the
 	 * panel. Pinned to the window's right edge (not the panel's right edge) so it
 	 * always stays on screen even when the panel takes up most of the width.
 	 * {@code drawEntity} turns the whole model toward the given look point, so
@@ -230,6 +236,14 @@ public class RunnerStatsScreen extends Screen {
 		}
 		OtherClientPlayerEntity entity = entityCache.computeIfAbsent(runner,
 				n -> new OtherClientPlayerEntity(client.world, profile));
+
+		// Advance the run cycle once per game tick, same as LivingEntity.tick() would —
+		// not once per render call, which played it back at frame rate instead of real time.
+		long now = System.currentTimeMillis();
+		if (now - lastLimbTickMs >= LIMB_TICK_MS) {
+			entity.limbAnimator.updateLimbs(LIMB_SPEED, 0.4f, 1.0f);
+			lastLimbTickMs = now;
+		}
 
 		int x2 = this.width - MODEL_MARGIN;
 		int x1 = x2 - MODEL_BOX_W;
