@@ -91,7 +91,6 @@
 	"labsaddons.hud.stats.reset": "Reset Leaderboard",
 	"labsaddons.hud.stats.reset.title": "Reset the runner leaderboard?",
 	"labsaddons.hud.stats.reset.message": "This clears every runner's stats and job history. This cannot be undone.",
-	"labsaddons.hud.jobs.title": "Recent jobs — %s",
 	"labsaddons.hud.jobs.col.job": "Job",
 	"labsaddons.hud.jobs.col.value": "Value",
 	"labsaddons.hud.jobs.col.time": "Time",

@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.hud;
 
 import com.mojang.authlib.GameProfile;
+import dev.jade.labsaddons.config.RunnerJob;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.runner.RunnerHudObject;
@@ -19,6 +20,10 @@ import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,9 +34,13 @@ import java.util.Map;
  * Rows are the per-runner all-time stats persisted in
  * {@link dev.jade.labsaddons.config.LabsAddonsConfig#runnerStats}, ranked by
  * {@link RunnerLeaderboard}. Each row shows the runner's head; hovering renders
- * their 3D model, running in place and turned toward the panel, on the right; clicking opens their
- * {@link RunnerJobsScreen} history. Hand-drawn (the mod has no scrollable list
- * widget) with a simple scroll offset; reset goes through a {@link ConfirmScreen}.
+ * their 3D model, running in place and turned toward the panel, on the right;
+ * clicking a row rolls an inline "shutter" panel of their 10 most recent
+ * completed jobs (paged) down directly beneath it, pushing the rows below it
+ * further down. The model keeps running for that runner even while a
+ * different row is hovered, until the shutter finishes rolling back up.
+ * Hand-drawn (the mod has no scrollable list widget) with a simple scroll
+ * offset; reset goes through a {@link ConfirmScreen}.
  */
 public class RunnerStatsScreen extends Screen {
 	private static final int PAD = 12;
@@ -72,6 +81,28 @@ public class RunnerStatsScreen extends Screen {
 	private static final int C_VALUE = 0xFF80FF80;
 	private static final int ROW_ALT = 0x11FFFFFF;
 
+	// The inline "shutter" job-history accordion embedded under an expanded row.
+	private static final long ACCORDION_ANIM_MS = 275L;
+	private static final int ACCORDION_HEADER_H = 14;
+	private static final int ACCORDION_ROW_H = 14;
+	private static final int ACCORDION_PER_PAGE = 10;
+	private static final int ACCORDION_FOOTER_H = 20;
+	private static final int ACCORDION_TOP_INSET = 4;
+	private static final int ACCORDION_FOOTER_GAP = 6;
+	private static final int ACCORDION_CONTENT_H =
+			ACCORDION_TOP_INSET + ACCORDION_HEADER_H + 2
+					+ ACCORDION_PER_PAGE * ACCORDION_ROW_H
+					+ ACCORDION_FOOTER_GAP + ACCORDION_FOOTER_H;
+
+	// Job-table columns within the accordion, ported from the old per-runner jobs screen.
+	private static final int JCOL_JOB = 0;
+	private static final int JCOL_VALUE = 150;
+	private static final int JCOL_TIME = 212;
+	private static final int JCOL_DATE = 274;
+
+	private static final DateTimeFormatter DATE_FMT =
+			DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.US).withZone(ZoneId.systemDefault());
+
 	private final Screen parent;
 	private final Map<String, OtherClientPlayerEntity> entityCache = new HashMap<>();
 	private int scrollOffset = 0;
@@ -85,6 +116,47 @@ public class RunnerStatsScreen extends Screen {
 	private int viewTop;
 	private int viewBottom;
 	private String hoveredRunner;
+
+	// The one row currently opening/open (target height 1.0), plus any rows still
+	// rolling shut after being deselected — a list, not a single slot, so rapid
+	// clicking across rows doesn't snap an earlier close instead of finishing it.
+	private Accordion openAccordion;
+	private final List<Accordion> closingAccordions = new ArrayList<>();
+	private ButtonWidget accordionPrevButton;
+	private ButtonWidget accordionNextButton;
+
+	/** One row's shutter animation state, keyed by runner name so it survives re-ranking. */
+	private static final class Accordion {
+		final String runner;
+		double animFrom;
+		long animStartMs;
+		double target;
+		int pageIndex;
+
+		Accordion(String runner, long now) {
+			this.runner = runner;
+			this.animFrom = 0.0;
+			this.animStartMs = now;
+			this.target = 1.0;
+			this.pageIndex = 0;
+		}
+
+		float progress() {
+			float t = Math.min(1f, (System.currentTimeMillis() - animStartMs) / (float) ACCORDION_ANIM_MS);
+			float eased = 1f - (1f - t) * (1f - t);
+			return (float) (animFrom + (target - animFrom) * eased);
+		}
+
+		/** Captures the current instantaneous progress before flipping direction, so a
+		 *  reversed animation eases from wherever it actually was instead of snapping. */
+		void retarget(double newTarget, long now) {
+			if (target != newTarget) {
+				animFrom = progress();
+				animStartMs = now;
+				target = newTarget;
+			}
+		}
+	}
 
 	public RunnerStatsScreen(Screen parent) {
 		super(Text.translatable("labsaddons.hud.stats.title"));
@@ -106,6 +178,17 @@ public class RunnerStatsScreen extends Screen {
 		this.addDrawableChild(ButtonWidget.builder(
 						Text.translatable("labsaddons.hud.stats.reset"), b -> openResetConfirm())
 				.dimensions(contentX + halfW + 8, buttonsY, contentW - halfW - 8, BUTTON_H).build());
+
+		this.accordionPrevButton = ButtonWidget.builder(
+						Text.translatable("labsaddons.hud.jobs.prev"), b -> turnAccordionPage(-1))
+				.dimensions(0, 0, 20, ACCORDION_FOOTER_H).build();
+		this.accordionNextButton = ButtonWidget.builder(
+						Text.translatable("labsaddons.hud.jobs.next"), b -> turnAccordionPage(1))
+				.dimensions(0, 0, 20, ACCORDION_FOOTER_H).build();
+		this.accordionPrevButton.visible = false;
+		this.accordionNextButton.visible = false;
+		this.addDrawableChild(this.accordionPrevButton);
+		this.addDrawableChild(this.accordionNextButton);
 	}
 
 	private int cardW() {
@@ -115,6 +198,7 @@ public class RunnerStatsScreen extends Screen {
 	@Override
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
 		super.renderBackground(context, mouseX, mouseY, delta);
+		pruneClosingAccordions();
 
 		int cardW = cardW();
 		int cardX = (this.width - cardW) / 2;
@@ -149,11 +233,16 @@ public class RunnerStatsScreen extends Screen {
 					this.width / 2, viewportTop + (viewportBottom - viewportTop) / 2 - 4, EditorTheme.TEXT_DIM);
 			lastMaxScroll = 0;
 			scrollOffset = 0;
+			accordionPrevButton.visible = false;
+			accordionNextButton.visible = false;
 			return;
 		}
 
 		int rowsAreaH = Math.max(0, viewportBottom - viewportTop);
-		int contentH = entries.size() * ROW_H;
+		int contentH = 0;
+		for (RunnerLeaderboard.Entry entry : entries) {
+			contentH += ROW_H + extraHeightFor(entry.name());
+		}
 		lastMaxScroll = Math.max(0, contentH - rowsAreaH);
 		scrollOffset = MathHelper.clamp(scrollOffset, 0, lastMaxScroll);
 		int hoverIdx = rowIndexAt(mouseX, mouseY);
@@ -161,18 +250,33 @@ public class RunnerStatsScreen extends Screen {
 		context.enableScissor(contentX, viewportTop, contentX + contentW, viewportBottom);
 		int y = viewportTop - scrollOffset;
 		int rank = 1;
+		int openAccordionY = Integer.MIN_VALUE;
 		for (RunnerLeaderboard.Entry entry : entries) {
-			if (y + ROW_H >= viewportTop && y <= viewportBottom) {
-				drawRow(context, contentX, y, contentW, rank, entry, rank - 1 == hoverIdx);
+			int extra = extraHeightFor(entry.name());
+			int slotH = ROW_H + extra;
+			if (openAccordion != null && openAccordion.runner.equals(entry.name())) {
+				openAccordionY = y;
 			}
-			y += ROW_H;
+			if (y + slotH >= viewportTop && y <= viewportBottom) {
+				drawRow(context, contentX, y, contentW, rank, entry, rank - 1 == hoverIdx);
+				if (extra > 0) {
+					drawAccordionShutter(context, contentX, y + ROW_H, contentW, extra, entry, viewportTop, viewportBottom);
+				}
+			}
+			y += slotH;
 			rank++;
 		}
 		context.disableScissor();
 
+		positionAccordionButtons(openAccordionY, contentX, contentW, viewportTop, viewportBottom);
+
 		if (hoverIdx >= 0 && hoverIdx < entries.size()) {
 			this.hoveredRunner = entries.get(hoverIdx).name();
-			renderRunnerModel(context, this.hoveredRunner, cardX + cardW);
+		}
+		String pinned = pinnedModelRunner();
+		String modelRunner = pinned != null ? pinned : hoveredRunner;
+		if (modelRunner != null) {
+			renderRunnerModel(context, modelRunner, cardX + cardW);
 		}
 	}
 
@@ -217,8 +321,160 @@ public class RunnerStatsScreen extends Screen {
 		context.drawText(this.textRenderer, Text.literal(s), x, y, color, true);
 	}
 
+	/** Currently animated (opening, open, or still-closing) extra height for {@code runner}, or 0. */
+	private int extraHeightFor(String runner) {
+		if (openAccordion != null && openAccordion.runner.equals(runner)) {
+			return Math.round(openAccordion.progress() * ACCORDION_CONTENT_H);
+		}
+		for (Accordion a : closingAccordions) {
+			if (a.runner.equals(runner)) {
+				return Math.round(a.progress() * ACCORDION_CONTENT_H);
+			}
+		}
+		return 0;
+	}
+
+	private Accordion accordionStateFor(String runner) {
+		if (openAccordion != null && openAccordion.runner.equals(runner)) {
+			return openAccordion;
+		}
+		for (Accordion a : closingAccordions) {
+			if (a.runner.equals(runner)) {
+				return a;
+			}
+		}
+		return null;
+	}
+
+	private void pruneClosingAccordions() {
+		long now = System.currentTimeMillis();
+		closingAccordions.removeIf(a -> a.target == 0.0 && now - a.animStartMs >= ACCORDION_ANIM_MS);
+	}
+
 	/**
-	 * Draws the hovered runner's 3D model, running in place, to the right of the
+	 * Draws {@code entry}'s job-history shutter beneath its row. Content is always
+	 * drawn at the offsets it would occupy fully open; a scissor narrowed to the
+	 * currently animated height does the actual "rolling" reveal, then the outer
+	 * viewport scissor is restored so the row loop can continue clipping normally.
+	 */
+	private void drawAccordionShutter(DrawContext context, int x, int y, int w, int h,
+			RunnerLeaderboard.Entry entry, int viewTop, int viewBottom) {
+		int clipTop = Math.max(y, viewTop);
+		int clipBottom = Math.min(y + h, viewBottom);
+		if (clipBottom <= clipTop) {
+			return;
+		}
+		context.enableScissor(x, clipTop, x + w, clipBottom);
+		drawAccordionContent(context, x, y, w, entry);
+		context.enableScissor(rowsX, viewTop, rowsX + rowsW, viewBottom);
+	}
+
+	private void drawAccordionContent(DrawContext context, int x, int y, int w, RunnerLeaderboard.Entry entry) {
+		Accordion state = accordionStateFor(entry.name());
+		if (state == null) {
+			return;
+		}
+		List<RunnerJob> jobs = RunnerTracker.recentJobs(entry.name());
+		int headerY = y + ACCORDION_TOP_INSET;
+		int rowsTop = headerY + ACCORDION_HEADER_H;
+
+		if (jobs.isEmpty()) {
+			context.drawCenteredTextWithShadow(this.textRenderer,
+					Text.translatable("labsaddons.hud.jobs.empty"), x + w / 2, rowsTop + 4, EditorTheme.TEXT_DIM);
+			return;
+		}
+
+		cell(context, x + JCOL_JOB, headerY, "labsaddons.hud.jobs.col.job");
+		cell(context, x + JCOL_VALUE, headerY, "labsaddons.hud.jobs.col.value");
+		cell(context, x + JCOL_TIME, headerY, "labsaddons.hud.jobs.col.time");
+		cell(context, x + JCOL_DATE, headerY, "labsaddons.hud.jobs.col.date");
+		context.fill(x, rowsTop - 2, x + w, rowsTop - 1, EditorTheme.PANEL_BORDER);
+
+		int pageCount = accordionPageCount(entry.name());
+		state.pageIndex = Math.min(state.pageIndex, pageCount - 1);
+		int start = state.pageIndex * ACCORDION_PER_PAGE;
+		int end = Math.min(jobs.size(), start + ACCORDION_PER_PAGE);
+		int ry = rowsTop + 2;
+		for (int i = start; i < end; i++) {
+			drawJobRow(context, x, ry, w, (i - start) % 2 == 1, jobs.get(i));
+			ry += ACCORDION_ROW_H;
+		}
+
+		int footerY = y + ACCORDION_CONTENT_H - ACCORDION_FOOTER_H;
+		context.drawCenteredTextWithShadow(this.textRenderer,
+				Text.translatable("labsaddons.hud.jobs.page", state.pageIndex + 1, pageCount),
+				x + w - 66, footerY + 6, EditorTheme.TEXT_DIM);
+	}
+
+	private void drawJobRow(DrawContext context, int x, int y, int contentW, boolean alt, RunnerJob job) {
+		if (alt) {
+			context.fill(x, y - 2, x + contentW, y + ACCORDION_ROW_H - 2, ROW_ALT);
+		}
+		String jobLabel = job.qty > 0 && !job.drug.isEmpty()
+				? job.qty + "x " + job.drug
+				: (job.drug.isEmpty() ? "—" : job.drug);
+		jobLabel = this.textRenderer.trimToWidth(jobLabel, JCOL_VALUE - JCOL_JOB - 4);
+		String time = job.durationMs > 0 ? formatDuration(job.durationMs) : "—";
+		String date = job.completedMs > 0 ? DATE_FMT.format(Instant.ofEpochMilli(job.completedMs)) : "—";
+
+		text(context, x + JCOL_JOB, y, jobLabel, EditorTheme.TEXT);
+		text(context, x + JCOL_VALUE, y, "$" + RunnerHudObject.formatMoney(job.value), C_VALUE);
+		text(context, x + JCOL_TIME, y, time, EditorTheme.TEXT_DIM);
+		text(context, x + JCOL_DATE, y, date, EditorTheme.TEXT_DIM);
+	}
+
+	private int accordionPageCount(String runner) {
+		return Math.max(1, (RunnerTracker.recentJobs(runner).size() + ACCORDION_PER_PAGE - 1) / ACCORDION_PER_PAGE);
+	}
+
+	private void turnAccordionPage(int delta) {
+		if (openAccordion == null) {
+			return;
+		}
+		int pageCount = accordionPageCount(openAccordion.runner);
+		openAccordion.pageIndex = Math.max(0, Math.min(openAccordion.pageIndex + delta, pageCount - 1));
+	}
+
+	/** Repositions/(re)shows the paging buttons over the open accordion's footer, once it's
+	 *  fully open and that footer is actually within the scrolled viewport. */
+	private void positionAccordionButtons(int slotY, int contentX, int contentW, int viewTop, int viewBottom) {
+		if (openAccordion == null || openAccordion.progress() < 1f) {
+			accordionPrevButton.visible = false;
+			accordionNextButton.visible = false;
+			return;
+		}
+		int footerY = slotY + ROW_H + ACCORDION_CONTENT_H - ACCORDION_FOOTER_H;
+		if (footerY < viewTop || footerY + ACCORDION_FOOTER_H > viewBottom) {
+			accordionPrevButton.visible = false;
+			accordionNextButton.visible = false;
+			return;
+		}
+		accordionPrevButton.setX(contentX + contentW - 20 - 4 - 20);
+		accordionPrevButton.setY(footerY);
+		accordionNextButton.setX(contentX + contentW - 20);
+		accordionNextButton.setY(footerY);
+		accordionPrevButton.visible = true;
+		accordionNextButton.visible = true;
+		int pageCount = accordionPageCount(openAccordion.runner);
+		accordionPrevButton.active = openAccordion.pageIndex > 0;
+		accordionNextButton.active = openAccordion.pageIndex < pageCount - 1;
+	}
+
+	/** Whichever runner's model should be pinned visible regardless of hover — the row
+	 *  currently expanded/opening, or (if none) the most recently deselected still-closing
+	 *  row, so the model keeps running until its shutter finishes rolling up. */
+	private String pinnedModelRunner() {
+		if (openAccordion != null) {
+			return openAccordion.runner;
+		}
+		if (!closingAccordions.isEmpty()) {
+			return closingAccordions.get(closingAccordions.size() - 1).runner;
+		}
+		return null;
+	}
+
+	/**
+	 * Draws the given runner's 3D model, running in place, to the right of the
 	 * panel. Pinned to the window's right edge (not the panel's right edge) so it
 	 * always stays on screen even when the panel takes up most of the width.
 	 * {@code drawEntity} turns the whole model toward the given look point, so
@@ -255,15 +511,23 @@ public class RunnerStatsScreen extends Screen {
 		InventoryScreen.drawEntity(context, x1, y1, x2, y2, MODEL_SIZE, 0.0f, lookX, lookY, entity);
 	}
 
-	/** Row index under (mouseX,mouseY) within the viewport, or -1. */
+	/** Row index under (mouseX,mouseY) within the viewport, or -1. Only the row's own
+	 *  header band is hit — its accordion body (if any) is inert text/widgets below it. */
 	private int rowIndexAt(double mouseX, double mouseY) {
 		if (lastEntries.isEmpty()
 				|| mouseX < rowsX || mouseX > rowsX + rowsW
 				|| mouseY < viewTop || mouseY >= viewBottom) {
 			return -1;
 		}
-		int idx = ((int) mouseY - viewTop + scrollOffset) / ROW_H;
-		return idx >= 0 && idx < lastEntries.size() ? idx : -1;
+		double y = viewTop - scrollOffset;
+		for (int i = 0; i < lastEntries.size(); i++) {
+			double slotH = ROW_H + extraHeightFor(lastEntries.get(i).name());
+			if (mouseY >= y && mouseY < y + slotH) {
+				return mouseY < y + ROW_H ? i : -1;
+			}
+			y += slotH;
+		}
+		return -1;
 	}
 
 	/** mm:ss up to an hour, then h/m. */
@@ -284,6 +548,8 @@ public class RunnerStatsScreen extends Screen {
 		this.client.setScreen(new ConfirmScreen(confirmed -> {
 			if (confirmed) {
 				RunnerTracker.resetLeaderboard();
+				openAccordion = null;
+				closingAccordions.clear();
 			}
 			this.client.setScreen(this);
 		}, Text.translatable("labsaddons.hud.stats.reset.title"),
@@ -298,11 +564,42 @@ public class RunnerStatsScreen extends Screen {
 		if (click.button() == 0 && this.client != null) {
 			int idx = rowIndexAt(click.x(), click.y());
 			if (idx >= 0) {
-				this.client.setScreen(new RunnerJobsScreen(this, lastEntries.get(idx).name()));
+				toggleAccordion(lastEntries.get(idx).name());
 				return true;
 			}
 		}
 		return false;
+	}
+
+	/** Opens {@code runner}'s shutter, closing whichever other one is currently open (both
+	 *  animate concurrently) — or closes it if it's the one already open. */
+	private void toggleAccordion(String runner) {
+		long now = System.currentTimeMillis();
+		if (openAccordion != null && openAccordion.runner.equals(runner)) {
+			openAccordion.retarget(0.0, now);
+			closingAccordions.add(openAccordion);
+			openAccordion = null;
+			return;
+		}
+		if (openAccordion != null) {
+			openAccordion.retarget(0.0, now);
+			closingAccordions.add(openAccordion);
+			openAccordion = null;
+		}
+		Accordion resumed = null;
+		for (Accordion a : closingAccordions) {
+			if (a.runner.equals(runner)) {
+				resumed = a;
+				break;
+			}
+		}
+		if (resumed != null) {
+			closingAccordions.remove(resumed);
+			resumed.retarget(1.0, now); // smooth reversal from wherever it was mid-close
+			openAccordion = resumed;
+		} else {
+			openAccordion = new Accordion(runner, now);
+		}
 	}
 
 	@Override
