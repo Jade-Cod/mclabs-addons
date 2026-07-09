@@ -92,6 +92,7 @@ public class RunnerStatsScreen extends Screen {
 	private static final int ACCORDION_FOOTER_H = 20;
 	private static final int ACCORDION_TOP_INSET = 4;
 	private static final int ACCORDION_FOOTER_GAP = 6;
+	private static final int ACCORDION_BOTTOM_GAP = 6;
 	private static final int ACCORDION_EMPTY_H = 24;
 	private static final int ACCORDION_BUTTON_W = 20;
 	private static final int ACCORDION_BUTTON_GAP = 4;
@@ -351,7 +352,7 @@ public class RunnerStatsScreen extends Screen {
 		int rowsShown = Math.max(0, Math.min(ACCORDION_PER_PAGE, jobCount - start));
 		return ACCORDION_TOP_INSET + ACCORDION_HEADER_H + 2
 				+ rowsShown * ACCORDION_ROW_H
-				+ ACCORDION_FOOTER_GAP + ACCORDION_FOOTER_H;
+				+ ACCORDION_FOOTER_GAP + ACCORDION_FOOTER_H + ACCORDION_BOTTOM_GAP;
 	}
 
 	private Accordion accordionStateFor(String runner) {
@@ -422,7 +423,7 @@ public class RunnerStatsScreen extends Screen {
 			ry += ACCORDION_ROW_H;
 		}
 
-		int footerY = y + accordionTargetHeight(entry.name()) - ACCORDION_FOOTER_H;
+		int footerY = y + accordionTargetHeight(entry.name()) - ACCORDION_BOTTOM_GAP - ACCORDION_FOOTER_H;
 		drawPageIndicator(context, x, w, footerY, state.pageIndex + 1, pageCount);
 	}
 
@@ -476,7 +477,7 @@ public class RunnerStatsScreen extends Screen {
 			return;
 		}
 		int extra = extraHeightFor(openAccordion.runner);
-		int footerY = Math.max(slotY + ROW_H, slotY + ROW_H + extra - ACCORDION_FOOTER_H);
+		int footerY = Math.max(slotY + ROW_H, slotY + ROW_H + extra - ACCORDION_BOTTOM_GAP - ACCORDION_FOOTER_H);
 		if (footerY < viewTop || footerY + ACCORDION_FOOTER_H > viewBottom) {
 			accordionPrevButton.visible = false;
 			accordionNextButton.visible = false;
