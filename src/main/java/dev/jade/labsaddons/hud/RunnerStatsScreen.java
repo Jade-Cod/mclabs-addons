@@ -82,17 +82,20 @@ public class RunnerStatsScreen extends Screen {
 	private static final int ROW_ALT = 0x11FFFFFF;
 
 	// The inline "shutter" job-history accordion embedded under an expanded row.
-	private static final long ACCORDION_ANIM_MS = 275L;
+	// Sized dynamically per runner (see accordionTargetHeight) instead of a fixed
+	// 10-row block, so a runner with fewer jobs than a full page doesn't reserve
+	// empty space underneath their list.
+	private static final long ACCORDION_ANIM_MS = 400L;
 	private static final int ACCORDION_HEADER_H = 14;
 	private static final int ACCORDION_ROW_H = 14;
 	private static final int ACCORDION_PER_PAGE = 10;
 	private static final int ACCORDION_FOOTER_H = 20;
 	private static final int ACCORDION_TOP_INSET = 4;
 	private static final int ACCORDION_FOOTER_GAP = 6;
-	private static final int ACCORDION_CONTENT_H =
-			ACCORDION_TOP_INSET + ACCORDION_HEADER_H + 2
-					+ ACCORDION_PER_PAGE * ACCORDION_ROW_H
-					+ ACCORDION_FOOTER_GAP + ACCORDION_FOOTER_H;
+	private static final int ACCORDION_EMPTY_H = 24;
+	private static final int ACCORDION_BUTTON_W = 20;
+	private static final int ACCORDION_BUTTON_GAP = 4;
+	private static final int PAGE_TEXT_GAP = 8;
 
 	// Job-table columns within the accordion, ported from the old per-runner jobs screen.
 	private static final int JCOL_JOB = 0;
@@ -181,10 +184,10 @@ public class RunnerStatsScreen extends Screen {
 
 		this.accordionPrevButton = ButtonWidget.builder(
 						Text.translatable("labsaddons.hud.jobs.prev"), b -> turnAccordionPage(-1))
-				.dimensions(0, 0, 20, ACCORDION_FOOTER_H).build();
+				.dimensions(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
 		this.accordionNextButton = ButtonWidget.builder(
 						Text.translatable("labsaddons.hud.jobs.next"), b -> turnAccordionPage(1))
-				.dimensions(0, 0, 20, ACCORDION_FOOTER_H).build();
+				.dimensions(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
 		this.accordionPrevButton.visible = false;
 		this.accordionNextButton.visible = false;
 		this.addDrawableChild(this.accordionPrevButton);
@@ -324,14 +327,31 @@ public class RunnerStatsScreen extends Screen {
 	/** Currently animated (opening, open, or still-closing) extra height for {@code runner}, or 0. */
 	private int extraHeightFor(String runner) {
 		if (openAccordion != null && openAccordion.runner.equals(runner)) {
-			return Math.round(openAccordion.progress() * ACCORDION_CONTENT_H);
+			return Math.round(openAccordion.progress() * accordionTargetHeight(runner));
 		}
 		for (Accordion a : closingAccordions) {
 			if (a.runner.equals(runner)) {
-				return Math.round(a.progress() * ACCORDION_CONTENT_H);
+				return Math.round(a.progress() * accordionTargetHeight(runner));
 			}
 		}
 		return 0;
+	}
+
+	/** Height {@code runner}'s shutter needs when fully open, sized to the jobs actually
+	 *  shown on its current page — not a fixed 10-row block — so a runner with fewer jobs
+	 *  than a full page (or a shorter final page) doesn't reserve empty space underneath. */
+	private int accordionTargetHeight(String runner) {
+		int jobCount = RunnerTracker.recentJobs(runner).size();
+		if (jobCount == 0) {
+			return ACCORDION_TOP_INSET + ACCORDION_EMPTY_H;
+		}
+		Accordion state = accordionStateFor(runner);
+		int pageIndex = state != null ? state.pageIndex : 0;
+		int start = pageIndex * ACCORDION_PER_PAGE;
+		int rowsShown = Math.max(0, Math.min(ACCORDION_PER_PAGE, jobCount - start));
+		return ACCORDION_TOP_INSET + ACCORDION_HEADER_H + 2
+				+ rowsShown * ACCORDION_ROW_H
+				+ ACCORDION_FOOTER_GAP + ACCORDION_FOOTER_H;
 	}
 
 	private Accordion accordionStateFor(String runner) {
@@ -375,15 +395,15 @@ public class RunnerStatsScreen extends Screen {
 			return;
 		}
 		List<RunnerJob> jobs = RunnerTracker.recentJobs(entry.name());
-		int headerY = y + ACCORDION_TOP_INSET;
-		int rowsTop = headerY + ACCORDION_HEADER_H;
-
 		if (jobs.isEmpty()) {
 			context.drawCenteredTextWithShadow(this.textRenderer,
-					Text.translatable("labsaddons.hud.jobs.empty"), x + w / 2, rowsTop + 4, EditorTheme.TEXT_DIM);
+					Text.translatable("labsaddons.hud.jobs.empty"),
+					x + w / 2, y + ACCORDION_TOP_INSET + 6, EditorTheme.TEXT_DIM);
 			return;
 		}
 
+		int headerY = y + ACCORDION_TOP_INSET;
+		int rowsTop = headerY + ACCORDION_HEADER_H;
 		cell(context, x + JCOL_JOB, headerY, "labsaddons.hud.jobs.col.job");
 		cell(context, x + JCOL_VALUE, headerY, "labsaddons.hud.jobs.col.value");
 		cell(context, x + JCOL_TIME, headerY, "labsaddons.hud.jobs.col.time");
@@ -400,10 +420,19 @@ public class RunnerStatsScreen extends Screen {
 			ry += ACCORDION_ROW_H;
 		}
 
-		int footerY = y + ACCORDION_CONTENT_H - ACCORDION_FOOTER_H;
-		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("labsaddons.hud.jobs.page", state.pageIndex + 1, pageCount),
-				x + w - 66, footerY + 6, EditorTheme.TEXT_DIM);
+		int footerY = y + accordionTargetHeight(entry.name()) - ACCORDION_FOOTER_H;
+		drawPageIndicator(context, x, w, footerY, state.pageIndex + 1, pageCount);
+	}
+
+	/** Right-aligns the "Page X/Y" label a fixed gap before the `<`/`>` buttons, measuring
+	 *  the actual text width instead of a hand-tuned offset — a wider label (bigger page
+	 *  counts) can't drift into the buttons this way. */
+	private void drawPageIndicator(DrawContext context, int x, int w, int footerY, int page, int pageCount) {
+		Text label = Text.translatable("labsaddons.hud.jobs.page", page, pageCount);
+		int buttonsLeft = x + w - ACCORDION_BUTTON_W - ACCORDION_BUTTON_GAP - ACCORDION_BUTTON_W;
+		int textRight = buttonsLeft - PAGE_TEXT_GAP;
+		context.drawTextWithShadow(this.textRenderer, label,
+				textRight - this.textRenderer.getWidth(label), footerY + 6, EditorTheme.TEXT_DIM);
 	}
 
 	private void drawJobRow(DrawContext context, int x, int y, int contentW, boolean alt, RunnerJob job) {
@@ -435,23 +464,25 @@ public class RunnerStatsScreen extends Screen {
 		openAccordion.pageIndex = Math.max(0, Math.min(openAccordion.pageIndex + delta, pageCount - 1));
 	}
 
-	/** Repositions/(re)shows the paging buttons over the open accordion's footer, once it's
-	 *  fully open and that footer is actually within the scrolled viewport. */
+	/** Repositions the paging buttons to track the open accordion's footer live, following
+	 *  the shutter down as it rolls open rather than popping in once it's fully open — so
+	 *  they read as part of the same motion instead of appearing to "come from nowhere". */
 	private void positionAccordionButtons(int slotY, int contentX, int contentW, int viewTop, int viewBottom) {
-		if (openAccordion == null || openAccordion.progress() < 1f) {
+		if (openAccordion == null) {
 			accordionPrevButton.visible = false;
 			accordionNextButton.visible = false;
 			return;
 		}
-		int footerY = slotY + ROW_H + ACCORDION_CONTENT_H - ACCORDION_FOOTER_H;
+		int extra = extraHeightFor(openAccordion.runner);
+		int footerY = Math.max(slotY + ROW_H, slotY + ROW_H + extra - ACCORDION_FOOTER_H);
 		if (footerY < viewTop || footerY + ACCORDION_FOOTER_H > viewBottom) {
 			accordionPrevButton.visible = false;
 			accordionNextButton.visible = false;
 			return;
 		}
-		accordionPrevButton.setX(contentX + contentW - 20 - 4 - 20);
+		accordionPrevButton.setX(contentX + contentW - ACCORDION_BUTTON_W - ACCORDION_BUTTON_GAP - ACCORDION_BUTTON_W);
 		accordionPrevButton.setY(footerY);
-		accordionNextButton.setX(contentX + contentW - 20);
+		accordionNextButton.setX(contentX + contentW - ACCORDION_BUTTON_W);
 		accordionNextButton.setY(footerY);
 		accordionPrevButton.visible = true;
 		accordionNextButton.visible = true;
