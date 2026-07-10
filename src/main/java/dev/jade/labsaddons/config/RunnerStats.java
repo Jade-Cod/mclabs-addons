@@ -10,6 +10,10 @@ package dev.jade.labsaddons.config;
 public class RunnerStats {
 	/** Cap on stored completed-job history per runner (oldest dropped). */
 	public static final int MAX_JOBS = 50;
+	/** Cap on how many runners persist. A foreign/troll server can post unique
+	 *  completer names, so bound the map (eldest dropped) to keep the config file
+	 *  from growing without limit; real MCLabs use never approaches this. */
+	public static final int MAX_RUNNERS = 500;
 
 	public int completed = 0;
 	public int failed = 0;

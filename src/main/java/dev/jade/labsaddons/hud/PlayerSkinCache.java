@@ -60,6 +60,13 @@ public final class PlayerSkinCache {
 				.thenAccept(profile -> {
 					Supplier<SkinTextures> supplier = client.getSkinProvider().supplySkinTextures(profile, false);
 					CACHE.put(name, new Entry(supplier, profile));
+				})
+				.exceptionally(e -> {
+					// Drop the IN_FLIGHT sentinel so a failed lookup (offline, unknown
+					// name, rate-limited) can be retried next render instead of sticking
+					// on the default skin until restart.
+					CACHE.remove(name);
+					return null;
 				});
 	}
 

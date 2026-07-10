@@ -239,6 +239,10 @@ public class LabsAddonsConfig {
 					clean.runnerStats.put(name, stats);
 				}
 			});
+			// Bound a (possibly griefed) persisted map; eldest entries dropped.
+			while (clean.runnerStats.size() > RunnerStats.MAX_RUNNERS) {
+				clean.runnerStats.remove(clean.runnerStats.keySet().iterator().next());
+			}
 		}
 		// Migrate v1.2.x chum HUD fields into the generic map.
 		if (!clean.hudObjects.containsKey("chum_timer")

@@ -87,7 +87,7 @@ public final class RunnerTracker {
 		int qty = pending == null ? 0 : pending.qty();
 
 		LabsAddonsConfig config = LabsAddonsConfig.get();
-		RunnerStats stats = config.runnerStats.computeIfAbsent(runner, k -> new RunnerStats());
+		RunnerStats stats = statsFor(config, runner);
 		stats.completed++;
 		stats.valueSold += event.value();
 		stats.totalCompletionMs += duration;
@@ -103,9 +103,24 @@ public final class RunnerTracker {
 			return;
 		}
 		LabsAddonsConfig config = LabsAddonsConfig.get();
-		RunnerStats stats = config.runnerStats.computeIfAbsent(runner, k -> new RunnerStats());
+		RunnerStats stats = statsFor(config, runner);
 		stats.failed++;
 		config.saveAsync();
+	}
+
+	/**
+	 * Fetch (or create) the stats for a runner, evicting the eldest entries so the
+	 * persisted map stays bounded ({@link RunnerStats#MAX_RUNNERS}). A newly created
+	 * entry lands at the tail of the insertion-ordered map, so eldest-eviction never
+	 * drops the runner we just touched.
+	 */
+	private static RunnerStats statsFor(LabsAddonsConfig config, String runner) {
+		Map<String, RunnerStats> map = config.runnerStats;
+		RunnerStats stats = map.computeIfAbsent(runner, k -> new RunnerStats());
+		while (map.size() > RunnerStats.MAX_RUNNERS) {
+			map.remove(map.keySet().iterator().next());
+		}
+		return stats;
 	}
 
 	/** A snapshot copy of the leaderboard map for safe rendering (avoids CME on the live map). */

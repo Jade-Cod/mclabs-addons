@@ -43,7 +43,13 @@ public final class ItemUses {
 		for (var line : lore.lines()) {
 			Matcher matcher = CHARGES_LORE.matcher(line.getString());
 			if (matcher.find()) {
-				return Integer.parseInt(matcher.group(1));
+				// Server-controlled lore: an over-long digit run overflows int and
+				// would throw mid-render (this runs per slot, per frame). Fail soft.
+				try {
+					return Integer.parseInt(matcher.group(1));
+				} catch (NumberFormatException e) {
+					return -1;
+				}
 			}
 		}
 		return -1;
