@@ -7,6 +7,7 @@ import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.util.List;
@@ -34,7 +35,14 @@ public final class RunnerAlarm {
 
 	public static final String DEFAULT_SOUND = SOUND_IDS.get(0);
 
+	/** Ticks between the two alarm beeps, so they're audibly distinct rather than
+	 *  stacking into one louder sound when played in the same frame. */
+	private static final int REPLAY_DELAY_TICKS = 5;
+
 	private static boolean fired = false;
+	// Second-beep schedule: -1 idle, else ticks remaining until the replay.
+	private static int replayCountdown = -1;
+	private static String replaySound = DEFAULT_SOUND;
 
 	private RunnerAlarm() {
 	}
@@ -68,6 +76,20 @@ public final class RunnerAlarm {
 	/** Rearm the alarm (called on session reset so a fresh session starts unarmed). */
 	public static synchronized void reset() {
 		fired = false;
+		replayCountdown = -1;
+	}
+
+	/** Drive the delayed second beep. Call once per client tick. */
+	public static synchronized void tick() {
+		if (replayCountdown < 0) {
+			return;
+		}
+		if (replayCountdown == 0) {
+			playSound(replaySound);
+			replayCountdown = -1;
+			return;
+		}
+		replayCountdown--;
 	}
 
 	private static void fire(String soundId) {
@@ -75,16 +97,24 @@ public final class RunnerAlarm {
 		InGameHud hud = client.inGameHud;
 		if (hud != null) {
 			hud.setDefaultTitleFade();
-			hud.setTitle(Text.translatable("labsaddons.hud.runner_jobs.alarm.title"));
+			hud.setTitle(Text.translatable("labsaddons.hud.runner_jobs.alarm.title")
+					.formatted(Formatting.RED));
 			hud.setSubtitle(Text.translatable(
 					"labsaddons.hud.runner_jobs.alarm.subtitle", RunnerTracker.postedJobs()));
 		}
 
+		// First beep now; schedule the second so the two are heard as a distinct pair.
+		playSound(soundId);
+		replaySound = soundId;
+		replayCountdown = REPLAY_DELAY_TICKS;
+	}
+
+	private static void playSound(String soundId) {
 		Identifier soundEventId = Identifier.tryParse(isValidSound(soundId) ? soundId : DEFAULT_SOUND);
 		if (soundEventId == null || !Registries.SOUND_EVENT.containsId(soundEventId)) {
 			return;
 		}
 		SoundEvent event = Registries.SOUND_EVENT.get(soundEventId);
-		client.getSoundManager().play(PositionedSoundInstance.ui(event, 1.0f));
+		MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.ui(event, 1.0f));
 	}
 }

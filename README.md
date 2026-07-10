@@ -32,6 +32,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | **Dailies** | Reminders to claim the daily spin (`/daily`) and Daily Investor Rewards (`/sm claim`) | claim-confirmation chat; resets 9 PM Pacific |
 | **Vote Reminder** | Daily vote progress toward 7/7 | "Vote registered!" chat; resets 9 PM Pacific |
 | **Chemtainer** | What's in your Chemtainer (chems by quantity + an "inventories" estimate) | the `/ch` GUI (read while open) **and** the Deposit/Withdraw keybinds, which diff your inventory and parse the "Withdrew N …" chat |
+| **Runner Jobs** | Your posted/completed/failed jobs and money earned this session, with an optional low-jobs alarm and a per-runner leaderboard | "Runner »" / "MCLabs »" chat; the **`/supplier` GUI re-syncs your open job count** |
 
 Timers persist across relogs (absolute expiry in config) and display as `M:SS`,
 `H:MM:SS`, or `Xd Yh` for long durations. The **Dailies** and **Vote Reminder**
@@ -94,6 +95,12 @@ Everything updates **passively** from chat — you never have to run anything sp
   widget shows each chem by quantity plus an estimate of how many **inventories**
   it fills — toggle **Using Satchel** in the editor to switch the per-inventory
   capacity. Works with both base crops and combo chems.
+- **Runner Jobs** — tracks the jobs you post as a supplier: posted, completed, and
+  failed counts plus money earned this session, read straight from chat. Open
+  **`/supplier`** any time to re-sync your open job count. Turn on the **low-jobs
+  alarm** in the editor to get a red on-screen title and a double alert tone the
+  moment your posted jobs drop to your chosen threshold. The **Stats** button in
+  the HUD editor opens a per-runner leaderboard that persists across relogs.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 

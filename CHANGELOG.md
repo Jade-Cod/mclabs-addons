@@ -1,9 +1,10 @@
 # Changelog
 
-## [1.14.0] - 2026-07-08
+## [1.14.0] - 2026-07-09
 
 ### Added
 - **New Runner Jobs HUD widget.** Tracks MCLabs Runner job postings straight from chat — posted, completed, and failed counts plus the total money earned this session — drawn as a new draggable HUD widget, with a Reset Session action in the HUD editor's inspector panel.
+- **A low-jobs alarm for the Runner Jobs widget.** Turn it on in the HUD editor and pick a threshold and alert sound; the moment your posted jobs drop to that number, a **red on-screen title** appears with a white "N jobs left" subtitle and the alert tone plays **twice** so it's hard to miss. It fires once per dip (not repeatedly while low) and re-arms when you reset the session.
 - **A Runner Leaderboard ranks the runners working your jobs.** The HUD Studio has a new **Stats** button that opens a full-screen table of everyone who's completed a job you posted — each row shows their **player head**, jobs done and failed, **Completion %**, **Avg Time**, and total value sold, ranked by jobs completed. **Hover** a runner to watch their character model run in place, turned toward the list, beside it, and **click** a runner to roll open a shutter right under their row with their most recent completed jobs — drug, value, time taken and date, ten to a page with `<` / `>` turners — pushing the rows below it down; click again (or another runner) to roll it back up. It fills in automatically from chat as jobs finish and persists across relogs (average time is a rough estimate); open `/supplier` any time to re-sync how many jobs you have posted. Clearing the board now asks for confirmation first, so an accidental click can't wipe it.
 
 ### Changed
@@ -12,6 +13,9 @@
   - Custom key bindings for **Open HUD Editor**, **Deposit Chemtainer**, and **Withdraw Chemtainer** are carried over from Minecraft's `options.txt`, so rebound keys stay exactly where you put them.
 - **Remove the old jar when updating.** If a 1.13.x-or-older jar is still in your `mods` folder, the game now stops at launch with a clear incompatibility message instead of silently running two copies of the mod — delete the old jar and relaunch.
 - The build now produces `mclabs-addons-<version>.jar` directly (previously it built as `fishbite-indicator-<version>.jar` and was renamed at release time).
+
+### Fixed
+- **Hardened item and runner parsing against malformed server data.** An item whose "Charges" lore held an absurdly large number could crash the client while drawing the remaining-uses overlay; it now ignores the value instead. A failed player-skin lookup on the runner screens no longer sticks on the default skin until restart — it retries. And the per-runner leaderboard is now capped so a stray or malicious server can't grow the config file without limit.
 
 ## [1.13.0] - 2026-07-05
 

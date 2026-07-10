@@ -33,6 +33,7 @@ import dev.jade.labsaddons.cooldown.CooldownHudObject;
 import dev.jade.labsaddons.mcmmo.McmmoAbility;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
+import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
 import dev.jade.labsaddons.runner.SupplierJobsReader;
@@ -185,6 +186,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (McLabsSession.tick(client)) {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
+			RunnerAlarm.tick();
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
