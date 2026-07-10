@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"package": "dev.jade.labsaddons.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"CameraAccessor",
+		"DrawContextMixin",
+		"FishingBobberEntityAccessor",
+		"InGameHudMixin",
+		"KeyBindingCategoryAccessor",
+		"SoundSystemMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
