@@ -99,6 +99,10 @@ public class LabsAddonsConfig {
 	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
 	public boolean chemtainerSatchel = true;
 
+	// --- Mastery challenges widget ---
+	/** Show every active challenge permanently instead of only ones that just gained. */
+	public boolean masteryAlwaysShow = false;
+
 	// --- Ability cooldowns widget (mcMMO + future cooldown sources) ---
 	/** Stack cooldown rings in a column instead of a row. */
 	public boolean cooldownsStackVertical = false;
@@ -190,6 +194,7 @@ public class LabsAddonsConfig {
 		clean.chemtainerSnapshotMs = Math.max(0L, this.chemtainerSnapshotMs);
 		clean.chemtainerStale = this.chemtainerStale;
 		clean.chemtainerSatchel = this.chemtainerSatchel;
+		clean.masteryAlwaysShow = this.masteryAlwaysShow;
 		clean.cooldownsStackVertical = this.cooldownsStackVertical;
 		clean.itemUsesEnabled = this.itemUsesEnabled;
 		clean.itemUsesCorner = parseCorner(this.itemUsesCorner).name();

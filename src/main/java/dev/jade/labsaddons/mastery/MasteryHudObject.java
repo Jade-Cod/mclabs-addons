@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.mastery;
 
+import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
@@ -10,29 +11,40 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Mastery challenges widget: a "Mastery" header then one row per active
- * challenge — the quest's own icon, an exp-style filled bar, and
- * {@code 631K/1.15M 54%}.
+ * Mastery challenges widget. Each quest is two lines — icon, name, progress and
+ * the amount just gained on top, with an exp-style bar underneath:
  *
- * <p>Data comes from {@link MasteryTracker}, populated by the passive
- * {@link MasteryReader} scrape when the player opens {@code /mastery}.
+ * <pre>
+ * [icon] Petrified Archer  412/750  55%  +3
+ *        ###############--------------
+ * </pre>
+ *
+ * <p>By default this is a notification, not a dashboard: a row appears only when
+ * that quest gains progress and fades once {@link MasteryGains#LIFE_MS} passes
+ * without another gain, most recently gained first. The editor toggle switches it
+ * to showing every active quest permanently.
+ *
+ * <p>Size is recomputed from the visible rows every frame, so the base class's
+ * auto-anchoring keeps a widget parked near a screen edge growing inward rather
+ * than off-screen as rows come and go.
  */
 public class MasteryHudObject extends HudObject {
 	public static final String ID = "mastery";
 	private static final int DEFAULT_TEXT_COLOR = 0xFFFFC24F;
-	private static final int HEADER_COLOR = 0xFFFFFFFF;
+	private static final int GAIN_COLOR = 0xFF7BE06B;
 	private static final int TRACK_COLOR = 0xFF3A4150;
 	private static final int ICON_SIZE = 16;
 	private static final int GAP = 4;
-	private static final int LINE_GAP = 3;
-	private static final int BAR_W = 62;
+	private static final int BAR_GAP = 2;
+	private static final int ROW_GAP = 5;
 	private static final int BAR_H = 6;
-	/** Cap on the name column; longer names are trimmed with an ellipsis. */
-	private static final int NAME_MAX_W = 82;
+	/** Icons cannot be drawn translucent, so hide them once a fading row is mostly gone. */
+	private static final float ICON_FADE_CUTOFF = 0.45f;
 
 	@Override
 	public String id() {
@@ -48,35 +60,80 @@ public class MasteryHudObject extends HudObject {
 		return defaults;
 	}
 
+	private static boolean alwaysShow() {
+		return LabsAddonsConfig.get().masteryAlwaysShow;
+	}
+
 	@Override
 	public boolean shouldRender() {
-		return MasteryTracker.hasData();
+		return alwaysShow() ? MasteryTracker.hasData() : MasteryGains.hasRecent();
+	}
+
+	@Override
+	public List<ToggleOption> toggleOptions() {
+		return List.of(new ToggleOption(
+				Text.translatable("labsaddons.hud.mastery.always_show"),
+				MasteryHudObject::alwaysShow,
+				value -> {
+					LabsAddonsConfig.get().masteryAlwaysShow = value;
+					LabsAddonsConfig.get().save();
+				}));
 	}
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.mastery.clear"), MasteryTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.mastery.clear"), () -> {
+			MasteryTracker.clear();
+			MasteryGains.clear();
+		});
 	}
 
-	private List<MasteryQuest> quests(boolean preview) {
-		if (preview && !MasteryTracker.hasData()) {
-			return sampleQuests();
+	/** A quest, the opacity its row renders at, and the amount it just gained. */
+	private record Row(MasteryQuest quest, float alpha, double delta) {
+	}
+
+	private List<Row> rows(boolean preview) {
+		List<Row> rows = visibleRows();
+		// The editor must always have something to grab, even when nothing has gained
+		// recently and the widget would be invisible in play.
+		return preview && rows.isEmpty() ? sampleRows() : rows;
+	}
+
+	private List<Row> visibleRows() {
+		if (alwaysShow()) {
+			// Still surface a live gain's "+" while showing the whole board.
+			return MasteryTracker.quests().stream()
+					.map(quest -> new Row(quest, 1f, MasteryGains.delta(quest.name())))
+					.toList();
 		}
-		return MasteryTracker.quests();
+		// Most recently gained first.
+		List<Row> rows = new ArrayList<>();
+		for (String name : MasteryGains.recentNames()) {
+			MasteryTracker.quests().stream()
+					.filter(quest -> quest.name().equals(name))
+					.findFirst()
+					.ifPresent(quest -> rows.add(
+							new Row(quest, MasteryGains.alpha(name), MasteryGains.delta(name))));
+		}
+		return rows;
 	}
 
 	/** Editor preview stand-in: a realistic mix across the Event, Chem, and Pit categories. */
-	private static List<MasteryQuest> sampleQuests() {
+	private static List<Row> sampleRows() {
 		return List.of(
-				new MasteryQuest(new ItemStack(Items.IRON_INGOT), "Mini-Event Top 3", 6, 15, 40),
-				new MasteryQuest(new ItemStack(Items.CLOCK), "Win Chat Reactions", 37, 100, 37),
-				new MasteryQuest(new ItemStack(Items.RED_WOOL), "Sell to Red Dealer", 631076.685, 1152000, 54),
-				new MasteryQuest(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer", 412, 750, 55),
-				new MasteryQuest(new ItemStack(Items.LIGHT_GRAY_DYE), "Sell Papcactinide", 319514.42, 806400, 39));
+				new Row(new MasteryQuest(new ItemStack(Items.CLOCK), "Win Chat Reactions", 38, 100, 38), 1f, 1),
+				new Row(new MasteryQuest(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer", 412, 750, 55), 1f, 3),
+				new Row(new MasteryQuest(new ItemStack(Items.RED_WOOL), "Sell to Red Dealer", 631076.685, 1152000, 54),
+						1f, 19200));
 	}
 
 	private static String progressText(MasteryQuest quest) {
 		return abbreviate(quest.current()) + "/" + abbreviate(quest.target()) + "  " + quest.percent() + "%";
+	}
+
+	/** The "+N just gained" suffix, or empty when this row has no live gain. */
+	private static String gainText(double delta) {
+		return delta <= 0 ? "" : "  +" + abbreviate(delta);
 	}
 
 	/**
@@ -99,16 +156,7 @@ public class MasteryHudObject extends HudObject {
 		return name;
 	}
 
-	/** Name column width: widest name, capped so one long quest can't stretch the widget. */
-	private int nameColumnWidth(boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int widest = quests(preview).stream()
-				.mapToInt(quest -> font.getWidth(shortName(quest.name())))
-				.max().orElse(0);
-		return Math.min(widest, NAME_MAX_W);
-	}
-
-	/** Compact magnitude so five rows stay narrow: 631076.685 -> "631K", 1152000 -> "1.15M". */
+	/** Compact magnitude so rows stay narrow: 631076.685 -> "631K", 1152000 -> "1.15M". */
 	private static String abbreviate(double value) {
 		double abs = Math.abs(value);
 		if (abs >= 1_000_000) {
@@ -126,62 +174,74 @@ public class MasteryHudObject extends HudObject {
 		return String.format(Locale.US, "%,." + decimals + "f", value);
 	}
 
+	/** Full top line for one row, used for both measuring and drawing. */
+	private static String topLine(Row row) {
+		return shortName(row.quest().name()) + "  " + progressText(row.quest()) + gainText(row.delta());
+	}
+
 	private static int rowHeight() {
-		return Math.max(ICON_SIZE, MinecraftClient.getInstance().textRenderer.fontHeight);
+		int fontHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+		return Math.max(ICON_SIZE, fontHeight) + BAR_GAP + BAR_H;
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
 		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int nameW = nameColumnWidth(preview);
-		int rows = quests(preview).stream()
-				.mapToInt(quest -> ICON_SIZE + GAP + nameW + GAP + BAR_W + GAP + font.getWidth(progressText(quest)))
+		return rows(preview).stream()
+				.mapToInt(row -> ICON_SIZE + GAP + font.getWidth(topLine(row)))
 				.max().orElse(0);
-		return Math.max(rows, font.getWidth(header()));
 	}
 
 	@Override
 	public int contentHeight(boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int rows = quests(preview).size();
-		return font.fontHeight + LINE_GAP + rows * rowHeight() + Math.max(0, rows - 1) * LINE_GAP;
+		int rows = rows(preview).size();
+		return rows == 0 ? 0 : rows * rowHeight() + (rows - 1) * ROW_GAP;
 	}
 
-	private static String header() {
-		return "Mastery";
+	/** Applies a row's fade to a colour's alpha channel. */
+	private static int faded(int argb, float alpha) {
+		int a = Math.round(((argb >>> 24) & 0xFF) * Math.clamp(alpha, 0f, 1f));
+		return (a << 24) | (argb & 0x00FFFFFF);
 	}
 
 	@Override
 	protected void renderContent(DrawContext context, boolean preview) {
 		TextRenderer font = MinecraftClient.getInstance().textRenderer;
-		int textColor = settings().textColor | 0xFF000000;
+		int baseColor = settings().textColor | 0xFF000000;
+		int textTop = Math.max(0, (ICON_SIZE - font.fontHeight) / 2);
+		int barX = ICON_SIZE + GAP;
+		int barW = Math.max(BAR_H, contentWidth(preview) - barX);
 
-		context.drawText(font, Text.literal(header()), 0, 0, HEADER_COLOR, true);
-		int y = font.fontHeight + LINE_GAP;
+		int y = 0;
+		for (Row row : rows(preview)) {
+			MasteryQuest quest = row.quest();
+			float alpha = row.alpha();
 
-		int height = rowHeight();
-		int nameW = nameColumnWidth(preview);
-		for (MasteryQuest quest : quests(preview)) {
-			context.drawItem(quest.icon(), 0, y + (height - ICON_SIZE) / 2);
-
-			int textY = y + (height - font.fontHeight) / 2 + 1;
-			context.drawText(font, Text.literal(font.trimToWidth(shortName(quest.name()), nameW)),
-					ICON_SIZE + GAP, textY, textColor, true);
-
-			int barX = ICON_SIZE + GAP + nameW + GAP;
-			int barY = y + (height - BAR_H) / 2;
-			EditorPainter.pill(context, barX, barY, BAR_W, BAR_H, TRACK_COLOR);
-			int filled = (int) Math.round(BAR_W * quest.fraction());
-			if (filled >= BAR_H) {
-				EditorPainter.pill(context, barX, barY, filled, BAR_H, textColor);
-			} else if (filled > 0) {
-				// Narrower than one pill cap: a plain fill avoids the rounded ends overlapping.
-				context.fill(barX, barY, barX + filled, barY + BAR_H, textColor);
+			if (alpha > ICON_FADE_CUTOFF) {
+				context.drawItem(quest.icon(), 0, y);
 			}
 
-			context.drawText(font, Text.literal(progressText(quest)), barX + BAR_W + GAP,
-					textY, textColor, true);
-			y += height + LINE_GAP;
+			int textX = ICON_SIZE + GAP;
+			String label = shortName(quest.name()) + "  " + progressText(quest);
+			context.drawText(font, Text.literal(label), textX, y + textTop, faded(baseColor, alpha), true);
+
+			String gain = gainText(row.delta());
+			if (!gain.isEmpty()) {
+				context.drawText(font, Text.literal(gain), textX + font.getWidth(label), y + textTop,
+						faded(GAIN_COLOR, alpha), true);
+			}
+
+			int barY = y + Math.max(ICON_SIZE, font.fontHeight) + BAR_GAP;
+			EditorPainter.pill(context, barX, barY, barW, BAR_H, faded(TRACK_COLOR, alpha));
+			int filled = (int) Math.round(barW * quest.fraction());
+			if (filled >= BAR_H) {
+				EditorPainter.pill(context, barX, barY, filled, BAR_H, faded(baseColor, alpha));
+			} else if (filled > 0) {
+				// Narrower than one pill cap: a plain fill avoids the rounded ends overlapping.
+				context.fill(barX, barY, barX + filled, barY + BAR_H, faded(baseColor, alpha));
+			}
+
+			y += rowHeight() + ROW_GAP;
 		}
 	}
 }

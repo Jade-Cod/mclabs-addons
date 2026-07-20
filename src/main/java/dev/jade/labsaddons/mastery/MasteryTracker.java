@@ -23,9 +23,30 @@ public final class MasteryTracker {
 	private MasteryTracker() {
 	}
 
-	/** Replaces the tracked set wholesale (defensive immutable copy; never mutated in place). */
+	/**
+	 * Replaces the tracked set wholesale (defensive immutable copy; never mutated in place),
+	 * recording a gain for every quest whose progress rose since the last set.
+	 *
+	 * <p>The first set establishes a baseline only — with nothing to diff against, an
+	 * opening {@code /mastery} must not report the whole board as freshly gained. A quest
+	 * absent from the previous set (newly re-rolled) is likewise baseline-only.
+	 *
+	 * <p>Deltas are computed against the local values, which already include any optimistic
+	 * chat bumps, so a chat win followed by a scrape that confirms it yields a zero delta
+	 * rather than counting the same event twice.
+	 */
 	public static void setQuests(List<MasteryQuest> newQuests) {
-		quests = newQuests == null ? List.of() : List.copyOf(newQuests);
+		List<MasteryQuest> previous = quests;
+		List<MasteryQuest> next = newQuests == null ? List.of() : List.copyOf(newQuests);
+		if (!previous.isEmpty()) {
+			for (MasteryQuest quest : next) {
+				previous.stream()
+						.filter(old -> old.name().equalsIgnoreCase(quest.name()))
+						.findFirst()
+						.ifPresent(old -> MasteryGains.record(quest.name(), quest.current() - old.current()));
+			}
+		}
+		quests = next;
 	}
 
 	public static List<MasteryQuest> quests() {
@@ -49,19 +70,22 @@ public final class MasteryTracker {
 	public static boolean advance(String questName, double delta) {
 		List<MasteryQuest> current = quests;
 		List<MasteryQuest> updated = new ArrayList<>(current.size());
-		boolean changed = false;
+		String matchedName = null;
 		for (MasteryQuest quest : current) {
-			if (!changed && quest.name().equalsIgnoreCase(questName)) {
+			if (matchedName == null && quest.name().equalsIgnoreCase(questName)) {
+				// Record under the quest's own spelling: matching is case-insensitive, but
+				// the HUD looks gains up by the exact name it renders.
+				matchedName = quest.name();
 				updated.add(quest.advancedBy(delta));
-				changed = true;
 			} else {
 				updated.add(quest);
 			}
 		}
-		if (changed) {
+		if (matchedName != null) {
 			quests = List.copyOf(updated);
+			MasteryGains.record(matchedName, delta);
 		}
-		return changed;
+		return matchedName != null;
 	}
 
 	public static void clear() {

@@ -57,6 +57,7 @@
 	"labsaddons.hud.chum.reset": "Reset Timer",
 	"labsaddons.hud.mastery.name": "Mastery Challenges",
 	"labsaddons.hud.mastery.clear": "Clear Mastery",
+	"labsaddons.hud.mastery.always_show": "Always show all",
 	"labsaddons.hud.mini_event.name": "Mini-Event",
 	"labsaddons.hud.mini_event.upcoming": "Mini-Event",
 	"labsaddons.hud.mini_event.clear": "Clear Mini-Event",

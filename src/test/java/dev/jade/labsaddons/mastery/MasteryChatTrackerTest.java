@@ -20,6 +20,7 @@ public class MasteryChatTrackerTest {
 	@AfterEach
 	public void reset() {
 		MasteryTracker.clear();
+		MasteryGains.clear();
 	}
 
 	private static void active(String... names) {
