@@ -1,0 +1,26 @@
+package dev.jade.labsaddons.mastery;
+
+import net.minecraft.item.ItemStack;
+
+/**
+ * One active Mastery challenge as shown in the {@code /mastery} GUI: the quest's
+ * own icon, its display name, and its progress.
+ *
+ * <p>The icon is the {@link ItemStack} copied straight out of the GUI slot, so no
+ * name-to-item mapping is needed — the server already picked the right item (red
+ * wool for the Red Dealer, a clock for chat reactions, the chem's own dye for a
+ * chem quest, including any custom model data).
+ *
+ * <p>{@code current} may be fractional (e.g. {@code 631076.685}); {@code percent}
+ * is the server's own rounded figure, kept verbatim so the HUD never disagrees
+ * with the number the GUI shows.
+ */
+public record MasteryQuest(ItemStack icon, String name, double current, double target, int percent) {
+	/** Progress as a 0..1 fraction, clamped — a finished quest can report current &gt; target. */
+	public double fraction() {
+		if (target <= 0) {
+			return 0;
+		}
+		return Math.clamp(current / target, 0.0, 1.0);
+	}
+}

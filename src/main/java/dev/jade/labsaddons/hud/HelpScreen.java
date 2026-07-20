@@ -49,6 +49,7 @@ public class HelpScreen extends Screen {
 			{"Withdraw key (N)", "Pulls back whichever chem you have the most of."},
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
+			{"/mastery", "Open it to re-sync your active Mastery challenge bars."},
 			{"Vote on all 7 sites", "Every ‘Vote registered!’ counts toward your daily 7."},
 	};
 

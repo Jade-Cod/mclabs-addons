@@ -33,6 +33,8 @@ import dev.jade.labsaddons.cooldown.CooldownHudObject;
 import dev.jade.labsaddons.mcmmo.McmmoAbility;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
+import dev.jade.labsaddons.mastery.MasteryHudObject;
+import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
@@ -114,6 +116,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
+		HudObjects.register(new MasteryHudObject());
 		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
@@ -211,7 +214,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
-								SupplierJobsReader.tryRead(handledScreen);
+								if (!SupplierJobsReader.tryRead(handledScreen)) {
+									MasteryReader.tryRead(handledScreen);
+								}
 							}
 						}
 					}
