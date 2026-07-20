@@ -31,6 +31,8 @@ public class MasteryHudObject extends HudObject {
 	private static final int LINE_GAP = 3;
 	private static final int BAR_W = 62;
 	private static final int BAR_H = 6;
+	/** Cap on the name column; longer names are trimmed with an ellipsis. */
+	private static final int NAME_MAX_W = 82;
 
 	@Override
 	public String id() {
@@ -63,18 +65,47 @@ public class MasteryHudObject extends HudObject {
 		return MasteryTracker.quests();
 	}
 
-	/** Editor preview stand-in, mirroring a real /mastery board. */
+	/** Editor preview stand-in: a realistic mix across the Event, Chem, and Pit categories. */
 	private static List<MasteryQuest> sampleQuests() {
 		return List.of(
 				new MasteryQuest(new ItemStack(Items.IRON_INGOT), "Mini-Event Top 3", 6, 15, 40),
 				new MasteryQuest(new ItemStack(Items.CLOCK), "Win Chat Reactions", 37, 100, 37),
 				new MasteryQuest(new ItemStack(Items.RED_WOOL), "Sell to Red Dealer", 631076.685, 1152000, 54),
-				new MasteryQuest(new ItemStack(Items.FEATHER), "Sell to Traveling Dealer", 531179.149, 1152000, 46),
+				new MasteryQuest(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer", 412, 750, 55),
 				new MasteryQuest(new ItemStack(Items.LIGHT_GRAY_DYE), "Sell Papcactinide", 319514.42, 806400, 39));
 	}
 
 	private static String progressText(MasteryQuest quest) {
 		return abbreviate(quest.current()) + "/" + abbreviate(quest.target()) + "  " + quest.percent() + "%";
+	}
+
+	/**
+	 * Verb prefixes dropped from quest names. The icon is not enough to tell quests
+	 * apart — 14 Pit challenges share the iron sword, and red wool is both "Red
+	 * Patrol" and "Sell to Red Dealer" — so the name is shown, and dropping the
+	 * shared verb keeps the distinguishing word visible when the column is tight.
+	 * Longest prefixes first so "Sell to " wins over "Sell ".
+	 */
+	private static final String[] NAME_PREFIXES = {
+			"Place in ", "Complete ", "Collect ", "Sell to ", "Secure ", "Catch ", "Sell ", "Kill ", "Win ",
+	};
+
+	static String shortName(String name) {
+		for (String prefix : NAME_PREFIXES) {
+			if (name.length() > prefix.length() && name.startsWith(prefix)) {
+				return name.substring(prefix.length());
+			}
+		}
+		return name;
+	}
+
+	/** Name column width: widest name, capped so one long quest can't stretch the widget. */
+	private int nameColumnWidth(boolean preview) {
+		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+		int widest = quests(preview).stream()
+				.mapToInt(quest -> font.getWidth(shortName(quest.name())))
+				.max().orElse(0);
+		return Math.min(widest, NAME_MAX_W);
 	}
 
 	/** Compact magnitude so five rows stay narrow: 631076.685 -> "631K", 1152000 -> "1.15M". */
@@ -102,8 +133,9 @@ public class MasteryHudObject extends HudObject {
 	@Override
 	public int contentWidth(boolean preview) {
 		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+		int nameW = nameColumnWidth(preview);
 		int rows = quests(preview).stream()
-				.mapToInt(quest -> ICON_SIZE + GAP + BAR_W + GAP + font.getWidth(progressText(quest)))
+				.mapToInt(quest -> ICON_SIZE + GAP + nameW + GAP + BAR_W + GAP + font.getWidth(progressText(quest)))
 				.max().orElse(0);
 		return Math.max(rows, font.getWidth(header()));
 	}
@@ -128,10 +160,15 @@ public class MasteryHudObject extends HudObject {
 		int y = font.fontHeight + LINE_GAP;
 
 		int height = rowHeight();
+		int nameW = nameColumnWidth(preview);
 		for (MasteryQuest quest : quests(preview)) {
 			context.drawItem(quest.icon(), 0, y + (height - ICON_SIZE) / 2);
 
-			int barX = ICON_SIZE + GAP;
+			int textY = y + (height - font.fontHeight) / 2 + 1;
+			context.drawText(font, Text.literal(font.trimToWidth(shortName(quest.name()), nameW)),
+					ICON_SIZE + GAP, textY, textColor, true);
+
+			int barX = ICON_SIZE + GAP + nameW + GAP;
 			int barY = y + (height - BAR_H) / 2;
 			EditorPainter.pill(context, barX, barY, BAR_W, BAR_H, TRACK_COLOR);
 			int filled = (int) Math.round(BAR_W * quest.fraction());
@@ -143,7 +180,7 @@ public class MasteryHudObject extends HudObject {
 			}
 
 			context.drawText(font, Text.literal(progressText(quest)), barX + BAR_W + GAP,
-					y + (height - font.fontHeight) / 2 + 1, textColor, true);
+					textY, textColor, true);
 			y += height + LINE_GAP;
 		}
 	}

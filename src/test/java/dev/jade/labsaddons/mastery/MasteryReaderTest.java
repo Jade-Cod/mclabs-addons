@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -95,5 +96,46 @@ public class MasteryReaderTest {
 	@Test
 	public void zeroTargetDoesNotDivide() {
 		assertEquals(0.0, new MasteryQuest(null, "Bad", 5, 0, 0).fraction(), 1e-9);
+	}
+
+	/**
+	 * Names carry the shared verb; the icon alone cannot disambiguate (14 Pit
+	 * challenges share the iron sword, and red wool is both a Cop patrol and a
+	 * dealer sell), so the distinguishing word must survive.
+	 */
+	@Test
+	public void stripsSharedVerbFromRealQuestNames() {
+		assertEquals("Petrified Archer", MasteryHudObject.shortName("Kill Petrified Archer"));
+		assertEquals("Giant Flame Elemental", MasteryHudObject.shortName("Kill Giant Flame Elemental"));
+		assertEquals("Cod", MasteryHudObject.shortName("Catch Cod"));
+		assertEquals("Papcactinide", MasteryHudObject.shortName("Sell Papcactinide"));
+		assertEquals("Chat Reactions", MasteryHudObject.shortName("Complete Chat Reactions"));
+	}
+
+	/** "Sell to " must win over "Sell " so the dealer name survives intact. */
+	@Test
+	public void longerPrefixWinsOverShorter() {
+		assertEquals("Red Dealer", MasteryHudObject.shortName("Sell to Red Dealer"));
+		assertEquals("Traveling Dealer", MasteryHudObject.shortName("Sell to Traveling Dealer"));
+	}
+
+	/** A Cop patrol and a dealer sell share red wool — they must not collapse to the same label. */
+	@Test
+	public void redWoolQuestsStayDistinct() {
+		assertNotEquals(MasteryHudObject.shortName("Red Patrol"),
+				MasteryHudObject.shortName("Sell to Red Dealer"));
+	}
+
+	/** Names without a known verb are left alone. */
+	@Test
+	public void leavesUnprefixedNamesIntact() {
+		assertEquals("Mini-Event Top 3", MasteryHudObject.shortName("Mini-Event Top 3"));
+		assertEquals("Red Patrol", MasteryHudObject.shortName("Red Patrol"));
+	}
+
+	/** A name that is exactly a prefix must not be stripped to nothing. */
+	@Test
+	public void doesNotStripNameToEmpty() {
+		assertEquals("Kill ", MasteryHudObject.shortName("Kill "));
 	}
 }
