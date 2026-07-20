@@ -33,6 +33,7 @@ import dev.jade.labsaddons.cooldown.CooldownHudObject;
 import dev.jade.labsaddons.mcmmo.McmmoAbility;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
+import dev.jade.labsaddons.mastery.MasteryChatTracker;
 import dev.jade.labsaddons.mastery.MasteryHudObject;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.runner.RunnerAlarm;
@@ -117,6 +118,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
 		HudObjects.register(new MasteryHudObject());
+		MasteryChatTracker.setSelfNameSupplier(LabsAddonsClient::selfName);
 		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
@@ -256,6 +258,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 				net.minecraft.registry.Registries.ITEM.getId(held.getItem()).toString());
 	}
 
+	/** The local player's name, used to tell whether a chat-reaction win was ours. */
+	private static String selfName() {
+		var player = MinecraftClient.getInstance().player;
+		return player != null ? player.getName().getString() : null;
+	}
+
 	/** Send a chat command (no leading slash); no-op when not connected. */
 	private static void sendChatCommand(String command) {
 		var network = MinecraftClient.getInstance().getNetworkHandler();
@@ -279,5 +287,6 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
+		MasteryChatTracker.onMessage(text);
 	}
 }

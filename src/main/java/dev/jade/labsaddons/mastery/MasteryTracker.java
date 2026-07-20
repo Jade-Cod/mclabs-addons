@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.mastery;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,6 +34,34 @@ public final class MasteryTracker {
 
 	public static boolean hasData() {
 		return !quests.isEmpty();
+	}
+
+	/**
+	 * Optimistically advances one quest by {@code delta}, but <em>only</em> if it is
+	 * currently active — an unselected challenge earns nothing, so a chat event for
+	 * a quest the player has not picked must be ignored rather than invented.
+	 *
+	 * <p>The bump is local and in-memory; the next {@code /mastery} scrape replaces
+	 * it with the server's authoritative figures.
+	 *
+	 * @return true if an active quest matched and was advanced.
+	 */
+	public static boolean advance(String questName, double delta) {
+		List<MasteryQuest> current = quests;
+		List<MasteryQuest> updated = new ArrayList<>(current.size());
+		boolean changed = false;
+		for (MasteryQuest quest : current) {
+			if (!changed && quest.name().equalsIgnoreCase(questName)) {
+				updated.add(quest.advancedBy(delta));
+				changed = true;
+			} else {
+				updated.add(quest);
+			}
+		}
+		if (changed) {
+			quests = List.copyOf(updated);
+		}
+		return changed;
 	}
 
 	public static void clear() {

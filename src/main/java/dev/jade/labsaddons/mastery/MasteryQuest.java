@@ -23,4 +23,26 @@ public record MasteryQuest(ItemStack icon, String name, double current, double t
 		}
 		return Math.clamp(current / target, 0.0, 1.0);
 	}
+
+	/**
+	 * A copy advanced by {@code delta}, with the percent recomputed locally.
+	 *
+	 * <p>Used for optimistic chat-driven bumps between GUI scrapes; the next
+	 * {@link MasteryReader} read overwrites it with the server's own figures.
+	 */
+	public MasteryQuest advancedBy(double delta) {
+		double next = Math.max(0, current + delta);
+		return new MasteryQuest(icon, name, next, target, percentOf(next, target));
+	}
+
+	/**
+	 * Floor, matching the server: it renders 631076.685/1,152,000 as 54% (54.78 floored)
+	 * and 319514.42/806,400 as 39% (39.62 floored).
+	 */
+	static int percentOf(double current, double target) {
+		if (target <= 0) {
+			return 0;
+		}
+		return (int) Math.clamp(Math.floor(current / target * 100), 0, 100);
+	}
 }
