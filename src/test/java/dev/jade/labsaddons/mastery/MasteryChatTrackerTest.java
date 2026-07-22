@@ -121,6 +121,43 @@ public class MasteryChatTrackerTest {
 		assertEquals(39, MasteryTracker.quests().getFirst().percent());
 	}
 
+	// --- the return value drives persistence: a false here means the board is not saved ---
+
+	@Test
+	public void winReportsAnAdvanceSoTheBoardIsSaved() {
+		active(MasteryChatTracker.WIN_QUEST, MasteryChatTracker.COMPLETE_QUEST);
+		assertTrue(MasteryChatTracker.onMessage(WIN, "Jade"));
+	}
+
+	/** Only "Complete" selected: the win still advances it, so it still needs saving. */
+	@Test
+	public void winReportsAnAdvanceWhenOnlyCompleteIsActive() {
+		active(MasteryChatTracker.COMPLETE_QUEST);
+		assertTrue(MasteryChatTracker.onMessage(WIN, "Jade"));
+	}
+
+	@Test
+	public void runnerUpReportsAnAdvance() {
+		active(MasteryChatTracker.COMPLETE_QUEST);
+		assertTrue(MasteryChatTracker.onMessage(RUNNER_UP, "Jade"));
+	}
+
+	/** Nothing changed, so nothing should be written to disk. */
+	@Test
+	public void unrelatedMessageReportsNoAdvance() {
+		active(MasteryChatTracker.WIN_QUEST, MasteryChatTracker.COMPLETE_QUEST);
+		assertFalse(MasteryChatTracker.onMessage(SPEED, "Jade"));
+		assertFalse(MasteryChatTracker.onMessage(
+				"» FantasyTagz typed the message in 12.400 seconds and won $7,500!", "Jade"));
+	}
+
+	@Test
+	public void inactiveQuestReportsNoAdvance() {
+		active("Kill Nyx");
+		assertFalse(MasteryChatTracker.onMessage(WIN, "Jade"));
+		assertFalse(MasteryChatTracker.onMessage(RUNNER_UP, "Jade"));
+	}
+
 	/** Percent floors the way the server does (54.78% renders as 54%). */
 	@Test
 	public void percentFloorsLikeServer() {

@@ -82,10 +82,8 @@ public class MasteryHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.mastery.clear"), () -> {
-			MasteryTracker.clear();
-			MasteryGains.clear();
-		});
+		// Clears the saved board too, or it would come straight back on next launch.
+		return new EditorAction(Text.translatable("labsaddons.hud.mastery.clear"), MasteryStore::clear);
 	}
 
 	/** A quest, the opacity its row renders at, and the amount it just gained. */

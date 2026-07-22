@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import dev.jade.labsaddons.booster.BoosterState;
 import dev.jade.labsaddons.chem.ChemtainerEntry;
 import dev.jade.labsaddons.labwars.LabWarsBooster;
+import dev.jade.labsaddons.mastery.MasteryQuestEntry;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import com.google.gson.GsonBuilder;
@@ -102,6 +103,10 @@ public class LabsAddonsConfig {
 	// --- Mastery challenges widget ---
 	/** Show every active challenge permanently instead of only ones that just gained. */
 	public boolean masteryAlwaysShow = false;
+	/** Last known board, restored on launch so chat reactions count before the first /mastery. */
+	public java.util.List<MasteryQuestEntry> masteryQuests = new java.util.ArrayList<>();
+	/** When the board above was last scraped or advanced (epoch ms); 0 = never. */
+	public long masterySnapshotMs = 0L;
 
 	// --- Ability cooldowns widget (mcMMO + future cooldown sources) ---
 	/** Stack cooldown rings in a column instead of a row. */
@@ -195,6 +200,21 @@ public class LabsAddonsConfig {
 		clean.chemtainerStale = this.chemtainerStale;
 		clean.chemtainerSatchel = this.chemtainerSatchel;
 		clean.masteryAlwaysShow = this.masteryAlwaysShow;
+		if (this.masteryQuests != null) {
+			for (MasteryQuestEntry entry : this.masteryQuests) {
+				// A quest with no name cannot be matched by the chat tracker, and a
+				// non-positive target would divide by zero in the bar; drop both.
+				if (entry != null && entry.name != null && !entry.name.isBlank() && entry.target > 0) {
+					clean.masteryQuests.add(new MasteryQuestEntry(
+							entry.icon == null ? "" : entry.icon,
+							entry.name,
+							Math.max(0, entry.current),
+							entry.target,
+							Math.clamp(entry.percent, 0, 100)));
+				}
+			}
+		}
+		clean.masterySnapshotMs = Math.max(0L, this.masterySnapshotMs);
 		clean.cooldownsStackVertical = this.cooldownsStackVertical;
 		clean.itemUsesEnabled = this.itemUsesEnabled;
 		clean.itemUsesCorner = parseCorner(this.itemUsesCorner).name();

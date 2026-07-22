@@ -53,23 +53,27 @@ public final class MasteryChatTracker {
 		selfNameSupplier = supplier == null ? () -> null : supplier;
 	}
 
-	public static void onMessage(String text) {
-		onMessage(text, selfNameSupplier.get());
+	/** @return true if an active quest advanced, so the caller can persist the board. */
+	public static boolean onMessage(String text) {
+		return onMessage(text, selfNameSupplier.get());
 	}
 
 	/** Package-private seam so the parsing can be tested without a Minecraft session. */
-	static void onMessage(String text, String selfName) {
+	static boolean onMessage(String text, String selfName) {
 		if (text == null || text.isEmpty()) {
-			return;
+			return false;
 		}
 		if (RUNNER_UP.matcher(text).find()) {
-			MasteryTracker.advance(COMPLETE_QUEST, 1);
-			return;
+			return MasteryTracker.advance(COMPLETE_QUEST, 1);
 		}
 		Matcher win = WIN.matcher(text);
 		if (win.find() && selfName != null && selfName.equalsIgnoreCase(win.group(1))) {
-			MasteryTracker.advance(WIN_QUEST, 1);
-			MasteryTracker.advance(COMPLETE_QUEST, 1);
+			// Both advances must run, so evaluate before combining — a short-circuit
+			// here would skip the "Complete" bump whenever "Win" is the active quest.
+			boolean won = MasteryTracker.advance(WIN_QUEST, 1);
+			boolean completed = MasteryTracker.advance(COMPLETE_QUEST, 1);
+			return won || completed;
 		}
+		return false;
 	}
 }

@@ -36,6 +36,7 @@ import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.mastery.MasteryChatTracker;
 import dev.jade.labsaddons.mastery.MasteryHudObject;
 import dev.jade.labsaddons.mastery.MasteryReader;
+import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
@@ -185,8 +186,13 @@ public class LabsAddonsClient implements ClientModInitializer {
 		chemWithdrawKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
 				"key.labsaddons.chem_withdraw", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
-		ClientLifecycleEvents.CLIENT_STARTED.register(client ->
-				KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey));
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey);
+			// Restore the saved board here rather than at init: resolving the quest
+			// icons needs the item registry, which is only populated once the client
+			// has finished starting.
+			MasteryStore.load();
+		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (McLabsSession.tick(client)) {
 				ModrinthUpdateChecker.checkAndNotify();
@@ -216,8 +222,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
-								if (!SupplierJobsReader.tryRead(handledScreen)) {
-									MasteryReader.tryRead(handledScreen);
+								if (!SupplierJobsReader.tryRead(handledScreen)
+										&& MasteryReader.tryRead(handledScreen)) {
+									MasteryStore.save();
 								}
 							}
 						}
@@ -287,6 +294,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
-		MasteryChatTracker.onMessage(text);
+		if (MasteryChatTracker.onMessage(text)) {
+			// A chat reaction moved an active challenge; keep it across a restart.
+			MasteryStore.save();
+		}
 	}
 }
