@@ -35,6 +35,7 @@ import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.mastery.MasteryChatTracker;
 import dev.jade.labsaddons.mastery.MasteryHudObject;
+import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.runner.RunnerAlarm;
@@ -141,7 +142,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// session flag; reset it on every fresh connection so a stale "yes" can't
 		// leak into a different server (or singleplayer).
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> McLabsSession.reset());
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> McLabsSession.reset());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			McLabsSession.reset();
+			// Entity ids are per-server; drop kill-tracking state so none leaks forward.
+			MasteryKillTracker.reset();
+		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
 		// without waiting for the server confirmation line. Fires on the main
@@ -198,6 +203,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
 			RunnerAlarm.tick();
+			// Live "Kill <mob>" progress from the solo Pit: each mob death is your kill,
+			// read straight off the world since no chat line announces it.
+			if (client.world != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.world)) {
+				MasteryStore.save();
+			}
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
