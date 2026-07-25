@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.14.1] - 2026-07-25
 
 ### Added
 - **The "update available" chat notice is now clickable.** When a newer version is found on join, clicking anywhere on the line opens that release's Modrinth page in your browser, where the download button and its changelog are — no more hunting for the mod page yourself. Hovering shows "Click to download" first, and Minecraft still asks for confirmation before opening any link.
@@ -115,6 +115,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.14.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.14.1
 [1.14.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.14.0
 [1.13.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.13.0
 [1.12.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.1
