@@ -289,6 +289,55 @@ public class MasteryChatTrackerTest {
 		assertEquals(0, currentOf(MasteryChatTracker.EVENT_WINNER));
 	}
 
+	// --- a finished challenge stops counting until it is re-rolled ---
+
+	/** The reported bug: progress ran past the goal instead of stopping at it. */
+	@Test
+	public void aCompletedQuestStopsCounting() {
+		MasteryTracker.setQuests(List.of(
+				new MasteryQuest(null, MasteryChatTracker.WIN_QUEST, 100, 100, 100)));
+		assertFalse(MasteryChatTracker.onMessage(WIN, "Jade"), "nothing advanced, so nothing to save");
+		assertEquals(100, currentOf(MasteryChatTracker.WIN_QUEST), "stays at the goal");
+	}
+
+	/** A bump that crosses the goal lands on it rather than overshooting. */
+	@Test
+	public void aBumpAcrossTheGoalStopsAtIt() {
+		MasteryTracker.setQuests(List.of(
+				new MasteryQuest(null, MasteryChatTracker.EVENT_TOP_9, 14, 15, 93)));
+		assertTrue(MasteryTracker.advance(MasteryChatTracker.EVENT_TOP_9, 5));
+		assertEquals(15, currentOf(MasteryChatTracker.EVENT_TOP_9));
+		assertEquals(100, MasteryTracker.quests().getFirst().percent());
+	}
+
+	/** The pop-up shows what landed (+1), not what was asked for (+5). */
+	@Test
+	public void aClampedBumpReportsOnlyWhatLanded() {
+		MasteryTracker.setQuests(List.of(
+				new MasteryQuest(null, MasteryChatTracker.EVENT_TOP_9, 14, 15, 93)));
+		MasteryGains.clear();
+		MasteryTracker.advance(MasteryChatTracker.EVENT_TOP_9, 5);
+		assertEquals(1, MasteryGains.delta(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/** The server stays the authority: a scrape may still report progress past the goal. */
+	@Test
+	public void aScrapeCanStillExceedTheTarget() {
+		MasteryTracker.setQuests(List.of(
+				new MasteryQuest(null, MasteryChatTracker.EVENT_TOP_9, 5, 15, 33)));
+		MasteryTracker.setQuests(List.of(
+				new MasteryQuest(null, MasteryChatTracker.EVENT_TOP_9, 19, 15, 100)));
+		assertEquals(19, currentOf(MasteryChatTracker.EVENT_TOP_9), "server figures pass through unclamped");
+	}
+
+	@Test
+	public void completionNeedsAKnownTarget() {
+		assertTrue(new MasteryQuest(null, "x", 15, 15, 100).isComplete());
+		assertTrue(new MasteryQuest(null, "x", 16, 15, 100).isComplete());
+		assertFalse(new MasteryQuest(null, "x", 14, 15, 93).isComplete());
+		assertFalse(new MasteryQuest(null, "x", 5, 0, 0).isComplete(), "no target, nothing to reach");
+	}
+
 	/** Percent floors the way the server does (54.78% renders as 54%). */
 	@Test
 	public void percentFloorsLikeServer() {

@@ -65,25 +65,36 @@ public final class MasteryTracker {
 	 * <p>The bump is local and in-memory; the next {@code /mastery} scrape replaces
 	 * it with the server's authoritative figures.
 	 *
-	 * @return true if an active quest matched and was advanced.
+	 * <p>A challenge that has already reached its target is left alone: it is finished
+	 * and sits there until the player re-rolls it, so counting past the goal would
+	 * invent progress the client cannot verify. Whether the server caps at the target
+	 * or banks the overflow, the scrape stays the authority — so refusing to guess is
+	 * never worse than guessing wrong.
+	 *
+	 * @return true if an active, unfinished quest matched and was advanced.
 	 */
 	public static boolean advance(String questName, double delta) {
 		List<MasteryQuest> current = quests;
 		List<MasteryQuest> updated = new ArrayList<>(current.size());
 		String matchedName = null;
+		double applied = 0;
 		for (MasteryQuest quest : current) {
-			if (matchedName == null && quest.name().equalsIgnoreCase(questName)) {
+			if (matchedName == null && quest.name().equalsIgnoreCase(questName) && !quest.isComplete()) {
 				// Record under the quest's own spelling: matching is case-insensitive, but
 				// the HUD looks gains up by the exact name it renders.
 				matchedName = quest.name();
-				updated.add(quest.advancedBy(delta));
+				MasteryQuest advanced = quest.advancedBy(delta);
+				// The pop-up must show what actually landed: a bump clamped at the target
+				// moved less than the caller asked for, and "+5" on a +1 move would lie.
+				applied = advanced.current() - quest.current();
+				updated.add(advanced);
 			} else {
 				updated.add(quest);
 			}
 		}
 		if (matchedName != null) {
 			quests = List.copyOf(updated);
-			MasteryGains.record(matchedName, delta);
+			MasteryGains.record(matchedName, applied);
 		}
 		return matchedName != null;
 	}

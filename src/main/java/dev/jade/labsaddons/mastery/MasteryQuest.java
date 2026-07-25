@@ -16,6 +16,14 @@ import net.minecraft.item.ItemStack;
  * with the number the GUI shows.
  */
 public record MasteryQuest(ItemStack icon, String name, double current, double target, int percent) {
+	/**
+	 * Whether the challenge has hit its goal and is waiting to be re-rolled. A quest
+	 * with no known target is never complete — there is nothing to have reached.
+	 */
+	public boolean isComplete() {
+		return target > 0 && current >= target;
+	}
+
 	/** Progress as a 0..1 fraction, clamped — a finished quest can report current &gt; target. */
 	public double fraction() {
 		if (target <= 0) {
@@ -29,9 +37,16 @@ public record MasteryQuest(ItemStack icon, String name, double current, double t
 	 *
 	 * <p>Used for optimistic chat-driven bumps between GUI scrapes; the next
 	 * {@link MasteryReader} read overwrites it with the server's own figures.
+	 *
+	 * <p>Stops at the target: a bump that crosses the goal is only trustworthy up to
+	 * the goal itself, since whether the server banks the remainder is not visible
+	 * from the client. The scrape restores any overflow the server did keep.
 	 */
 	public MasteryQuest advancedBy(double delta) {
 		double next = Math.max(0, current + delta);
+		if (target > 0) {
+			next = Math.min(next, target);
+		}
 		return new MasteryQuest(icon, name, next, target, percentOf(next, target));
 	}
 
