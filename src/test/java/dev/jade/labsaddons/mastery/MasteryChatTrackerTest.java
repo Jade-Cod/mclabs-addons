@@ -16,6 +16,25 @@ public class MasteryChatTrackerTest {
 	private static final String RUNNER_UP =
 			"» Runner-up, 18.336 seconds too late! Earned $2,000!";
 	private static final String SPEED = "» Speed: 7WPM.";
+	private static final String BOUNTY_FOUND =
+			"Bounty » Ophiliah has found a bounty chest near the Airport Terminal in 00:51!"
+					+ " There are 5 bounty chests left hidden in Spawn. Use /bounty track in Spawn to track one.";
+	/** A real four-deep result; newlines are real in-game, escaped only in the logs. */
+	private static final String STANDINGS = " Top players:\n #1. Kojee53 - 131 score\n"
+			+ " #2. 011404110 - 95 score\n #3. SaltyHyper - 78 score\n #4. Ophiliah - 78 score\n"
+			+ "Use /claim to claim your rewards!";
+	/** The deepest real standings seen: exactly nine places, hence Top 3 and Top 9. */
+	private static final String FULL_STANDINGS = " Top players:\n #1. SheenTheBean3 - 3,777,444 score\n"
+			+ " #2. elaine128 - 1,094,736 score\n #3. fayebeeann - 1,060,778 score\n"
+			+ " #4. SquiddyCat - 857,420 score\n #5. BuzzyyyBuzz - 816,242 score\n"
+			+ " #6. ThrowbackTo1985 - 734,155 score\n #7. elllla - 332,318 score\n"
+			+ " #8. lumpy5983 - 256,214 score\n #9. itfolds69 - 106,389 score\n"
+			+ "Use /claim to claim your rewards!";
+	/** Posted every few minutes while the event runs — a board, not a result. */
+	private static final String LIVE_BOARD = "Mini-Event » King Of The Hill mini-event:"
+			+ " Control hills at /minievent koth\nCurrent top players:\n#1. iLikeCatsDotCom\n"
+			+ "#2. Stwas\n#3. SupAnimations\n#4. BulletGeological\n#5. MissPatient\n"
+			+ "NEW Reach 50 score for 0.25 Event Points!\nMini-event ends in 09:29\nMore info: /minievent";
 
 	@AfterEach
 	public void reset() {
@@ -156,6 +175,118 @@ public class MasteryChatTrackerTest {
 		active("Kill Nyx");
 		assertFalse(MasteryChatTracker.onMessage(WIN, "Jade"));
 		assertFalse(MasteryChatTracker.onMessage(RUNNER_UP, "Jade"));
+	}
+
+	// --- bounties: verbatim MCLabs lines, including the local player's own finds ---
+
+	@Test
+	public void ownBountyFindAdvancesTheQuest() {
+		active(MasteryChatTracker.BOUNTY_QUEST);
+		assertTrue(MasteryChatTracker.onMessage(BOUNTY_FOUND, "Ophiliah"));
+		assertEquals(1, currentOf(MasteryChatTracker.BOUNTY_QUEST));
+	}
+
+	/** Closing out the hunt reads "the last bounty chest" and still counts. */
+	@Test
+	public void theLastBountyChestAlsoCounts() {
+		active(MasteryChatTracker.BOUNTY_QUEST);
+		assertTrue(MasteryChatTracker.onMessage(
+				"Bounty » Ophiliah has found the last bounty chest near the MCL Corp HQ in 01:11!", "Ophiliah"));
+		assertEquals(1, currentOf(MasteryChatTracker.BOUNTY_QUEST));
+	}
+
+	/** The find is broadcast to everyone, so someone else's chest must not count. */
+	@Test
+	public void otherPlayersBountyFindIsIgnored() {
+		active(MasteryChatTracker.BOUNTY_QUEST);
+		assertFalse(MasteryChatTracker.onMessage(
+				"Bounty » _Froid_ has found a bounty chest near the Beachfront in 07:42!"
+						+ " There are 4 bounty chests left hidden in Spawn.", "Ophiliah"));
+		assertEquals(0, currentOf(MasteryChatTracker.BOUNTY_QUEST));
+	}
+
+	/** The hunt-start and hunt-end announcements name no finder and must stay inert. */
+	@Test
+	public void bountyHuntNoticesAreInert() {
+		active(MasteryChatTracker.BOUNTY_QUEST);
+		assertFalse(MasteryChatTracker.onMessage("Bounty » Bounty Hunt has started!"
+				+ " 6 chests each with 27 stacks of Chorberrium have been hidden around Spawn!", "Ophiliah"));
+		assertFalse(MasteryChatTracker.onMessage(
+				"Bounty » All bounty chests have been found! Bounty hunt has ended.", "Ophiliah"));
+		assertEquals(0, currentOf(MasteryChatTracker.BOUNTY_QUEST));
+	}
+
+	// --- mini-event placement: the concluding standings list exactly nine places ---
+
+	@Test
+	public void firstPlaceCreditsEveryTier() {
+		active(MasteryChatTracker.EVENT_WINNER, MasteryChatTracker.EVENT_TOP_3, MasteryChatTracker.EVENT_TOP_9);
+		assertTrue(MasteryChatTracker.onMessage(STANDINGS, "Kojee53"));
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_WINNER));
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_3), "first is also in the top 3");
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_9), "and in the top 9");
+	}
+
+	@Test
+	public void thirdPlaceCreditsTopThreeAndTopNine() {
+		active(MasteryChatTracker.EVENT_WINNER, MasteryChatTracker.EVENT_TOP_3, MasteryChatTracker.EVENT_TOP_9);
+		MasteryChatTracker.onMessage(STANDINGS, "SaltyHyper");
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_WINNER), "third is not a win");
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_3));
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/** Fourth is out of the top 3 but still on the board. */
+	@Test
+	public void fourthPlaceCreditsTopNineOnly() {
+		active(MasteryChatTracker.EVENT_WINNER, MasteryChatTracker.EVENT_TOP_3, MasteryChatTracker.EVENT_TOP_9);
+		assertTrue(MasteryChatTracker.onMessage(STANDINGS, "Ophiliah"));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_TOP_3));
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	@Test
+	public void ninthPlaceStillCreditsTopNine() {
+		active(MasteryChatTracker.EVENT_TOP_9);
+		assertTrue(MasteryChatTracker.onMessage(FULL_STANDINGS, "itfolds69"));
+		assertEquals(1, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/** Not placing at all earns nothing, even though the message is a real result. */
+	@Test
+	public void missingFromTheStandingsEarnsNothing() {
+		active(MasteryChatTracker.EVENT_WINNER, MasteryChatTracker.EVENT_TOP_3, MasteryChatTracker.EVENT_TOP_9);
+		assertFalse(MasteryChatTracker.onMessage(STANDINGS, "Ophiliah_"));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/**
+	 * The running board is posted every few minutes during an event and leads with
+	 * "Current top players" — crediting it would award a placement per broadcast.
+	 */
+	@Test
+	public void theInProgressLeaderboardIsInert() {
+		active(MasteryChatTracker.EVENT_WINNER, MasteryChatTracker.EVENT_TOP_3, MasteryChatTracker.EVENT_TOP_9);
+		assertFalse(MasteryChatTracker.onMessage(LIVE_BOARD, "iLikeCatsDotCom"));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_WINNER));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/** The bare conclusion notice carries no standings and must not credit. */
+	@Test
+	public void theConclusionNoticeAloneIsInert() {
+		active(MasteryChatTracker.EVENT_TOP_9);
+		assertFalse(MasteryChatTracker.onMessage(
+				"Mini-Event » King Of The Hill Mini-Event has concluded!", "Ophiliah"));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_TOP_9));
+	}
+
+	/** A name that merely contains yours is a different player. */
+	@Test
+	public void standingsMatchTheWholeName() {
+		active(MasteryChatTracker.EVENT_WINNER);
+		assertFalse(MasteryChatTracker.onMessage(STANDINGS, "Kojee"));
+		assertEquals(0, currentOf(MasteryChatTracker.EVENT_WINNER));
 	}
 
 	/** Percent floors the way the server does (54.78% renders as 54%). */
