@@ -35,6 +35,7 @@ import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.mastery.MasteryChatTracker;
 import dev.jade.labsaddons.mastery.MasteryHudObject;
+import dev.jade.labsaddons.mastery.MasteryCatchTracker;
 import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
@@ -146,6 +147,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			McLabsSession.reset();
 			// Entity ids are per-server; drop kill-tracking state so none leaks forward.
 			MasteryKillTracker.reset();
+			// Likewise the inventory baseline: rejoining must not read as a haul.
+			MasteryCatchTracker.reset();
 		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
@@ -206,6 +209,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// Live "Kill <mob>" progress from the solo Pit: each mob death is your kill,
 			// read straight off the world since no chat line announces it.
 			if (client.world != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.world)) {
+				MasteryStore.save();
+			}
+			// Live "Catch <fish>" progress: the catch is read off the inventory, which
+			// sees it whether the server drops it at the bobber or hands it over directly.
+			if (client.player != null && McLabsSession.isActive() && MasteryCatchTracker.tick(client.player)) {
 				MasteryStore.save();
 			}
 			while (chumEditorKey.wasPressed()) {
