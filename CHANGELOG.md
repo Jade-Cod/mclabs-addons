@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- **Cloth Config is no longer required to install the mod.** It was only ever used to draw the Mod Menu settings screen, while the in-game HUD editor (`;`) is where everything is actually configured — so it is now an optional dependency. Without it the mod runs normally and Mod Menu just shows no settings button; install it if you want that screen.
+- **The mod now runs on older Fabric Loader versions.** The requirement dropped from 0.19.2 to 0.17.3 (what Fabric API itself asks for) — nothing in the mod ever needed a newer loader, so anyone who hadn't updated theirs was being turned away for no reason.
+- **The Minecraft version requirement is now exactly 1.21.11** instead of "1.21.11 or any later 1.21.x". The mod hooks into internals that move between versions, so on a future 1.21.12 you now get a clear "requires Minecraft 1.21.11" message at launch instead of a crash.
+
 ## [1.14.0] - 2026-07-09
 
 ### Added
