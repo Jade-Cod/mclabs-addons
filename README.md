@@ -45,10 +45,10 @@ booster shows an end crystal labelled "All").
 
 ### Install
 
-1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**,
-   **Cloth Config**, and (optionally) **Mod Menu** into your `mods` folder — see
-   *Requirements* below.
-2. Put `mclabs-addons-1.14.0.jar` in `mods` and launch. The mod is **client-side**,
+1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**
+   into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
+   add them only if you want the Mod Menu settings screen. See *Requirements* below.
+2. Put `mclabs-addons-1.14.1.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -127,12 +127,15 @@ to **semicolon** `;`) to enter the editor:
 
 ## Configuration
 
-Open **Mods → MCLabs Addons → Config** (requires
-[Mod Menu](https://modrinth.com/mod/modmenu)). The screen has a **General**
-category (bite-marker enable/size/colors, mute-others, catch sound) plus one
-category per HUD widget (enable, size, text color, background). Saved to
-`config/labsaddons.json` (settings from older versions in `config/fishbite.json`
-are migrated over automatically on first launch).
+Open **Mods → MCLabs Addons → Config** (requires both
+[Mod Menu](https://modrinth.com/mod/modmenu) and
+[Cloth Config](https://modrinth.com/mod/cloth-config); without either one the
+settings button simply doesn't appear). The screen has two categories: **Bite
+Marker** (enable/size/colors, mute-others, catch sound) and **Item Uses**.
+Everything about widget *appearance* — position, size, colors, background —
+lives in the in-game HUD editor instead. Saved to `config/labsaddons.json`
+(settings from older versions in `config/fishbite.json` are migrated over
+automatically on first launch).
 
 ## Architecture
 
@@ -156,9 +159,19 @@ are migrated over automatically on first launch).
   `ChemItems`/`ChemBaseItems` chem-identity helpers, and `ChemIcons`, the
   chemical → item-icon map shared by the booster, bounty, and Chemtainer widgets;
   `daily/DailyReset` computes the 9 PM Pacific reset boundary.
+- `runner/` — Runner job tracking: chat parsing (`RunnerMessages`), the session
+  counters and per-runner leaderboard (`RunnerLeaderboard`), the low-jobs alarm,
+  and the `/supplier` GUI scrape. `mcmmo/` and `pititem/` feed the shared
+  `cooldown/` ring widget from mcMMO super-ability and Pit-item chat.
+  `item/` draws the remaining-uses count on charge items; `server/McLabsSession`
+  detects whether the player is actually on MCLabs.
+- `update/` — a once-per-join Modrinth check (`ModrinthUpdateChecker`,
+  `ModVersion`, `ModrinthLink`) that posts a local-only chat line when a newer
+  release exists; clicking it opens that release's Modrinth page.
 - `mixin/` — `FishingBobberEntityAccessor` (synced `CAUGHT_FISH`),
   `SoundSystemMixin` (mute/replace bobber sounds), `CameraAccessor`,
-  `InGameHudMixin` (bite-marker projection), and `KeyBindingCategoryAccessor`
+  `InGameHudMixin` (bite-marker projection + HUD render tail),
+  `DrawContextMixin` (the item-uses overlay), and `KeyBindingCategoryAccessor`
   (hoists the McLab Addons keybind category near the top of Controls).
 
 Design rule: **passive by default**. Chat is parsed; container GUIs are read only
@@ -173,13 +186,13 @@ Drop these in your `mods` folder alongside the mod:
 
 | Dependency | Version | Notes |
 |------------|---------|-------|
-| Minecraft | 1.21.11 | |
-| Fabric Loader | ≥ 0.19.2 | |
+| Minecraft | 1.21.11 exactly | |
+| Fabric Loader | ≥ 0.17.3 | |
 | [Fabric API](https://modrinth.com/mod/fabric-api) | 0.141.4+1.21.11 | required |
-| [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | required (config widgets) |
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
+| [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | optional (widgets on that screen) |
 
-Current mod version: **1.14.0**.
+Current mod version: **1.14.1**.
 
 ## Building
 

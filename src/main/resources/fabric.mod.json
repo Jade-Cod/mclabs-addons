@@ -25,13 +25,13 @@
 		"fishbite": "*"
 	},
 	"depends": {
-		"fabricloader": ">=${loader_version}",
-		"minecraft": "~${minecraft_version}",
+		"fabricloader": ">=0.17.3",
+		"minecraft": "=${minecraft_version}",
 		"java": ">=21",
-		"fabric-api": "*",
-		"cloth-config": "*"
+		"fabric-api": "*"
 	},
 	"recommends": {
-		"modmenu": "*"
+		"modmenu": "*",
+		"cloth-config": "*"
 	}
 }

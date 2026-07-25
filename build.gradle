@@ -1,5 +1,6 @@
 plugins {
 	id 'fabric-loom' version '1.17.8'
+	id 'com.modrinth.minotaur' version '2.9.0'
 }
 
 version = project.mod_version
@@ -67,5 +68,31 @@ java {
 jar {
 	from("LICENSE") {
 		rename { "${it}_${project.archives_base_name}" }
+	}
+}
+
+// Publishing to Modrinth. The token is read from the environment and never
+// stored in the repo:
+//   MODRINTH_TOKEN="$(cat ~/.config/mclabs-addons/modrinth-token)" \
+//     ./gradlew modrinth -PchangelogFile=<same notes file as the GitHub release>
+// Dependencies here mirror fabric.mod.json: Fabric API required, Mod Menu and
+// Cloth Config optional.
+modrinth {
+	token = System.getenv('MODRINTH_TOKEN')
+	projectId = 'W09tZtbv' // mclabs-addons
+	versionNumber = project.mod_version
+	versionName = "v${project.mod_version}"
+	versionType = 'release'
+	uploadFile = tasks.remapJar
+	gameVersions = [project.minecraft_version]
+	loaders = ['fabric']
+	// Reuses the GitHub release body so the two never drift apart.
+	changelog = project.hasProperty('changelogFile') ? file(project.changelogFile).getText('UTF-8') : ''
+	// -PmodrinthDebug validates the request without uploading anything.
+	debugMode = project.hasProperty('modrinthDebug')
+	dependencies {
+		required.project 'fabric-api'
+		optional.project 'modmenu'
+		optional.project 'cloth-config'
 	}
 }

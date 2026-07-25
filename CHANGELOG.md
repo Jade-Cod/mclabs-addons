@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.1] - 2026-07-25
+
+### Added
+- **The "update available" chat notice is now clickable.** When a newer version is found on join, clicking anywhere on the line opens that release's Modrinth page in your browser, where the download button and its changelog are — no more hunting for the mod page yourself. Hovering shows "Click to download" first, and Minecraft still asks for confirmation before opening any link.
+
+### Changed
+- **Cloth Config is no longer required to install the mod.** It was only ever used to draw the Mod Menu settings screen, while the in-game HUD editor (`;`) is where everything is actually configured — so it is now an optional dependency. Without it the mod runs normally and Mod Menu just shows no settings button; install it if you want that screen.
+- **The mod now runs on older Fabric Loader versions.** The requirement dropped from 0.19.2 to 0.17.3 (what Fabric API itself asks for) — nothing in the mod ever needed a newer loader, so anyone who hadn't updated theirs was being turned away for no reason.
+- **The Minecraft version requirement is now exactly 1.21.11** instead of "1.21.11 or any later 1.21.x". The mod hooks into internals that move between versions, so on a future 1.21.12 you now get a clear "requires Minecraft 1.21.11" message at launch instead of a crash.
+
 ## [1.14.0] - 2026-07-09
 
 ### Added
@@ -105,6 +115,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.14.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.14.1
 [1.14.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.14.0
 [1.13.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.13.0
 [1.12.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.12.1
