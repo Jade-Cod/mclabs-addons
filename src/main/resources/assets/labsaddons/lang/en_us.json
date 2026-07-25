@@ -113,5 +113,6 @@
 	"labsaddons.hud.ability_cooldowns.clear": "Clear Cooldowns",
 	"labsaddons.hud.ability_cooldowns.vertical_label": "Vertical",
 	"labsaddons.hud.ability_cooldowns.horizontal_label": "Horizontal",
-	"labsaddons.hud.ability_cooldowns.visibility": "Ability Visibility"
+	"labsaddons.hud.ability_cooldowns.visibility": "Ability Visibility",
+	"labsaddons.update.download_hover": "Click to download"
 }
