@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **The "update available" chat notice is now clickable.** When a newer version is found on join, clicking anywhere on the line opens that release's Modrinth page in your browser, where the download button and its changelog are — no more hunting for the mod page yourself. Hovering shows "Click to download" first, and Minecraft still asks for confirmation before opening any link.
+
 ### Changed
 - **Cloth Config is no longer required to install the mod.** It was only ever used to draw the Mod Menu settings screen, while the in-game HUD editor (`;`) is where everything is actually configured — so it is now an optional dependency. Without it the mod runs normally and Mod Menu just shows no settings button; install it if you want that screen.
 - **The mod now runs on older Fabric Loader versions.** The requirement dropped from 0.19.2 to 0.17.3 (what Fabric API itself asks for) — nothing in the mod ever needed a newer loader, so anyone who hadn't updated theirs was being turned away for no reason.

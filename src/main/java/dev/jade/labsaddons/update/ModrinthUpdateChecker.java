@@ -8,6 +8,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
@@ -23,9 +26,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Checks Modrinth for a newer release of this mod and, if one exists, posts a
- * local-only chat line. Called once per join the moment McLabsSession confirms
- * the player is on MCLabs. Entirely off the client thread; any failure (offline,
- * Modrinth down, bad response) is logged and swallowed.
+ * local-only chat line that opens the new release's Modrinth page when clicked.
+ * Called once per join the moment McLabsSession confirms the player is on
+ * MCLabs. Entirely off the client thread; any failure (offline, Modrinth down,
+ * bad response) is logged and swallowed.
  */
 public final class ModrinthUpdateChecker {
 	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
@@ -103,12 +107,25 @@ public final class ModrinthUpdateChecker {
 
 	private static void notifyPlayer(String latestVersion) {
 		MinecraftClient client = MinecraftClient.getInstance();
+		URI downloadUri = ModrinthLink.downloadUri(latestVersion);
 		client.execute(() -> {
 			if (client.player != null) {
-				client.player.sendMessage(Text.literal("[MCLabs Addons] ").formatted(Formatting.AQUA)
-						.append(Text.literal("v" + latestVersion + " is available on Modrinth.")
-								.formatted(Formatting.GRAY)), false);
+				client.player.sendMessage(buildMessage(latestVersion, downloadUri), false);
 			}
 		});
+	}
+
+	/**
+	 * The whole line is clickable: the click and hover events sit on the root
+	 * style, which the appended sibling inherits.
+	 */
+	private static MutableText buildMessage(String latestVersion, URI downloadUri) {
+		return Text.literal("[MCLabs Addons] ").formatted(Formatting.AQUA)
+				.append(Text.literal("v" + latestVersion + " is available on Modrinth.")
+						.formatted(Formatting.GRAY))
+				.styled(style -> style
+						.withClickEvent(new ClickEvent.OpenUrl(downloadUri))
+						.withHoverEvent(new HoverEvent.ShowText(
+								Text.translatable("labsaddons.update.download_hover"))));
 	}
 }
