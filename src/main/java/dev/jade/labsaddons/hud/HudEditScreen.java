@@ -45,6 +45,14 @@ public class HudEditScreen extends Screen {
 	private static final int GROUP_INDENT = 6;
 	/** Extra breathing room between Reset Widget and the "Ability Visibility" heading below it. */
 	private static final int GROUPS_HEADING_EXTRA = 6;
+	/**
+	 * Everything in a rail row that is not the label: the row's inset either side, the
+	 * visibility toggle, and its gap. Kept in step with {@code layerRowRect} and
+	 * {@code toggleRect} so {@link #railWidth()} can size the rail around a name.
+	 */
+	private static final int RAIL_TEXT_INSET = 22;
+	/** Longest a name may render before it is elided, as a share of the screen. */
+	private static final int RAIL_MAX_SHARE = 3;
 	/** {@link #expandedGroups} key for the Runner Jobs widget's low-job alarm section. */
 	private static final String ALARM_GROUP_KEY = "runner_alarm";
 
@@ -61,6 +69,8 @@ public class HudEditScreen extends Screen {
 
 	// Group move (drag the body of any selected widget).
 	private boolean groupDragging;
+	/** Lazily measured by {@link #railWidth()}; 0 means "not measured yet". */
+	private int railWidthCache;
 	private List<HudObject> dragWidgets;
 	private List<int[]> dragOrigins;
 	private int grabOriginX;
@@ -245,7 +255,7 @@ public class HudEditScreen extends Screen {
 		int panelH = contentH + 2 * EditorTheme.PAD;
 
 		int panelX = dockLeft(widget)
-				? EditorTheme.MARGIN + EditorTheme.RAIL_W + EditorTheme.GAP
+				? EditorTheme.MARGIN + railWidth() + EditorTheme.GAP
 				: this.width - EditorTheme.PANEL_W - EditorTheme.MARGIN;
 		int toolbarTop = this.height - EditorTheme.TOOLBAR_H - EditorTheme.GAP;
 		int panelY = EditorTheme.TOP;
@@ -636,7 +646,7 @@ public class HudEditScreen extends Screen {
 
 			boolean enabled = obj.settings().enabled;
 			int textMaxW = row[2] - EditorTheme.RAIL_TOGGLE - 10;
-			String name = this.textRenderer.trimToWidth(obj.displayName().getString(), textMaxW);
+			String name = elide(obj.displayName().getString(), textMaxW);
 			context.drawText(this.textRenderer, Text.literal(name), row[0] + 4,
 					row[1] + (row[3] - this.textRenderer.fontHeight) / 2 + 1,
 					enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
@@ -656,7 +666,7 @@ public class HudEditScreen extends Screen {
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
 
-		String name = this.textRenderer.trimToWidth(widget.displayName().getString(), innerW);
+		String name = elide(widget.displayName().getString(), innerW);
 		context.drawText(this.textRenderer, Text.literal(name), innerX, nameY, EditorTheme.TEXT, false);
 
 		EditorPainter.swatch(context, textSwatchX, textSwatchY, EditorTheme.SWATCH, s.textColor | 0xFF000000);
@@ -677,7 +687,7 @@ public class HudEditScreen extends Screen {
 	private void drawGroupsHeading(DrawContext context) {
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
-		String name = this.textRenderer.trimToWidth(groupsLabelText.getString(), innerW);
+		String name = elide(groupsLabelText.getString(), innerW);
 		context.drawText(this.textRenderer, Text.literal(name), innerX, groupsLabelY, EditorTheme.TEXT, false);
 	}
 
@@ -698,7 +708,7 @@ public class HudEditScreen extends Screen {
 			}
 
 			int textMaxW = r[2] - EditorTheme.RAIL_TOGGLE - 10;
-			String name = this.textRenderer.trimToWidth(row.option().label().getString(), textMaxW);
+			String name = elide(row.option().label().getString(), textMaxW);
 			Text label = Text.literal(name).styled(style -> style.withItalic(!on));
 			context.drawText(this.textRenderer, label, r[0] + 4,
 					r[1] + (r[3] - this.textRenderer.fontHeight) / 2 + 1,
@@ -708,6 +718,46 @@ public class HudEditScreen extends Screen {
 
 	// --- geometry -------------------------------------------------------------
 
+	/**
+	 * Rail width, widened to fit the longest widget name so no row has to be cut.
+	 *
+	 * <p>{@link EditorTheme#RAIL_W} is the floor rather than the width: it fits most
+	 * names but not all of them, and a fixed rail silently truncates any widget added
+	 * later. Capped at a share of the screen so a long name cannot crowd out the canvas
+	 * — the floor is folded into the cap too, or a very narrow window would invert the
+	 * two bounds.
+	 *
+	 * <p>Cached because the widget list cannot change while the editor is open, and this
+	 * is reached several times per row per frame through {@link #layerRowRect}.
+	 */
+	private int railWidth() {
+		if (railWidthCache == 0) {
+			int widest = 0;
+			for (HudObject obj : HudObjects.all()) {
+				widest = Math.max(widest, this.textRenderer.getWidth(obj.displayName()));
+			}
+			int cap = Math.max(EditorTheme.RAIL_W, this.width / RAIL_MAX_SHARE);
+			railWidthCache = Math.clamp(widest + RAIL_TEXT_INSET, EditorTheme.RAIL_W, cap);
+		}
+		return railWidthCache;
+	}
+
+	/**
+	 * {@code text} shortened to {@code maxWidth}, ending in an ellipsis if anything was
+	 * dropped. Plain {@code trimToWidth} stops mid-word with no sign it did so, which
+	 * reads as a broken label rather than a shortened one.
+	 */
+	private String elide(String text, int maxWidth) {
+		if (this.textRenderer.getWidth(text) <= maxWidth) {
+			return text;
+		}
+		String ellipsis = "…";
+		int budget = maxWidth - this.textRenderer.getWidth(ellipsis);
+		// Too narrow for even one character plus the ellipsis: a hard cut is all that fits.
+		return budget <= 0 ? this.textRenderer.trimToWidth(text, maxWidth)
+				: this.textRenderer.trimToWidth(text, budget) + ellipsis;
+	}
+
 	private int[] railRect() {
 		int count = HudObjects.all().size();
 		int h = EditorTheme.RAIL_HEADER_H + count * EditorTheme.RAIL_ROW_H + EditorTheme.PAD;
@@ -716,7 +766,7 @@ public class HudEditScreen extends Screen {
 		if (y + h > toolbarTop) {
 			y = Math.max(2, toolbarTop - h);
 		}
-		return new int[]{EditorTheme.MARGIN, y, EditorTheme.RAIL_W, h};
+		return new int[]{EditorTheme.MARGIN, y, railWidth(), h};
 	}
 
 	private int[] layerRowRect(int index) {

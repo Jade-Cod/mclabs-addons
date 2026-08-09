@@ -8,6 +8,9 @@
 - **Mastery challenges advance live from four sources.** Selling chems (per-dealer and per-chem challenges alike), killing mobs in the Pit, catching fish, and winning chat reactions all move the bars the moment they happen, instead of waiting until you reopen `/mastery`. Mini-event placements and bounty completions count too. Reopening the GUI always re-syncs against the server, so the bars can only ever be behind, never wrong.
 - **Chem prestige progress reads the server's exact figures.** The precise amount each sale earns is stated in the sell message's hover tooltip, and `/prestige progress` states each chem's exact total the same way — the mod reads both directly rather than trying to recalculate them, so the numbers always match the game. Finished chem tracks are recognised as complete and stop counting, including for players who have already finished all of their prestige.
 
+### Fixed
+- **Widget names no longer get cut off in the HUD editor.** The Widgets rail was a fixed width, so longer names were chopped mid-word ("Lab Wars Booste", "Personal Booste"). It now sizes itself to the longest name, and anything that still cannot fit ends in an ellipsis instead of simply stopping.
+
 ### Changed
 - **Smuggler Satchel contents now count toward Mastery.** Selling to a dealer empties your satchel alongside your inventory, so the mod learns what the satchel holds — from opening it, or from the chat confirmation when you load it — and credits that share of the sale too.
 
