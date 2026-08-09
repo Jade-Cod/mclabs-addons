@@ -50,6 +50,7 @@ public final class SmugglerSatchel {
 		}
 		ChemItems.ChemKey largest = null;
 		int largestCount = 0;
+		boolean anyItem = false;
 		for (Slot slot : screen.getScreenHandler().slots) {
 			// The player's own inventory is mirrored into the bottom of every chest
 			// GUI; only the satchel's own slots say what the satchel holds.
@@ -57,7 +58,11 @@ public final class SmugglerSatchel {
 				continue;
 			}
 			ItemStack stack = slot.getStack();
-			if (stack.isEmpty() || stack.getCount() < largestCount) {
+			if (stack.isEmpty()) {
+				continue;
+			}
+			anyItem = true;
+			if (stack.getCount() < largestCount) {
 				continue;
 			}
 			ChemItems.ChemKey key = chemOf(stack);
@@ -66,9 +71,15 @@ public final class SmugglerSatchel {
 				largestCount = stack.getCount();
 			}
 		}
-		// An empty satchel clears the memory: crediting its old chem after it has been
-		// emptied would attribute the next sale's remainder to the wrong challenge.
-		contents = largest;
+		if (largest != null) {
+			contents = largest;
+		} else if (!anyItem) {
+			// Genuinely empty: forget the old chem, or the next sale's remainder would
+			// be credited to a challenge the satchel no longer holds anything for.
+			// Items we merely failed to parse are left alone rather than treated as
+			// empty — that would discard what the load message already told us.
+			contents = null;
+		}
 		return true;
 	}
 

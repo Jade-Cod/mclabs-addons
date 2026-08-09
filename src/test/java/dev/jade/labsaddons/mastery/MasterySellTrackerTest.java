@@ -156,6 +156,33 @@ public class MasterySellTrackerTest {
 		assertEquals(1088 * 1.89 * 1.50, currentOf("Sell Chorberrium"), 1e-6);
 	}
 
+	/**
+	 * The satchel may hold a different purity from the inventory — its own contents must
+	 * be uniform, but nothing ties them to what the player is carrying. Each stack takes
+	 * its own multiplier before the totals merge under the one chem the quest names.
+	 */
+	@Test
+	public void aSatchelMayBeADifferentPurityFromTheInventory() {
+		active(SELL_CACTATONATE);
+		ChemKey carried = new ChemKey("cactatonate", "2-2-2");  // tier 2 -> 1.30x
+		ChemKey stowed = new ChemKey("cactatonate", "2-1-2");   // tier 1 -> 1.15x
+		MasterySellTracker.credit(Map.of(carried, 2112L), 3264, 1.3, null, stowed);
+		assertEquals(2112 * 1.3 * 1.30 + 1152 * 1.3 * 1.15, currentOf(SELL_CACTATONATE), 1e-6);
+	}
+
+	/** A mixed inventory alongside a uniform satchel: three tiers, one running total. */
+	@Test
+	public void aMixedInventoryAndSatchelEachKeepTheirOwnTier() {
+		active(SELL_CACTATONATE, SELL_TO_DEALER);
+		MasterySellTracker.credit(
+				Map.of(new ChemKey("cactatonate", "0-0-0"), 100L,
+						new ChemKey("cactatonate", "0-3-0"), 200L),
+				400, 1.0, DEALER, new ChemKey("cactatonate", "0-1-0"));
+		double expected = 100 * 1.00 + 200 * 1.50 + 100 * 1.15;
+		assertEquals(expected, currentOf(SELL_CACTATONATE), 1e-6);
+		assertEquals(expected, currentOf(SELL_TO_DEALER), 1e-6);
+	}
+
 	/** Never opened the satchel: credit what we saw and let the scrape find the rest. */
 	@Test
 	public void anUnknownSatchelDropsTheRemainder() {
