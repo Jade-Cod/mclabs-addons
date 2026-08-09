@@ -1,0 +1,280 @@
+package dev.jade.labsaddons.mastery;
+
+import dev.jade.labsaddons.chem.ChemItems;
+import dev.jade.labsaddons.chem.SmugglerSatchel;
+import net.minecraft.entity.player.PlayerInventory;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Advances the {@code Sell <Chem>} and {@code Sell to <Dealer>} Mastery challenges
+ * live, by reconstructing what a sale was worth from three sources the client can
+ * see:
+ *
+ * <pre>
+ *   delta = Σ  count × rate × MULT[progress purity]      (compound chems only)
+ * </pre>
+ *
+ * <ul>
+ * <li><b>count</b> — from the inventory, diffed across the sale. Chat reports only a
+ * grand total, never a per-chem breakdown.</li>
+ * <li><b>rate</b> — the one number worth taking from
+ * {@code » Earned prestige progress for Cactium and Potatium. (1.89x rate)}. The chems
+ * it names are the <em>base components</em> of what was sold, not the items themselves,
+ * so they identify nothing and are deliberately ignored.</li>
+ * <li><b>progress purity</b> — the middle field of a chem's {@code value-progress-score},
+ * mapped through {@link #PROGRESS_MULTIPLIER}. Base crops carry no purity at all and
+ * earn no Mastery, which is exactly what a missing tier resolves to.</li>
+ * </ul>
+ *
+ * <p>A sneak-sell empties the Smuggler Satchel too, and those chems never touch the
+ * inventory. Their count is the server's total minus everything the diff saw; their
+ * identity comes from {@link SmugglerSatchel}, which the player's own satchel opening
+ * populates. With no such read the remainder is dropped rather than guessed.
+ *
+ * <p>Every fallback here under-counts rather than inventing progress, because the
+ * next {@code /mastery} scrape is still the authority and will true up the difference.
+ */
+public final class MasterySellTracker {
+	/** Quest name prefixes exactly as the /mastery GUI spells them. */
+	private static final String CHEM_QUEST = "Sell ";
+	private static final String DEALER_QUEST = "Sell to ";
+
+	/**
+	 * How much a chem is worth per progress-purity tier: 0 → 1.00x … 3 → 1.50x.
+	 * A tier outside this table earns nothing rather than an extrapolated multiplier —
+	 * guessing high would overstate the bar, and the scrape corrects an undercount.
+	 */
+	static final double[] PROGRESS_MULTIPLIER = {1.00, 1.15, 1.30, 1.50};
+
+	private static final Pattern SOLD = Pattern.compile("You've sold ([\\d,]+) chems");
+	private static final Pattern RATE = Pattern.compile("\\(([0-9]+(?:\\.[0-9]+)?)x rate\\)");
+	/** An NPC nameplate like "White Dealer", "Traveling Dealer", "Prison Dealer". */
+	private static final Pattern DEALER = Pattern.compile("^([\\w'\\- ]*\\bDealer)$");
+	/** Legacy colour codes survive in some nameplates; they are not part of the name. */
+	private static final Pattern FORMATTING = Pattern.compile("§.");
+
+	/** Quiet ticks after the last sale line before flushing (lets the inventory sync land). */
+	private static final int SETTLE_TICKS = 8;
+	/**
+	 * Ticks to wait for a sale confirmation before discarding the arm. Generous because
+	 * right-clicking a dealer only opens a menu — the player may browse before selling.
+	 */
+	private static final int CONFIRM_TIMEOUT_TICKS = 400;
+
+	// Null unless a sale is in flight; the whole capture is armed by touching a dealer.
+	private static Map<ChemItems.ChemKey, Long> reference;
+	private static Map<ChemItems.ChemKey, Long> pending;
+	private static String dealer;
+	private static long reportedTotal;
+	private static double rate;
+	private static boolean soldSeen;
+	private static int settleCountdown;
+	private static int confirmTimeout;
+
+	private MasterySellTracker() {
+	}
+
+	/**
+	 * Arm a capture when the player interacts with a dealer. Both sell paths — sneak
+	 * right-click, and right-click then the Sell button — start here, so one hook covers
+	 * both. Re-arming an in-flight capture only extends its patience.
+	 */
+	public static void onInteract(String entityName, Map<ChemItems.ChemKey, Long> snapshot) {
+		String name = dealerName(entityName);
+		if (name == null) {
+			return;
+		}
+		if (reference == null) {
+			reference = new HashMap<>(snapshot);
+			pending = new HashMap<>();
+			reportedTotal = 0;
+			rate = 0;
+			soldSeen = false;
+		}
+		dealer = name;
+		settleCountdown = SETTLE_TICKS;
+		confirmTimeout = CONFIRM_TIMEOUT_TICKS;
+	}
+
+	/** Records the sale total and rate. Only meaningful while a dealer capture is armed. */
+	public static void onMessage(String text) {
+		if (text == null || reference == null) {
+			return;
+		}
+		Matcher sold = SOLD.matcher(text);
+		if (sold.find()) {
+			soldSeen = true;
+			// Summed, not replaced: two sales inside one settle window are one flush.
+			reportedTotal += parseCount(sold.group(1));
+			settleCountdown = SETTLE_TICKS;
+			return;
+		}
+		Matcher matched = RATE.matcher(text);
+		if (matched.find()) {
+			// The latest rate wins; back-to-back sales at different rates are rare
+			// enough that the scrape can own the rounding.
+			rate = parseRate(matched.group(1));
+			settleCountdown = SETTLE_TICKS;
+		}
+	}
+
+	/** @return true if an active challenge advanced, so the caller can persist the board. */
+	public static boolean tick(PlayerInventory inventory) {
+		if (reference == null || inventory == null) {
+			return false;
+		}
+		track(ChemItems.snapshot(inventory));
+		if (!soldSeen) {
+			if (--confirmTimeout <= 0) {
+				reset(); // touched a dealer but never sold — the drops weren't a sale
+			}
+			return false;
+		}
+		if (--settleCountdown > 0) {
+			return false;
+		}
+		Map<ChemItems.ChemKey, Long> sold = drops();
+		long total = reportedTotal;
+		double soldRate = rate;
+		String soldTo = dealer;
+		reset();
+		return credit(sold, total, soldRate, soldTo, SmugglerSatchel.contents());
+	}
+
+	public static void reset() {
+		reference = null;
+		pending = null;
+		dealer = null;
+		reportedTotal = 0;
+		rate = 0;
+		soldSeen = false;
+	}
+
+	/**
+	 * Applies the formula to one completed sale.
+	 *
+	 * <p>Package-private seam so the maths can be tested without a Minecraft session.
+	 *
+	 * @param sold          what left the inventory, by chem and purity
+	 * @param reportedTotal the server's grand total, which also covers the satchel
+	 * @param rate          the sale's {@code (x.xx rate)} multiplier
+	 * @param dealerName    the dealer sold to, or null if it could not be attributed
+	 * @param satchel       what the satchel was loaded with, or null if never seen
+	 */
+	static boolean credit(Map<ChemItems.ChemKey, Long> sold, long reportedTotal, double rate,
+			String dealerName, ChemItems.ChemKey satchel) {
+		if (rate <= 0) {
+			return false; // no rate parsed: every term would be zero anyway
+		}
+		Map<String, Double> earned = new HashMap<>();
+		long counted = 0;
+		for (Map.Entry<ChemItems.ChemKey, Long> entry : sold.entrySet()) {
+			// Base crops count toward the total the server reported even though they
+			// earn no Mastery, so they must be tallied before the tier check drops them.
+			counted += entry.getValue();
+			add(earned, entry.getKey(), entry.getValue(), rate);
+		}
+		if (satchel != null) {
+			add(earned, satchel, reportedTotal - counted, rate);
+		}
+		double whole = 0;
+		boolean advanced = false;
+		for (Map.Entry<String, Double> chem : earned.entrySet()) {
+			whole += chem.getValue();
+			// OR after the fact: short-circuiting would skip later chems whenever an
+			// earlier one is the active pick.
+			advanced |= MasteryTracker.advance(CHEM_QUEST + chem.getKey(), chem.getValue());
+		}
+		if (dealerName != null && whole > 0) {
+			advanced |= MasteryTracker.advance(DEALER_QUEST + dealerName, whole);
+		}
+		return advanced;
+	}
+
+	/** Adds one stack's worth of Mastery to its chem, skipping anything that earns none. */
+	private static void add(Map<String, Double> earned, ChemItems.ChemKey key, long count, double rate) {
+		int tier = progressTier(key.purity());
+		if (count <= 0 || tier < 0) {
+			return;
+		}
+		earned.merge(key.chem(), count * rate * PROGRESS_MULTIPLIER[tier], Double::sum);
+	}
+
+	/**
+	 * The progress tier of a {@code "value-progress-score"} purity — the middle field —
+	 * or -1 when there is none. Base chems are plain vanilla items with no purity
+	 * component at all, and Mastery does not count them, so -1 is the right answer
+	 * rather than a failure.
+	 */
+	static int progressTier(String purity) {
+		if (purity == null) {
+			return -1;
+		}
+		String[] parts = purity.split("-");
+		if (parts.length != 3) {
+			return -1;
+		}
+		try {
+			int tier = Integer.parseInt(parts[1]);
+			return tier >= 0 && tier < PROGRESS_MULTIPLIER.length ? tier : -1;
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+
+	/** "White Dealer" out of a nameplate, or null when the entity isn't a dealer. */
+	static String dealerName(String entityName) {
+		if (entityName == null) {
+			return null;
+		}
+		String plain = FORMATTING.matcher(entityName).replaceAll("").trim();
+		Matcher matched = DEALER.matcher(plain);
+		return matched.matches() ? matched.group(1) : null;
+	}
+
+	/** Fold the latest snapshot into reference/pending — a sale only ever removes chems. */
+	private static void track(Map<ChemItems.ChemKey, Long> current) {
+		Set<ChemItems.ChemKey> keys = new HashSet<>(reference.keySet());
+		keys.addAll(current.keySet());
+		for (ChemItems.ChemKey key : keys) {
+			long ref = reference.getOrDefault(key, 0L);
+			long now = current.getOrDefault(key, 0L);
+			if (now < ref) {
+				pending.merge(key, ref - now, Long::sum);
+			}
+			if (now != ref) {
+				// A rise is farming or a withdrawal, never a sale; either way the
+				// baseline moves so it can't be credited on the next sale.
+				reference.put(key, now);
+			}
+		}
+	}
+
+	private static Map<ChemItems.ChemKey, Long> drops() {
+		Map<ChemItems.ChemKey, Long> result = new HashMap<>(pending);
+		result.values().removeIf(count -> count <= 0);
+		return result;
+	}
+
+	private static long parseCount(String grouped) {
+		try {
+			return Long.parseLong(grouped.replace(",", ""));
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	private static double parseRate(String value) {
+		try {
+			return Double.parseDouble(value);
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+}

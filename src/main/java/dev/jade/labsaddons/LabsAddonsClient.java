@@ -27,6 +27,7 @@ import dev.jade.labsaddons.chem.ChemtainerDepositCapture;
 import dev.jade.labsaddons.chem.ChemtainerHudObject;
 import dev.jade.labsaddons.chem.ChemtainerReader;
 import dev.jade.labsaddons.chem.ChemtainerTracker;
+import dev.jade.labsaddons.chem.SmugglerSatchel;
 import dev.jade.labsaddons.chum.ChumDetector;
 import dev.jade.labsaddons.chum.ChumHudObject;
 import dev.jade.labsaddons.cooldown.CooldownHudObject;
@@ -36,6 +37,7 @@ import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.mastery.MasteryChatTracker;
 import dev.jade.labsaddons.mastery.MasteryHudObject;
 import dev.jade.labsaddons.mastery.MasteryCatchTracker;
+import dev.jade.labsaddons.mastery.MasterySellTracker;
 import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
@@ -56,6 +58,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import dev.jade.labsaddons.mixin.KeyBindingCategoryAccessor;
 import net.minecraft.client.MinecraftClient;
@@ -149,6 +152,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 			MasteryKillTracker.reset();
 			// Likewise the inventory baseline: rejoining must not read as a haul.
 			MasteryCatchTracker.reset();
+			// An in-flight sale can't settle across a disconnect, and the satchel we
+			// remember belongs to the world we just left.
+			MasterySellTracker.reset();
+			SmugglerSatchel.reset();
 		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
@@ -165,6 +172,17 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (isQuickDeposit(sent)) {
 				armDepositCapture();
 			}
+		});
+
+		// Touching a dealer arms the sell diff. Both ways of selling — sneak right-click,
+		// and right-click then the Sell button — begin with this interaction, so one
+		// hook attributes either to the right "Sell to <Dealer>" challenge.
+		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+			if (player == MinecraftClient.getInstance().player && McLabsSession.isActive()) {
+				MasterySellTracker.onInteract(entity.getName().getString(),
+						ChemItems.snapshot(player.getInventory()));
+			}
+			return ActionResult.PASS;
 		});
 
 		// Detect Chum Bucket activation (right-click with the item in hand).
@@ -216,6 +234,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (client.player != null && McLabsSession.isActive() && MasteryCatchTracker.tick(client.player)) {
 				MasteryStore.save();
 			}
+			// Live "Sell <Chem>" / "Sell to <Dealer>" progress: chat gives only a grand
+			// total, so the inventory diff decides which chems left and at what purity.
+			if (client.player != null && McLabsSession.isActive()
+					&& MasterySellTracker.tick(client.player.getInventory())) {
+				MasteryStore.save();
+			}
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
@@ -237,6 +261,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (current instanceof HandledScreen<?> handledScreen) {
 				if (current != lastRatesScreen) {
 					lastRatesScreen = current;
+					// Ahead of the chain rather than in it: a satchel read only needs the
+					// title to disagree to bail, and keeping it out avoids another
+					// nesting level in an already-deep fall-through.
+					SmugglerSatchel.tryRead(handledScreen);
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
@@ -309,6 +337,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		MasterySellTracker.onMessage(text);
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
