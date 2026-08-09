@@ -2,10 +2,15 @@ package dev.jade.labsaddons.mastery;
 
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.SmugglerSatchel;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.text.Text;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -32,6 +37,14 @@ import java.util.regex.Pattern;
  * earn no Mastery, which is exactly what a missing tier resolves to.</li>
  * </ul>
  *
+ * <p><b>The sale line is what arms the capture</b>, not the dealer interaction. An
+ * earlier version armed on {@link #onInteract}, which made every chem challenge depend
+ * on a client-side entity hook firing and on an NPC's entity name matching its visible
+ * nameplate — if either failed, nothing was tracked at all. Now a rolling inventory
+ * history supplies the baseline the moment the server confirms a sale, and the dealer
+ * is only ever an attribution hint: lose it and {@code Sell to <Dealer>} goes uncredited
+ * while every {@code Sell <Chem>} challenge still moves.
+ *
  * <p>A sneak-sell empties the Smuggler Satchel too, and those chems never touch the
  * inventory. Their count is the server's total minus everything the diff saw; their
  * identity comes from {@link SmugglerSatchel}, which the player's own satchel opening
@@ -52,8 +65,19 @@ public final class MasterySellTracker {
 	 */
 	static final double[] PROGRESS_MULTIPLIER = {1.00, 1.15, 1.30, 1.50};
 
-	private static final Pattern SOLD = Pattern.compile("You've sold ([\\d,]+) chems");
+	/**
+	 * ponytail: temporary. Echoes what each sale computed so the formula can be checked
+	 * against /mastery in-game. Flip to false (or delete the block in {@link #flush})
+	 * once the numbers are confirmed.
+	 */
+	private static final boolean ECHO_SALES = true;
+
+	/** Deliberately not anchored on "You've" — the apostrophe's encoding is not worth trusting. */
+	private static final Pattern SOLD = Pattern.compile("\\bsold ([\\d,]+) chems\\b");
+	private static final String PRESTIGE = "earned prestige progress";
 	private static final Pattern RATE = Pattern.compile("\\(([0-9]+(?:\\.[0-9]+)?)x rate\\)");
+	/** The rate a prestige line means when it doesn't print one — plain, unboosted. */
+	static final double BASE_RATE = 1.0;
 	/** An NPC nameplate like "White Dealer", "Traveling Dealer", "Prison Dealer". */
 	private static final Pattern DEALER = Pattern.compile("^([\\w'\\- ]*\\bDealer)$");
 	/** Legacy colour codes survive in some nameplates; they are not part of the name. */
@@ -62,98 +86,138 @@ public final class MasterySellTracker {
 	/** Quiet ticks after the last sale line before flushing (lets the inventory sync land). */
 	private static final int SETTLE_TICKS = 8;
 	/**
-	 * Ticks to wait for a sale confirmation before discarding the arm. Generous because
-	 * right-clicking a dealer only opens a menu — the player may browse before selling.
+	 * How far back the baseline is taken from. The server can empty the inventory a
+	 * little before it announces the sale, so the diff has to start from before the
+	 * chat line, not at it.
 	 */
-	private static final int CONFIRM_TIMEOUT_TICKS = 400;
+	private static final int LEAD_TICKS = 20;
+	/** How long a dealer interaction stays valid as attribution for the next sale. */
+	private static final int DEALER_TTL_TICKS = 400;
 
-	// Null unless a sale is in flight; the whole capture is armed by touching a dealer.
+	private static final Deque<Map<ChemItems.ChemKey, Long>> history = new ArrayDeque<>();
+
+	// Null unless a sale is in flight; armed by the server's own confirmation line.
 	private static Map<ChemItems.ChemKey, Long> reference;
 	private static Map<ChemItems.ChemKey, Long> pending;
 	private static String dealer;
+	private static int dealerTtl;
 	private static long reportedTotal;
 	private static double rate;
-	private static boolean soldSeen;
 	private static int settleCountdown;
-	private static int confirmTimeout;
 
 	private MasterySellTracker() {
 	}
 
 	/**
-	 * Arm a capture when the player interacts with a dealer. Both sell paths — sneak
-	 * right-click, and right-click then the Sell button — start here, so one hook covers
-	 * both. Re-arming an in-flight capture only extends its patience.
+	 * Remembers the dealer the player just interacted with, so the next sale can be
+	 * attributed. Both sell paths — sneak right-click, and right-click then the Sell
+	 * button — begin with this interaction. Purely an attribution hint: a sale with no
+	 * remembered dealer still credits every chem challenge.
 	 */
-	public static void onInteract(String entityName, Map<ChemItems.ChemKey, Long> snapshot) {
+	public static void onInteract(String entityName) {
 		String name = dealerName(entityName);
-		if (name == null) {
-			return;
+		if (name != null) {
+			dealer = name;
+			dealerTtl = DEALER_TTL_TICKS;
 		}
-		if (reference == null) {
-			reference = new HashMap<>(snapshot);
-			pending = new HashMap<>();
-			reportedTotal = 0;
-			rate = 0;
-			soldSeen = false;
-		}
-		dealer = name;
-		settleCountdown = SETTLE_TICKS;
-		confirmTimeout = CONFIRM_TIMEOUT_TICKS;
 	}
 
-	/** Records the sale total and rate. Only meaningful while a dealer capture is armed. */
+	/** Arms on the sale total, then collects the rate that follows it a tick later. */
 	public static void onMessage(String text) {
-		if (text == null || reference == null) {
+		if (text == null) {
 			return;
 		}
 		Matcher sold = SOLD.matcher(text);
 		if (sold.find()) {
-			soldSeen = true;
+			if (reference == null) {
+				reference = new HashMap<>(baseline());
+				pending = new HashMap<>();
+				reportedTotal = 0;
+				rate = 0;
+			}
 			// Summed, not replaced: two sales inside one settle window are one flush.
 			reportedTotal += parseCount(sold.group(1));
 			settleCountdown = SETTLE_TICKS;
 			return;
 		}
-		Matcher matched = RATE.matcher(text);
-		if (matched.find()) {
+		if (reference == null) {
+			return;
+		}
+		double announced = rateFrom(text);
+		if (announced > 0) {
 			// The latest rate wins; back-to-back sales at different rates are rare
 			// enough that the scrape can own the rounding.
-			rate = parseRate(matched.group(1));
+			rate = announced;
 			settleCountdown = SETTLE_TICKS;
 		}
 	}
 
+	/**
+	 * The multiplier a prestige line announces, or -1 if this isn't one.
+	 *
+	 * <p>The server prints "(1.31x rate)" only when the rate is boosted; an unboosted
+	 * sale ends the sentence at the chem list. A bare line therefore means
+	 * {@value #BASE_RATE}, not "no progress earned" — reading it as zero is what made
+	 * the first version credit nothing at all.
+	 */
+	static double rateFrom(String text) {
+		if (text == null || !text.toLowerCase(Locale.ROOT).contains(PRESTIGE)) {
+			return -1;
+		}
+		Matcher matched = RATE.matcher(text);
+		return matched.find() ? parseRate(matched.group(1)) : BASE_RATE;
+	}
+
 	/** @return true if an active challenge advanced, so the caller can persist the board. */
 	public static boolean tick(PlayerInventory inventory) {
-		if (reference == null || inventory == null) {
+		if (dealerTtl > 0 && --dealerTtl == 0) {
+			dealer = null;
+		}
+		if (inventory == null || !hasSellQuest()) {
+			// Nothing to track for: drop the history rather than keep snapshotting.
+			history.clear();
+			reference = null;
 			return false;
 		}
-		track(ChemItems.snapshot(inventory));
-		if (!soldSeen) {
-			if (--confirmTimeout <= 0) {
-				reset(); // touched a dealer but never sold — the drops weren't a sale
-			}
+		Map<ChemItems.ChemKey, Long> snapshot = ChemItems.snapshot(inventory);
+		if (reference != null) {
+			track(snapshot);
+		}
+		history.addLast(snapshot);
+		while (history.size() > LEAD_TICKS) {
+			history.removeFirst();
+		}
+		if (reference == null || --settleCountdown > 0) {
 			return false;
 		}
-		if (--settleCountdown > 0) {
-			return false;
-		}
+		return flush();
+	}
+
+	public static void reset() {
+		history.clear();
+		reference = null;
+		pending = null;
+		dealer = null;
+		dealerTtl = 0;
+		reportedTotal = 0;
+		rate = 0;
+	}
+
+	private static boolean flush() {
 		Map<ChemItems.ChemKey, Long> sold = drops();
 		long total = reportedTotal;
 		double soldRate = rate;
 		String soldTo = dealer;
-		reset();
-		return credit(sold, total, soldRate, soldTo, SmugglerSatchel.contents());
-	}
-
-	public static void reset() {
+		ChemItems.ChemKey satchel = SmugglerSatchel.contents();
 		reference = null;
 		pending = null;
-		dealer = null;
 		reportedTotal = 0;
 		rate = 0;
-		soldSeen = false;
+		boolean advanced = credit(sold, total, soldRate, soldTo, satchel);
+		if (ECHO_SALES) {
+			echo(sold, total, soldRate, soldTo, satchel, advanced);
+		}
+		return advanced;
 	}
 
 	/**
@@ -238,6 +302,22 @@ public final class MasterySellTracker {
 		return matched.matches() ? matched.group(1) : null;
 	}
 
+	/** Whether any picked challenge is a sell one — the only reason to snapshot at all. */
+	private static boolean hasSellQuest() {
+		for (MasteryQuest quest : MasteryTracker.quests()) {
+			if (quest.name().toLowerCase(Locale.ROOT).startsWith("sell ")) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** The oldest snapshot still held, i.e. the inventory as of ~{@value #LEAD_TICKS} ticks ago. */
+	private static Map<ChemItems.ChemKey, Long> baseline() {
+		Map<ChemItems.ChemKey, Long> oldest = history.peekFirst();
+		return oldest == null ? Map.of() : oldest;
+	}
+
 	/** Fold the latest snapshot into reference/pending — a sale only ever removes chems. */
 	private static void track(Map<ChemItems.ChemKey, Long> current) {
 		Set<ChemItems.ChemKey> keys = new HashSet<>(reference.keySet());
@@ -260,6 +340,27 @@ public final class MasterySellTracker {
 		Map<ChemItems.ChemKey, Long> result = new HashMap<>(pending);
 		result.values().removeIf(count -> count <= 0);
 		return result;
+	}
+
+	/** ponytail: temporary calibration echo, removed once the formula is confirmed. */
+	private static void echo(Map<ChemItems.ChemKey, Long> sold, long total, double rate,
+			String dealerName, ChemItems.ChemKey satchel, boolean advanced) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.inGameHud == null) {
+			return;
+		}
+		StringBuilder line = new StringBuilder("[Mastery] sale ").append(total)
+				.append(" chems @ ").append(rate).append("x, dealer=").append(dealerName);
+		long counted = 0;
+		for (Map.Entry<ChemItems.ChemKey, Long> entry : sold.entrySet()) {
+			counted += entry.getValue();
+			line.append(" | ").append(entry.getKey().chem()).append('[')
+					.append(entry.getKey().purity()).append("] x").append(entry.getValue());
+		}
+		line.append(" | satchel=").append(satchel == null ? "unknown" : satchel.chem())
+				.append(" x").append(total - counted)
+				.append(advanced ? " -> credited" : " -> NO active sell challenge matched");
+		client.inGameHud.getChatHud().addMessage(Text.literal(line.toString()));
 	}
 
 	private static long parseCount(String grouped) {

@@ -174,13 +174,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 			}
 		});
 
-		// Touching a dealer arms the sell diff. Both ways of selling — sneak right-click,
-		// and right-click then the Sell button — begin with this interaction, so one
-		// hook attributes either to the right "Sell to <Dealer>" challenge.
+		// Remember the dealer the player touched, so the next sale can be attributed to
+		// "Sell to <Dealer>". Only a hint — the sale itself is armed by the server's own
+		// confirmation line, so a missed interaction costs attribution, not tracking.
 		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
 			if (player == MinecraftClient.getInstance().player && McLabsSession.isActive()) {
-				MasterySellTracker.onInteract(entity.getName().getString(),
-						ChemItems.snapshot(player.getInventory()));
+				MasterySellTracker.onInteract(entity.getName().getString());
 			}
 			return ActionResult.PASS;
 		});

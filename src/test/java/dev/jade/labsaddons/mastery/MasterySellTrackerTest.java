@@ -21,6 +21,7 @@ public class MasterySellTrackerTest {
 	private static final String DEALER = "White Dealer";
 	private static final String SELL_CHOWART = "Sell Chowartusite";
 	private static final String SELL_TO_DEALER = "Sell to White Dealer";
+	private static final String SELL_CACTATONATE = "Sell Cactatonate";
 	private static final double RATE = 1.89;
 	/** Tier 2 -> 1.30x, so one chem at 1.89x is worth 2.457 — three decimals, as observed. */
 	private static final ChemKey CHOWART_T2 = new ChemKey("chowartusite", "2-2-2");
@@ -179,6 +180,42 @@ public class MasterySellTrackerTest {
 		active("Sell Wheatium");
 		assertFalse(MasterySellTracker.credit(Map.of(), 3392, RATE, null, WHEAT));
 		assertEquals(0, currentOf("Sell Wheatium"));
+	}
+
+	// --- the rate line ---
+
+	/**
+	 * Both lines are verbatim from a real pair of sales three minutes apart: the server
+	 * prints the multiplier only when there is one to print. Reading the bare line as
+	 * "no rate" is what made the first build credit nothing at all.
+	 */
+	@Test
+	public void aBarePrestigeLineMeansTheBaseRate() {
+		assertEquals(1.0, MasterySellTracker.rateFrom(
+				"» Earned prestige progress for Cactium and Potatium."));
+	}
+
+	@Test
+	public void aBoostedPrestigeLineCarriesItsMultiplier() {
+		assertEquals(1.31, MasterySellTracker.rateFrom(
+				"» Earned prestige progress for Cactium and Potatium. (1.31x rate)"));
+	}
+
+	@Test
+	public void anUnrelatedLineHasNoRate() {
+		assertEquals(-1, MasterySellTracker.rateFrom("» You've sold 3,264 chems for $102k"));
+		assertEquals(-1, MasterySellTracker.rateFrom(null));
+	}
+
+	/** The sale that produced no HUD movement, priced end to end. */
+	@Test
+	public void theRealSaleCreditsInventoryAndSatchelTogether() {
+		active(SELL_CACTATONATE);
+		ChemKey cactatonate = new ChemKey("cactatonate", "2-2-2");
+		// 2,112 carried + 1,152 in the satchel = the 3,264 the server reported.
+		assertTrue(MasterySellTracker.credit(
+				Map.of(cactatonate, 2112L), 3264, 1.31, null, cactatonate));
+		assertEquals(3264 * 1.31 * 1.30, currentOf(SELL_CACTATONATE), 1e-6);
 	}
 
 	// --- dealer names ---
