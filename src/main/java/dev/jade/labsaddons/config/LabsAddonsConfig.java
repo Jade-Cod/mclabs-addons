@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import dev.jade.labsaddons.booster.BoosterState;
 import dev.jade.labsaddons.chem.ChemtainerEntry;
 import dev.jade.labsaddons.labwars.LabWarsBooster;
+import dev.jade.labsaddons.mastery.MasteryQuestEntry;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import com.google.gson.GsonBuilder;
@@ -99,6 +100,23 @@ public class LabsAddonsConfig {
 	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
 	public boolean chemtainerSatchel = true;
 
+	// --- Mastery challenges (progress widget) ---
+	/** Last known board, restored on launch so chat reactions count before the first /mastery. */
+	public java.util.List<MasteryQuestEntry> masteryQuests = new java.util.ArrayList<>();
+	/** When the board above was last scraped or advanced (epoch ms); 0 = never. */
+	public long masterySnapshotMs = 0L;
+
+	// --- Chem prestige (progress widget) ---
+	/** Last known tracks, restored on launch so a sale counts before the first sync. */
+	public java.util.List<dev.jade.labsaddons.prestige.PrestigeChemEntry> prestigeChems =
+			new java.util.ArrayList<>();
+
+	/**
+	 * Row names (lowercased) kept on screen permanently — Mastery quest names and chem
+	 * prestige names alike. Everything else only appears while it is gaining.
+	 */
+	public java.util.Set<String> pinnedProgressRows = new java.util.LinkedHashSet<>();
+
 	// --- Ability cooldowns widget (mcMMO + future cooldown sources) ---
 	/** Stack cooldown rings in a column instead of a row. */
 	public boolean cooldownsStackVertical = false;
@@ -190,6 +208,38 @@ public class LabsAddonsConfig {
 		clean.chemtainerSnapshotMs = Math.max(0L, this.chemtainerSnapshotMs);
 		clean.chemtainerStale = this.chemtainerStale;
 		clean.chemtainerSatchel = this.chemtainerSatchel;
+		if (this.masteryQuests != null) {
+			for (MasteryQuestEntry entry : this.masteryQuests) {
+				// A quest with no name cannot be matched by the chat tracker, and a
+				// non-positive target would divide by zero in the bar; drop both.
+				if (entry != null && entry.name != null && !entry.name.isBlank() && entry.target > 0) {
+					clean.masteryQuests.add(new MasteryQuestEntry(
+							entry.icon == null ? "" : entry.icon,
+							entry.name,
+							Math.max(0, entry.current),
+							entry.target,
+							Math.clamp(entry.percent, 0, 100)));
+				}
+			}
+		}
+		clean.masterySnapshotMs = Math.max(0L, this.masterySnapshotMs);
+		if (this.prestigeChems != null) {
+			for (dev.jade.labsaddons.prestige.PrestigeChemEntry entry : this.prestigeChems) {
+				// A nameless chem can never be matched by a sale; a non-positive target
+				// would divide by zero in the bar, which only a finished track may have
+				// (the server states no figures once a chem is done).
+				if (entry != null && entry.chem != null && !entry.chem.isBlank()
+						&& (entry.target > 0 || entry.unlocked)) {
+					clean.prestigeChems.add(new dev.jade.labsaddons.prestige.PrestigeChemEntry(
+							entry.chem, Math.max(0, entry.current), Math.max(0, entry.target),
+							entry.unlocked));
+				}
+			}
+		}
+		if (this.pinnedProgressRows != null) {
+			this.pinnedProgressRows.stream().filter(java.util.Objects::nonNull)
+					.forEach(clean.pinnedProgressRows::add);
+		}
 		clean.cooldownsStackVertical = this.cooldownsStackVertical;
 		clean.itemUsesEnabled = this.itemUsesEnabled;
 		clean.itemUsesCorner = parseCorner(this.itemUsesCorner).name();

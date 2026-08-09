@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.15.0] - 2026-08-09
+
+### Added
+- **New Mastery & Prestige HUD widget.** One widget showing exp-style progress bars for both of MCLabs' long-run progress systems: your **5 active Mastery challenges** and your **14 chem prestige tracks**. Each row shows the challenge or chem's own icon, how far along it is, and the amount you just earned. Open **`/mastery`** once to sync your challenges and run **`/prestige progress`** once to sync your prestige — after that both update live as you play, with no need to reopen anything.
+- **Pin the rows you care about.** By default a row only appears while it's gaining and then fades away, so the widget stays out of your way. Select the widget in the HUD editor and use **Keep On Screen** to pin any challenge or chem you want up permanently — useful for whatever you're actively grinding. Pinned rows hold their position instead of reshuffling as they move.
+- **Mastery challenges advance live from four sources.** Selling chems (per-dealer and per-chem challenges alike), killing mobs in the Pit, catching fish, and winning chat reactions all move the bars the moment they happen, instead of waiting until you reopen `/mastery`. Mini-event placements and bounty completions count too. Reopening the GUI always re-syncs against the server, so the bars can only ever be behind, never wrong.
+- **Chem prestige progress reads the server's exact figures.** The precise amount each sale earns is stated in the sell message's hover tooltip, and `/prestige progress` states each chem's exact total the same way — the mod reads both directly rather than trying to recalculate them, so the numbers always match the game. Finished chem tracks are recognised as complete and stop counting, including for players who have already finished all of their prestige.
+
+### Fixed
+- **Widget names no longer get cut off in the HUD editor.** The Widgets rail was a fixed width, so longer names were chopped mid-word ("Lab Wars Booste", "Personal Booste"). It now sizes itself to the longest name, and anything that still cannot fit ends in an ellipsis instead of simply stopping.
+
+### Changed
+- **Smuggler Satchel contents now count toward Mastery.** Selling to a dealer empties your satchel alongside your inventory, so the mod learns what the satchel holds — from opening it, or from the chat confirmation when you load it — and credits that share of the sale too.
+
 ## [1.14.1] - 2026-07-25
 
 ### Added

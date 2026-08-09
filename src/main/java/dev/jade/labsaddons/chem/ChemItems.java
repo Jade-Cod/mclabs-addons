@@ -25,7 +25,7 @@ public final class ChemItems {
 	public record ChemKey(String chem, String purity) {
 	}
 
-	/** Trailing "-s-v-p" purity suffix in a display name like "Chowartusite-2-2-2". */
+	/** Trailing "-value-progress-score" purity suffix in a name like "Chowartusite-2-2-2". */
 	private static final Pattern LABEL_PURITY = Pattern.compile("((?:-\\d+){2,})$");
 
 	private ChemItems() {

@@ -33,6 +33,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | **Vote Reminder** | Daily vote progress toward 7/7 | "Vote registered!" chat; resets 9 PM Pacific |
 | **Chemtainer** | What's in your Chemtainer (chems by quantity + an "inventories" estimate) | the `/ch` GUI (read while open) **and** the Deposit/Withdraw keybinds, which diff your inventory and parse the "Withdrew N …" chat |
 | **Runner Jobs** | Your posted/completed/failed jobs and money earned this session, with an optional low-jobs alarm and a per-runner leaderboard | "Runner »" / "MCLabs »" chat; the **`/supplier` GUI re-syncs your open job count** |
+| **Mastery & Prestige** | Progress bars for your 5 active Mastery challenges and your 14 chem prestige tracks, with the amount just earned | the `/mastery` GUI (read while open) + chat; **`/prestige progress`** and the exact figures in each sale's hover |
 
 Timers persist across relogs (absolute expiry in config) and display as `M:SS`,
 `H:MM:SS`, or `Xd Yh` for long durations. The **Dailies** and **Vote Reminder**
@@ -48,7 +49,7 @@ booster shows an end crystal labelled "All").
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**
    into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
-2. Put `mclabs-addons-1.14.1.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.15.0.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -101,6 +102,16 @@ Everything updates **passively** from chat — you never have to run anything sp
   alarm** in the editor to get a red on-screen title and a double alert tone the
   moment your posted jobs drop to your chosen threshold. The **Stats** button in
   the HUD editor opens a per-runner leaderboard that persists across relogs.
+- **Mastery & Prestige** — one widget for both progress systems, drawn as exp-style
+  bars. Open **`/mastery`** to sync your 5 active challenges and run
+  **`/prestige progress`** to sync your 14 chem prestige tracks; after that both
+  advance live from chat as you sell, kill, catch, or win chat reactions, showing
+  the amount just earned beside the bar. By default a row only appears while it is
+  gaining and then fades, so the widget stays out of the way — **pin** any row in
+  the HUD editor (under *Keep On Screen*) to keep it up permanently. Prestige
+  figures are taken from the server's own hover tooltips rather than calculated, so
+  they match the game exactly; finished chem tracks are marked complete and stop
+  counting.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 
@@ -192,7 +203,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | optional (widgets on that screen) |
 
-Current mod version: **1.14.1**.
+Current mod version: **1.15.0**.
 
 ## Building
 

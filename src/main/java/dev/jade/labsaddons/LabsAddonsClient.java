@@ -27,12 +27,22 @@ import dev.jade.labsaddons.chem.ChemtainerDepositCapture;
 import dev.jade.labsaddons.chem.ChemtainerHudObject;
 import dev.jade.labsaddons.chem.ChemtainerReader;
 import dev.jade.labsaddons.chem.ChemtainerTracker;
+import dev.jade.labsaddons.chem.SmugglerSatchel;
 import dev.jade.labsaddons.chum.ChumDetector;
 import dev.jade.labsaddons.chum.ChumHudObject;
 import dev.jade.labsaddons.cooldown.CooldownHudObject;
 import dev.jade.labsaddons.mcmmo.McmmoAbility;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
+import dev.jade.labsaddons.mastery.MasteryChatTracker;
+import dev.jade.labsaddons.hud.ProgressHudObject;
+import dev.jade.labsaddons.mastery.MasteryCatchTracker;
+import dev.jade.labsaddons.mastery.MasterySellTracker;
+import dev.jade.labsaddons.mastery.MasteryKillTracker;
+import dev.jade.labsaddons.mastery.MasteryReader;
+import dev.jade.labsaddons.mastery.MasteryStore;
+import dev.jade.labsaddons.prestige.PrestigeChat;
+import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
@@ -50,12 +60,16 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import dev.jade.labsaddons.mixin.KeyBindingCategoryAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
@@ -114,6 +128,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
+		// One widget for both Mastery challenges and chem prestige: same row shape,
+		// same notification-then-fade behaviour, one thing to place on screen.
+		HudObjects.register(new ProgressHudObject());
+		MasteryChatTracker.setSelfNameSupplier(LabsAddonsClient::selfName);
 		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
@@ -125,17 +143,28 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// that send it via the Set Action Bar Text packet never reach this event.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
-				dispatchChat(message.getString());
+				dispatchChat(message);
 			}
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
-				dispatchChat(message.getString()));
+				dispatchChat(message));
 
 		// The MCLabs-only HUD widgets and update check key off this per-connection
 		// session flag; reset it on every fresh connection so a stale "yes" can't
 		// leak into a different server (or singleplayer).
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> McLabsSession.reset());
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> McLabsSession.reset());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			McLabsSession.reset();
+			// Entity ids are per-server; drop kill-tracking state so none leaks forward.
+			MasteryKillTracker.reset();
+			// Likewise the inventory baseline: rejoining must not read as a haul.
+			MasteryCatchTracker.reset();
+			// An in-flight sale can't settle across a disconnect, and the satchel we
+			// remember belongs to the world we just left.
+			MasterySellTracker.reset();
+			SmugglerSatchel.reset();
+			PrestigeChat.reset();
+		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
 		// without waiting for the server confirmation line. Fires on the main
@@ -151,6 +180,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (isQuickDeposit(sent)) {
 				armDepositCapture();
 			}
+		});
+
+		// Remember the dealer the player touched, so the next sale can be attributed to
+		// "Sell to <Dealer>". Only a hint — the sale itself is armed by the server's own
+		// confirmation line, so a missed interaction costs attribution, not tracking.
+		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+			if (player == MinecraftClient.getInstance().player && McLabsSession.isActive()) {
+				MasterySellTracker.onInteract(dealerLabel(entity));
+			}
+			return ActionResult.PASS;
 		});
 
 		// Detect Chum Bucket activation (right-click with the item in hand).
@@ -180,13 +219,35 @@ public class LabsAddonsClient implements ClientModInitializer {
 		chemWithdrawKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
 				"key.labsaddons.chem_withdraw", InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
-		ClientLifecycleEvents.CLIENT_STARTED.register(client ->
-				KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey));
+		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+			KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey);
+			// Restore the saved board here rather than at init: resolving the quest
+			// icons needs the item registry, which is only populated once the client
+			// has finished starting.
+			MasteryStore.load();
+			PrestigeStore.load();
+		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (McLabsSession.tick(client)) {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
 			RunnerAlarm.tick();
+			// Live "Kill <mob>" progress from the solo Pit: each mob death is your kill,
+			// read straight off the world since no chat line announces it.
+			if (client.world != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.world)) {
+				MasteryStore.save();
+			}
+			// Live "Catch <fish>" progress: the catch is read off the inventory, which
+			// sees it whether the server drops it at the bobber or hands it over directly.
+			if (client.player != null && McLabsSession.isActive() && MasteryCatchTracker.tick(client.player)) {
+				MasteryStore.save();
+			}
+			// Live "Sell <Chem>" / "Sell to <Dealer>" progress: chat gives only a grand
+			// total, so the inventory diff decides which chems left and at what purity.
+			if (client.player != null && McLabsSession.isActive()
+					&& MasterySellTracker.tick(client.player.getInventory())) {
+				MasteryStore.save();
+			}
 			while (chumEditorKey.wasPressed()) {
 				client.setScreen(new HudEditScreen(client.currentScreen));
 			}
@@ -208,10 +269,17 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (current instanceof HandledScreen<?> handledScreen) {
 				if (current != lastRatesScreen) {
 					lastRatesScreen = current;
+					// Ahead of the chain rather than in it: a satchel read only needs the
+					// title to disagree to bail, and keeping it out avoids another
+					// nesting level in an already-deep fall-through.
+					SmugglerSatchel.tryRead(handledScreen);
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
-								SupplierJobsReader.tryRead(handledScreen);
+								if (!SupplierJobsReader.tryRead(handledScreen)
+										&& MasteryReader.tryRead(handledScreen)) {
+									MasteryStore.save();
+								}
 							}
 						}
 					}
@@ -237,6 +305,38 @@ public class LabsAddonsClient implements ClientModInitializer {
 		}
 	}
 
+	/**
+	 * The name a dealer actually shows. The coloured dealers are Citizens NPCs whose
+	 * entity name is a placeholder like "CIT-ea4idb53b38b"; the "Green Dealer" a player
+	 * reads is a separate hologram entity floating above them. So the entity's own name
+	 * is tried first — the Traveling Dealer really is named that — and only failing that
+	 * do we look just above it for the label it wears.
+	 */
+	private static String dealerLabel(Entity entity) {
+		String own = entityLabel(entity);
+		if (MasterySellTracker.dealerName(own) != null) {
+			return own;
+		}
+		var world = MinecraftClient.getInstance().world;
+		if (world == null) {
+			return own;
+		}
+		Box above = entity.getBoundingBox().expand(1.5, 3.0, 1.5);
+		for (Entity nearby : world.getOtherEntities(entity, above)) {
+			String label = entityLabel(nearby);
+			if (MasterySellTracker.dealerName(label) != null) {
+				return label;
+			}
+		}
+		// Returned rather than dropped so the calibration echo can report what we saw.
+		return own;
+	}
+
+	private static String entityLabel(Entity entity) {
+		Text custom = entity.getCustomName();
+		return custom != null ? custom.getString() : entity.getName().getString();
+	}
+
 	/** The mcMMO tool kind the player is holding (FISTS for an empty hand). */
 	private static McmmoAbility.Tool heldTool() {
 		var player = MinecraftClient.getInstance().player;
@@ -251,11 +351,30 @@ public class LabsAddonsClient implements ClientModInitializer {
 				net.minecraft.registry.Registries.ITEM.getId(held.getItem()).toString());
 	}
 
+	/** The local player's name, used to tell whether a chat-reaction win was ours. */
+	private static String selfName() {
+		var player = MinecraftClient.getInstance().player;
+		return player != null ? player.getName().getString() : null;
+	}
+
 	/** Send a chat command (no leading slash); no-op when not connected. */
 	private static void sendChatCommand(String command) {
 		var network = MinecraftClient.getInstance().getNetworkHandler();
 		if (network != null) {
 			network.sendChatCommand(command);
+		}
+	}
+
+	/**
+	 * Chat entry point. Nearly every tracker wants the flattened string, but prestige
+	 * figures live in the message's hover tooltips, which {@code getString()} discards —
+	 * so the {@code Text} is passed along intact rather than flattened at the door.
+	 */
+	private static void dispatchChat(Text message) {
+		dispatchChat(message.getString());
+		if (PrestigeChat.onMessage(message)) {
+			// A sync or a sale moved a prestige track; keep it across a restart.
+			PrestigeStore.save();
 		}
 	}
 
@@ -271,8 +390,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		// Before the sell tracker: a satchel load can land in the same batch as a sale,
+		// and its identity has to be known by the time that sale flushes.
+		SmugglerSatchel.onMessage(text);
+		MasterySellTracker.onMessage(text);
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
+		if (MasteryChatTracker.onMessage(text)) {
+			// A chat reaction moved an active challenge; keep it across a restart.
+			MasteryStore.save();
+		}
 	}
 }
