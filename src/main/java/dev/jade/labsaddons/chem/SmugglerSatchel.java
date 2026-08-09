@@ -22,9 +22,15 @@ import java.util.regex.Pattern;
  *
  * <p>The server allows exactly one chem with one attribute set per satchel, so a
  * single {@link ChemItems.ChemKey} describes the whole contents and stays valid until
- * the player loads something else. That is why one read per fill is enough — and why
- * the largest stack is safe to trust: every real stack shares the one key, so a lone
- * decorative item can never outweigh them.
+ * the player loads something else. That is also why the largest stack is safe to trust:
+ * every real stack shares the one key, so a lone decorative item can never outweigh them.
+ * The satchel's purity is its own — nothing ties it to what the player is carrying, so a
+ * 2-1-2 satchel may well be sold alongside a mixed inventory.
+ *
+ * <p>Two paths populate this, covering complementary cases. Opening the satchel reads
+ * it as it stands; closing it after adding chems produces a chat echo naming them. A
+ * fill is caught by the echo (the read fired before anything went in), while opening an
+ * already-loaded satchel and changing nothing is caught by the read (no echo follows).
  */
 public final class SmugglerSatchel {
 	/** Matched against the screen title; the GUI is a plain chest named for the item. */
@@ -84,10 +90,16 @@ public final class SmugglerSatchel {
 	}
 
 	/**
-	 * Learns the contents from the server's own load confirmation, which names the chem
-	 * and its purity outright. This is the path that actually fires in practice: loading
-	 * a satchel by command never opens its GUI, so waiting for {@link #tryRead} left the
-	 * satchel's share of a sale uncredited.
+	 * Learns the contents from the echo the server sends when the player closes the
+	 * satchel, naming the chem and its purity outright.
+	 *
+	 * <p>This is the authoritative path, because it lands <em>after</em> {@link #tryRead}
+	 * and reflects the final contents: the GUI read happens once, when the screen opens,
+	 * so on a fill it sees the satchel as it was <em>before</em> anything went in.
+	 *
+	 * <p>Only the chem and purity are taken. The count is derived from the sale instead
+	 * ({@code server total − inventory diff}), so it makes no difference whether this
+	 * line reports the whole contents or only what was just added.
 	 */
 	public static void onMessage(String text) {
 		if (text == null) {
