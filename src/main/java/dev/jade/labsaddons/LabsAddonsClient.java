@@ -163,6 +163,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// remember belongs to the world we just left.
 			MasterySellTracker.reset();
 			SmugglerSatchel.reset();
+			PrestigeChat.reset();
 		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",

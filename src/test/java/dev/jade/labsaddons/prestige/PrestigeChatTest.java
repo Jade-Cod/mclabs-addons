@@ -176,6 +176,78 @@ public class PrestigeChatTest {
 		assertEquals("Wheatium", PrestigeTracker.chems().get(0).chem());
 	}
 
+	// --- finished tracks ---
+
+	/** Once a chem is done its hover reads "Pumpkonium: Complete" and states no figures. */
+	@Test
+	public void aFinishedTrackIsRecognisedWithoutFigures() {
+		List<PrestigeChem> parsed = PrestigeChat.parseListing(List.of("Pumpkonium: Complete"));
+		assertEquals(1, parsed.size());
+		assertEquals("Pumpkonium", parsed.get(0).chem());
+		assertTrue(parsed.get(0).isComplete());
+		assertFalse(parsed.get(0).hasFigures());
+		assertEquals(100, parsed.get(0).percent());
+		assertEquals(1, parsed.get(0).fraction());
+	}
+
+	/** ChatPlus appends its own "Sent at ..." line to the tooltip; it must not confuse us. */
+	@Test
+	public void anExtraTooltipLineIsIgnored() {
+		List<PrestigeChem> parsed = PrestigeChat.parseListing(
+				List.of("Pumpkonium: Complete\nSent at 01:07:24 AM."));
+		assertEquals(1, parsed.size());
+		assertEquals("Pumpkonium", parsed.get(0).chem());
+		assertTrue(parsed.get(0).isComplete());
+	}
+
+	/** A part-finished player's listing carries both shapes at once. */
+	@Test
+	public void aListingMayMixFinishedAndUnfinishedRows() {
+		List<PrestigeChem> parsed = PrestigeChat.parseListing(List.of("Wheatium: Complete", CACTIUM));
+		assertEquals(2, parsed.size());
+		assertTrue(parsed.get(0).isComplete());
+		assertFalse(parsed.get(1).isComplete());
+	}
+
+	/**
+	 * The case this all exists for: a player whose saved progress is stale finishes the
+	 * track, re-syncs, and must stop being credited for it. Without parsing "Complete"
+	 * the stale figures would survive and the next sale would fire a phantom gain.
+	 */
+	@Test
+	public void finishingATrackStopsFurtherGains() {
+		PrestigeTracker.merge(PrestigeChat.parseListing(List.of(CACTIUM)));
+		assertTrue(PrestigeTracker.advance("Cactium", 8_273));
+
+		PrestigeTracker.merge(PrestigeChat.parseListing(List.of("Cactium: Complete")));
+		MasteryGains.clear();
+
+		assertFalse(PrestigeTracker.advance("Cactium", 8_273));
+		assertEquals(0, MasteryGains.delta("Cactium"));
+		assertTrue(PrestigeTracker.chems().get(0).isComplete());
+	}
+
+	/** A player done with every chem must never see a prestige notification again. */
+	@Test
+	public void aFullyFinishedPlayerGetsNoGains() {
+		PrestigeTracker.merge(PrestigeChat.parseListing(
+				List.of("Cactium: Complete", "Potatium: Complete")));
+		assertFalse(PrestigeTracker.advance("Cactium", 8_273));
+		assertFalse(PrestigeTracker.advance("Potatium", 5_516));
+		assertFalse(MasteryGains.hasRecent());
+	}
+
+	/** Finishing keeps the goal we already knew, so the bar still renders full, not blank. */
+	@Test
+	public void aFinishedTrackKeepsAGoalItAlreadyHad() {
+		PrestigeTracker.merge(PrestigeChat.parseListing(List.of(CACTIUM)));
+		PrestigeTracker.merge(PrestigeChat.parseListing(List.of("Cactium: Complete")));
+		PrestigeChem cactium = PrestigeTracker.chems().get(0);
+		assertTrue(cactium.hasFigures());
+		assertEquals(1_382_400, cactium.target());
+		assertEquals(1_382_400, cactium.current());
+	}
+
 	/** The gain drives the widget's "+N" and its fade, so it must land in the registry. */
 	@Test
 	public void aSaleSurfacesAsALiveGain() {

@@ -40,13 +40,29 @@ public final class PrestigeTracker {
 		}
 		Map<String, PrestigeChem> next = new LinkedHashMap<>(chems);
 		for (PrestigeChem chem : update) {
-			if (chem != null && chem.chem() != null && !chem.chem().isBlank() && chem.target() > 0) {
-				next.put(key(chem.chem()), chem);
+			if (chem == null || chem.chem() == null || chem.chem().isBlank()) {
+				continue;
 			}
+			// No goal and not finished: nothing to measure, so nothing worth showing.
+			if (!chem.isComplete() && chem.target() <= 0) {
+				continue;
+			}
+			next.put(key(chem.chem()), withKnownGoal(next.get(key(chem.chem())), chem));
 		}
 		// Published rather than mutated in place: every write builds a fresh map, so a
 		// reader holding the previous one never sees a half-applied sync.
 		chems = next;
+	}
+
+	/**
+	 * A bare "Complete" states no figures, so it keeps whatever goal was already known —
+	 * otherwise finishing a track would blank the bar the player had been watching fill.
+	 */
+	private static PrestigeChem withKnownGoal(PrestigeChem existing, PrestigeChem update) {
+		if (!update.unlocked() || update.hasFigures() || existing == null || !existing.hasFigures()) {
+			return update;
+		}
+		return new PrestigeChem(update.chem(), existing.target(), existing.target(), true);
 	}
 
 	/**

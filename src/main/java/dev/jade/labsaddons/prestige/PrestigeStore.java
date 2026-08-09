@@ -28,7 +28,7 @@ public final class PrestigeStore {
 		}
 		List<PrestigeChem> restored = new ArrayList<>(saved.size());
 		for (PrestigeChemEntry entry : saved) {
-			restored.add(new PrestigeChem(entry.chem, entry.current, entry.target));
+			restored.add(new PrestigeChem(entry.chem, entry.current, entry.target, entry.unlocked));
 		}
 		PrestigeTracker.merge(restored);
 	}
@@ -38,7 +38,7 @@ public final class PrestigeStore {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		List<PrestigeChemEntry> entries = new ArrayList<>();
 		for (PrestigeChem chem : PrestigeTracker.chems()) {
-			entries.add(new PrestigeChemEntry(chem.chem(), chem.current(), chem.target()));
+			entries.add(new PrestigeChemEntry(chem.chem(), chem.current(), chem.target(), chem.unlocked()));
 		}
 		config.prestigeChems = entries;
 		config.save();

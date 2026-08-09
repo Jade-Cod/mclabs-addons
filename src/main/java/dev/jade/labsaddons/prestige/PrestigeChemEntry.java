@@ -12,13 +12,20 @@ public class PrestigeChemEntry {
 	public String chem = "";
 	public double current = 0;
 	public double target = 0;
+	/**
+	 * Set once the server has reported this track finished. Persisted in its own right
+	 * because a finished track may have no figures to infer it from — losing it across a
+	 * restart would let a sale credit progress to a chem that is already done.
+	 */
+	public boolean unlocked = false;
 
 	public PrestigeChemEntry() {
 	}
 
-	public PrestigeChemEntry(String chem, double current, double target) {
+	public PrestigeChemEntry(String chem, double current, double target, boolean unlocked) {
 		this.chem = chem;
 		this.current = current;
 		this.target = target;
+		this.unlocked = unlocked;
 	}
 }

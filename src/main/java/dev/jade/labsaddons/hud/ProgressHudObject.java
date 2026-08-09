@@ -146,22 +146,32 @@ public class ProgressHudObject extends HudObject {
 
 	// --- rows ---
 
-	/** A row from either source: its icon, name, figures, live gain and opacity. */
-	private record Row(ItemStack icon, String name, double current, double target, int percent,
+	/**
+	 * A row from either source. Its figures are rendered to text and its bar to a
+	 * fraction up front, because the two sources do not always agree on what exists: a
+	 * finished prestige track is reported as "Complete" with no numbers behind it.
+	 */
+	private record Row(ItemStack icon, String name, String figures, double fraction,
 			double delta, float alpha) {
-		double fraction() {
-			return target <= 0 ? 0 : Math.clamp(current / target, 0.0, 1.0);
-		}
 	}
 
 	private static Row of(MasteryQuest quest, float alpha) {
-		return new Row(quest.icon(), quest.name(), quest.current(), quest.target(), quest.percent(),
-				MasteryGains.delta(quest.name()), alpha);
+		return new Row(quest.icon(), quest.name(), figures(quest.current(), quest.target(), quest.percent()),
+				quest.fraction(), MasteryGains.delta(quest.name()), alpha);
 	}
 
 	private static Row of(PrestigeChem chem, float alpha) {
-		return new Row(ChemIcons.iconFor(chem.chem()), chem.chem(), chem.current(), chem.target(),
-				chem.percent(), MasteryGains.delta(chem.chem()), alpha);
+		// A track finished before we ever saw its goal has nothing to count toward, so it
+		// says so rather than rendering a meaningless "0/0".
+		String figures = chem.hasFigures()
+				? figures(chem.current(), chem.target(), chem.percent())
+				: Text.translatable("labsaddons.hud.progress.complete").getString();
+		return new Row(ChemIcons.iconFor(chem.chem()), chem.chem(), figures, chem.fraction(),
+				MasteryGains.delta(chem.chem()), alpha);
+	}
+
+	private static String figures(double current, double target, int percent) {
+		return abbreviate(current) + "/" + abbreviate(target) + "  " + percent + "%";
 	}
 
 	/**
@@ -210,9 +220,11 @@ public class ProgressHudObject extends HudObject {
 	/** Editor preview stand-in: a realistic mix of Mastery challenges and prestige chems. */
 	private static List<Row> sampleRows() {
 		return List.of(
-				new Row(new ItemStack(Items.CLOCK), "Win Chat Reactions", 38, 100, 38, 1, 1f),
-				new Row(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer", 412, 750, 55, 3, 1f),
-				new Row(new ItemStack(Items.GREEN_DYE), "Cactium", 412_880, 1_382_400, 29, 8_273, 1f));
+				new Row(new ItemStack(Items.CLOCK), "Win Chat Reactions", figures(38, 100, 38), 0.38, 1, 1f),
+				new Row(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer",
+						figures(412, 750, 55), 0.55, 3, 1f),
+				new Row(new ItemStack(Items.GREEN_DYE), "Cactium",
+						figures(412_880, 1_382_400, 29), 0.29, 8_273, 1f));
 	}
 
 	// --- text ---
@@ -236,10 +248,6 @@ public class ProgressHudObject extends HudObject {
 			}
 		}
 		return name;
-	}
-
-	private static String progressText(Row row) {
-		return abbreviate(row.current()) + "/" + abbreviate(row.target()) + "  " + row.percent() + "%";
 	}
 
 	/** The "+N just gained" suffix, or empty when this row has no live gain. */
@@ -267,7 +275,7 @@ public class ProgressHudObject extends HudObject {
 
 	/** Full top line for one row, used for both measuring and drawing. */
 	private static String topLine(Row row) {
-		return shortName(row.name()) + "  " + progressText(row) + gainText(row.delta());
+		return shortName(row.name()) + "  " + row.figures() + gainText(row.delta());
 	}
 
 	// --- layout ---
@@ -313,7 +321,7 @@ public class ProgressHudObject extends HudObject {
 				context.drawItem(row.icon(), 0, y);
 			}
 
-			String label = shortName(row.name()) + "  " + progressText(row);
+			String label = shortName(row.name()) + "  " + row.figures();
 			context.drawText(font, Text.literal(label), barX, y + textTop, faded(baseColor, alpha), true);
 
 			String gain = gainText(row.delta());
@@ -324,7 +332,7 @@ public class ProgressHudObject extends HudObject {
 
 			int barY = y + Math.max(ICON_SIZE, font.fontHeight) + BAR_GAP;
 			EditorPainter.pill(context, barX, barY, barW, BAR_H, faded(TRACK_COLOR, alpha));
-			int filled = (int) Math.round(barW * row.fraction());
+			int filled = (int) Math.round(barW * Math.clamp(row.fraction(), 0.0, 1.0));
 			if (filled >= BAR_H) {
 				EditorPainter.pill(context, barX, barY, filled, BAR_H, faded(baseColor, alpha));
 			} else if (filled > 0) {

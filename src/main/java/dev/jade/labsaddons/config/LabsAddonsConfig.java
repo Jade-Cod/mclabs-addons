@@ -225,11 +225,14 @@ public class LabsAddonsConfig {
 		clean.masterySnapshotMs = Math.max(0L, this.masterySnapshotMs);
 		if (this.prestigeChems != null) {
 			for (dev.jade.labsaddons.prestige.PrestigeChemEntry entry : this.prestigeChems) {
-				// A nameless chem can never be matched by a sale, and a non-positive
-				// target would divide by zero in the bar; drop both.
-				if (entry != null && entry.chem != null && !entry.chem.isBlank() && entry.target > 0) {
+				// A nameless chem can never be matched by a sale; a non-positive target
+				// would divide by zero in the bar, which only a finished track may have
+				// (the server states no figures once a chem is done).
+				if (entry != null && entry.chem != null && !entry.chem.isBlank()
+						&& (entry.target > 0 || entry.unlocked)) {
 					clean.prestigeChems.add(new dev.jade.labsaddons.prestige.PrestigeChemEntry(
-							entry.chem, Math.max(0, entry.current), entry.target));
+							entry.chem, Math.max(0, entry.current), Math.max(0, entry.target),
+							entry.unlocked));
 				}
 			}
 		}

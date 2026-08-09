@@ -10,30 +10,52 @@ package dev.jade.labsaddons.prestige;
  * <p>The name is kept exactly as the server spells it ({@code "Wheatium"}); matching is
  * case-insensitive so the sell message's spelling need not agree with the list's.
  */
-public record PrestigeChem(String chem, double current, double target) {
+public record PrestigeChem(String chem, double current, double target, boolean unlocked) {
 	/**
-	 * Whether the goal is met. Completed chems drop out of the GUI's progress lore
-	 * entirely (the item turns lime and says "Prestige unlocked."), so this may only
-	 * ever be reached by the numbers rather than observed directly.
+	 * A track whose figures are known.
+	 *
+	 * <p>{@code unlocked} stays false: reaching the goal by the numbers already reads as
+	 * complete, and a track that has genuinely finished is told to us outright.
 	 */
+	public PrestigeChem(String chem, double current, double target) {
+		this(chem, current, target, false);
+	}
+
+	/**
+	 * A finished track, as {@code /prestige progress} reports one: the row turns green
+	 * with a tick and its hover reads {@code "Pumpkonium: Complete"} — no figures at all.
+	 *
+	 * <p>Hence the flag. Completion cannot always be inferred from the numbers, because
+	 * once a chem is done the server stops stating any.
+	 */
+	public static PrestigeChem unlocked(String chem) {
+		return new PrestigeChem(chem, 0, 0, true);
+	}
+
+	/** Whether the goal is met — either stated outright, or reached by the figures. */
 	public boolean isComplete() {
-		return target > 0 && current >= target;
+		return unlocked || (target > 0 && current >= target);
 	}
 
 	/** Progress as a 0..1 fraction, clamped — a finished track can report current &gt; target. */
 	public double fraction() {
-		if (target <= 0) {
-			return 0;
+		if (isComplete()) {
+			return 1;
 		}
-		return Math.clamp(current / target, 0.0, 1.0);
+		return target <= 0 ? 0 : Math.clamp(current / target, 0.0, 1.0);
 	}
 
 	/** Floored, matching how the server renders its own "(0%)" alongside each bar. */
 	public int percent() {
-		if (target <= 0) {
-			return 0;
+		if (isComplete()) {
+			return 100;
 		}
-		return (int) Math.clamp(Math.floor(current / target * 100), 0, 100);
+		return target <= 0 ? 0 : (int) Math.clamp(Math.floor(current / target * 100), 0, 100);
+	}
+
+	/** Whether there are real figures to render; a bare "Complete" has none. */
+	public boolean hasFigures() {
+		return target > 0;
 	}
 
 	/**
