@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.mastery;
 
+import dev.jade.labsaddons.hud.ProgressHudObject;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -105,37 +106,37 @@ public class MasteryReaderTest {
 	 */
 	@Test
 	public void stripsSharedVerbFromRealQuestNames() {
-		assertEquals("Petrified Archer", MasteryHudObject.shortName("Kill Petrified Archer"));
-		assertEquals("Giant Flame Elemental", MasteryHudObject.shortName("Kill Giant Flame Elemental"));
-		assertEquals("Cod", MasteryHudObject.shortName("Catch Cod"));
-		assertEquals("Papcactinide", MasteryHudObject.shortName("Sell Papcactinide"));
-		assertEquals("Chat Reactions", MasteryHudObject.shortName("Complete Chat Reactions"));
+		assertEquals("Petrified Archer", ProgressHudObject.shortName("Kill Petrified Archer"));
+		assertEquals("Giant Flame Elemental", ProgressHudObject.shortName("Kill Giant Flame Elemental"));
+		assertEquals("Cod", ProgressHudObject.shortName("Catch Cod"));
+		assertEquals("Papcactinide", ProgressHudObject.shortName("Sell Papcactinide"));
+		assertEquals("Chat Reactions", ProgressHudObject.shortName("Complete Chat Reactions"));
 	}
 
 	/** "Sell to " must win over "Sell " so the dealer name survives intact. */
 	@Test
 	public void longerPrefixWinsOverShorter() {
-		assertEquals("Red Dealer", MasteryHudObject.shortName("Sell to Red Dealer"));
-		assertEquals("Traveling Dealer", MasteryHudObject.shortName("Sell to Traveling Dealer"));
+		assertEquals("Red Dealer", ProgressHudObject.shortName("Sell to Red Dealer"));
+		assertEquals("Traveling Dealer", ProgressHudObject.shortName("Sell to Traveling Dealer"));
 	}
 
 	/** A Cop patrol and a dealer sell share red wool — they must not collapse to the same label. */
 	@Test
 	public void redWoolQuestsStayDistinct() {
-		assertNotEquals(MasteryHudObject.shortName("Red Patrol"),
-				MasteryHudObject.shortName("Sell to Red Dealer"));
+		assertNotEquals(ProgressHudObject.shortName("Red Patrol"),
+				ProgressHudObject.shortName("Sell to Red Dealer"));
 	}
 
 	/** Names without a known verb are left alone. */
 	@Test
 	public void leavesUnprefixedNamesIntact() {
-		assertEquals("Mini-Event Top 3", MasteryHudObject.shortName("Mini-Event Top 3"));
-		assertEquals("Red Patrol", MasteryHudObject.shortName("Red Patrol"));
+		assertEquals("Mini-Event Top 3", ProgressHudObject.shortName("Mini-Event Top 3"));
+		assertEquals("Red Patrol", ProgressHudObject.shortName("Red Patrol"));
 	}
 
 	/** A name that is exactly a prefix must not be stripped to nothing. */
 	@Test
 	public void doesNotStripNameToEmpty() {
-		assertEquals("Kill ", MasteryHudObject.shortName("Kill "));
+		assertEquals("Kill ", ProgressHudObject.shortName("Kill "));
 	}
 }

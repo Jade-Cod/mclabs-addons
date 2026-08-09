@@ -50,6 +50,7 @@ public class HelpScreen extends Screen {
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
 			{"/mastery", "Open it to re-sync your active Mastery challenge bars."},
+			{"/prestige progress", "Run it to sync your chem prestige bars; sales then track live."},
 			{"Chat reactions", "Wins and runner-ups advance your Mastery bars live."},
 			{"Vote on all 7 sites", "Every ‘Vote registered!’ counts toward your daily 7."},
 	};

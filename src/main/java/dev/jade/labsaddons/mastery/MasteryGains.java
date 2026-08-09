@@ -7,8 +7,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Remembers which quests gained progress recently, so the HUD can surface just
+ * Remembers which rows gained progress recently, so the HUD can surface just
  * those and then get out of the way.
+ *
+ * <p>Keyed by row name, and shared by both sources the progress widget draws:
+ * Mastery challenges (by quest name) and chem prestige tracks (by chem name).
+ * The two name spaces cannot collide — every quest name carries a verb prefix
+ * ("Sell to Red Dealer") where a chem is bare ("Cactium").
  *
  * <p>A gain keeps its row alive for {@value #LIFE_MS}ms. Gaining again while the
  * row is still up accumulates into the same {@code +} figure and restarts the

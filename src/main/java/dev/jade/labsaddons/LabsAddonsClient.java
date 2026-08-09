@@ -35,12 +35,14 @@ import dev.jade.labsaddons.mcmmo.McmmoAbility;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
 import dev.jade.labsaddons.mastery.MasteryChatTracker;
-import dev.jade.labsaddons.mastery.MasteryHudObject;
+import dev.jade.labsaddons.hud.ProgressHudObject;
 import dev.jade.labsaddons.mastery.MasteryCatchTracker;
 import dev.jade.labsaddons.mastery.MasterySellTracker;
 import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
+import dev.jade.labsaddons.prestige.PrestigeChat;
+import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerTracker;
@@ -126,7 +128,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
-		HudObjects.register(new MasteryHudObject());
+		// One widget for both Mastery challenges and chem prestige: same row shape,
+		// same notification-then-fade behaviour, one thing to place on screen.
+		HudObjects.register(new ProgressHudObject());
 		MasteryChatTracker.setSelfNameSupplier(LabsAddonsClient::selfName);
 		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
@@ -139,11 +143,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// that send it via the Set Action Bar Text packet never reach this event.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
-				dispatchChat(message.getString());
+				dispatchChat(message);
 			}
 		});
 		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) ->
-				dispatchChat(message.getString()));
+				dispatchChat(message));
 
 		// The MCLabs-only HUD widgets and update check key off this per-connection
 		// session flag; reset it on every fresh connection so a stale "yes" can't
@@ -220,6 +224,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// icons needs the item registry, which is only populated once the client
 			// has finished starting.
 			MasteryStore.load();
+			PrestigeStore.load();
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (McLabsSession.tick(client)) {
@@ -356,6 +361,19 @@ public class LabsAddonsClient implements ClientModInitializer {
 		var network = MinecraftClient.getInstance().getNetworkHandler();
 		if (network != null) {
 			network.sendChatCommand(command);
+		}
+	}
+
+	/**
+	 * Chat entry point. Nearly every tracker wants the flattened string, but prestige
+	 * figures live in the message's hover tooltips, which {@code getString()} discards —
+	 * so the {@code Text} is passed along intact rather than flattened at the door.
+	 */
+	private static void dispatchChat(Text message) {
+		dispatchChat(message.getString());
+		if (PrestigeChat.onMessage(message)) {
+			// A sync or a sale moved a prestige track; keep it across a restart.
+			PrestigeStore.save();
 		}
 	}
 
