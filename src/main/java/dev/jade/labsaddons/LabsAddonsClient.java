@@ -64,7 +64,10 @@ import dev.jade.labsaddons.mixin.KeyBindingCategoryAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
@@ -179,7 +182,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// confirmation line, so a missed interaction costs attribution, not tracking.
 		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
 			if (player == MinecraftClient.getInstance().player && McLabsSession.isActive()) {
-				MasterySellTracker.onInteract(entity.getName().getString());
+				MasterySellTracker.onInteract(dealerLabel(entity));
 			}
 			return ActionResult.PASS;
 		});
@@ -294,6 +297,38 @@ public class LabsAddonsClient implements ClientModInitializer {
 		if (player != null) {
 			ChemtainerDepositCapture.arm(ChemItems.snapshot(player.getInventory()));
 		}
+	}
+
+	/**
+	 * The name a dealer actually shows. The coloured dealers are Citizens NPCs whose
+	 * entity name is a placeholder like "CIT-ea4idb53b38b"; the "Green Dealer" a player
+	 * reads is a separate hologram entity floating above them. So the entity's own name
+	 * is tried first — the Traveling Dealer really is named that — and only failing that
+	 * do we look just above it for the label it wears.
+	 */
+	private static String dealerLabel(Entity entity) {
+		String own = entityLabel(entity);
+		if (MasterySellTracker.dealerName(own) != null) {
+			return own;
+		}
+		var world = MinecraftClient.getInstance().world;
+		if (world == null) {
+			return own;
+		}
+		Box above = entity.getBoundingBox().expand(1.5, 3.0, 1.5);
+		for (Entity nearby : world.getOtherEntities(entity, above)) {
+			String label = entityLabel(nearby);
+			if (MasterySellTracker.dealerName(label) != null) {
+				return label;
+			}
+		}
+		// Returned rather than dropped so the calibration echo can report what we saw.
+		return own;
+	}
+
+	private static String entityLabel(Entity entity) {
+		Text custom = entity.getCustomName();
+		return custom != null ? custom.getString() : entity.getName().getString();
 	}
 
 	/** The mcMMO tool kind the player is holding (FISTS for an empty hand). */

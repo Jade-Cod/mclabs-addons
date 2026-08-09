@@ -310,7 +310,7 @@ public final class MasterySellTracker {
 	}
 
 	/** "Orange Dealer" out of a nameplate, or null when the entity isn't a dealer. */
-	static String dealerName(String entityName) {
+	public static String dealerName(String entityName) {
 		if (entityName == null) {
 			return null;
 		}
