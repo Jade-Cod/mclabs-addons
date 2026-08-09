@@ -47,7 +47,8 @@ public final class PrestigeTracker {
 			if (!chem.isComplete() && chem.target() <= 0) {
 				continue;
 			}
-			next.put(key(chem.chem()), withKnownGoal(next.get(key(chem.chem())), chem));
+			String key = key(chem.chem());
+			next.put(key, withKnownGoal(next.get(key), chem));
 		}
 		// Published rather than mutated in place: every write builds a fresh map, so a
 		// reader holding the previous one never sees a half-applied sync.

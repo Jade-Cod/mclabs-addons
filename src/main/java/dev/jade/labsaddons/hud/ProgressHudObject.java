@@ -184,15 +184,20 @@ public class ProgressHudObject extends HudObject {
 	 * gaining pin is not drawn twice.
 	 */
 	private static List<Row> visibleRows() {
+		// Snapshotted once: this runs several times a frame (measure, then draw), and both
+		// accessors copy their backing collection on every call.
+		List<MasteryQuest> quests = MasteryTracker.quests();
+		List<PrestigeChem> chems = PrestigeTracker.chems();
+
 		List<Row> rows = new ArrayList<>();
 		Set<String> shown = new LinkedHashSet<>();
-		for (MasteryQuest quest : MasteryTracker.quests()) {
+		for (MasteryQuest quest : quests) {
 			if (isPinned(quest.name())) {
 				rows.add(of(quest, 1f));
 				shown.add(quest.name());
 			}
 		}
-		for (PrestigeChem chem : PrestigeTracker.chems()) {
+		for (PrestigeChem chem : chems) {
 			if (isPinned(chem.chem())) {
 				rows.add(of(chem, 1f));
 				shown.add(chem.chem());
@@ -202,9 +207,9 @@ public class ProgressHudObject extends HudObject {
 			if (shown.contains(name)) {
 				continue;
 			}
-			MasteryTracker.quests().stream().filter(q -> q.name().equals(name)).findFirst()
+			quests.stream().filter(q -> q.name().equals(name)).findFirst()
 					.ifPresent(quest -> rows.add(of(quest, MasteryGains.alpha(name))));
-			PrestigeTracker.chems().stream().filter(c -> c.chem().equals(name)).findFirst()
+			chems.stream().filter(c -> c.chem().equals(name)).findFirst()
 					.ifPresent(chem -> rows.add(of(chem, MasteryGains.alpha(name))));
 		}
 		return rows;

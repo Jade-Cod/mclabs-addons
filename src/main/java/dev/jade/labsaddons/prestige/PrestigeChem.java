@@ -69,6 +69,8 @@ public record PrestigeChem(String chem, double current, double target, boolean u
 		if (target > 0) {
 			next = Math.min(next, target);
 		}
-		return new PrestigeChem(chem, next, target);
+		// Carries the flag through. Nothing advances a finished track today, but dropping
+		// it here would silently un-finish one if anything ever did.
+		return new PrestigeChem(chem, next, target, unlocked);
 	}
 }
