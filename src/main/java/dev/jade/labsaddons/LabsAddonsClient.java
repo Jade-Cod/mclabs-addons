@@ -336,6 +336,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);
+		// Before the sell tracker: a satchel load can land in the same batch as a sale,
+		// and its identity has to be known by the time that sale flushes.
+		SmugglerSatchel.onMessage(text);
 		MasterySellTracker.onMessage(text);
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);

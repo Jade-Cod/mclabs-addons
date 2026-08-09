@@ -6,6 +6,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Remembers what a Smuggler Satchel is loaded with, read passively the moment the
@@ -25,6 +27,11 @@ import java.util.Locale;
 public final class SmugglerSatchel {
 	/** Matched against the screen title; the GUI is a plain chest named for the item. */
 	private static final String TITLE_MARKER = "satchel";
+
+	/** "MCLabs » 1,152x Cactatonate-2-2-2 has been loaded into your Smuggler Satchel." */
+	private static final Pattern LOADED = Pattern.compile(
+			"[\\d,]+x\\s+(\\S+)\\s+has been loaded into your Smuggler Satchel",
+			Pattern.CASE_INSENSITIVE);
 
 	private static volatile ChemItems.ChemKey contents;
 
@@ -55,6 +62,22 @@ public final class SmugglerSatchel {
 		// emptied would attribute the next sale's remainder to the wrong challenge.
 		contents = largest;
 		return true;
+	}
+
+	/**
+	 * Learns the contents from the server's own load confirmation, which names the chem
+	 * and its purity outright. This is the path that actually fires in practice: loading
+	 * a satchel by command never opens its GUI, so waiting for {@link #tryRead} left the
+	 * satchel's share of a sale uncredited.
+	 */
+	public static void onMessage(String text) {
+		if (text == null) {
+			return;
+		}
+		Matcher loaded = LOADED.matcher(text);
+		if (loaded.find()) {
+			contents = ChemItems.parseLabel(loaded.group(1));
+		}
 	}
 
 	/** The chem the satchel is loaded with, or null if we have never seen it open. */
