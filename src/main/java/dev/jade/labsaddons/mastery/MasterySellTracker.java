@@ -78,8 +78,13 @@ public final class MasterySellTracker {
 	private static final Pattern RATE = Pattern.compile("\\(([0-9]+(?:\\.[0-9]+)?)x rate\\)");
 	/** The rate a prestige line means when it doesn't print one — plain, unboosted. */
 	static final double BASE_RATE = 1.0;
-	/** An NPC nameplate like "White Dealer", "Traveling Dealer", "Prison Dealer". */
-	private static final Pattern DEALER = Pattern.compile("^([\\w'\\- ]*\\bDealer)$");
+	/**
+	 * The "<Colour> Dealer" inside a nameplate. Matched loosely rather than anchored,
+	 * because several dealers carry a tier symbol ("◆ Orange Dealer", "▲ Green Dealer")
+	 * that an anchored pattern rejects while leaving plain ones like "Traveling Dealer"
+	 * working — which is exactly how this failed in-game.
+	 */
+	private static final Pattern DEALER = Pattern.compile("(\\w+)\\s+Dealer\\b");
 	/** Legacy colour codes survive in some nameplates; they are not part of the name. */
 	private static final Pattern FORMATTING = Pattern.compile("§.");
 
@@ -91,8 +96,12 @@ public final class MasterySellTracker {
 	 * chat line, not at it.
 	 */
 	private static final int LEAD_TICKS = 20;
-	/** How long a dealer interaction stays valid as attribution for the next sale. */
-	private static final int DEALER_TTL_TICKS = 400;
+	/**
+	 * How long a dealer interaction stays valid as attribution for the next sale. Sixty
+	 * seconds: the menu path lets the player browse before pressing Sell, and every sale
+	 * needs a dealer anyway, so a stale hint is far likelier than a wrong one.
+	 */
+	private static final int DEALER_TTL_TICKS = 1200;
 
 	private static final Deque<Map<ChemItems.ChemKey, Long>> history = new ArrayDeque<>();
 
@@ -100,6 +109,7 @@ public final class MasterySellTracker {
 	private static Map<ChemItems.ChemKey, Long> reference;
 	private static Map<ChemItems.ChemKey, Long> pending;
 	private static String dealer;
+	private static String lastEntity;
 	private static int dealerTtl;
 	private static long reportedTotal;
 	private static double rate;
@@ -115,6 +125,9 @@ public final class MasterySellTracker {
 	 * remembered dealer still credits every chem challenge.
 	 */
 	public static void onInteract(String entityName) {
+		// ponytail: kept only so the calibration echo can show what a nameplate really
+		// said when it failed to match. Goes with ECHO_SALES.
+		lastEntity = entityName;
 		String name = dealerName(entityName);
 		if (name != null) {
 			dealer = name;
@@ -213,6 +226,10 @@ public final class MasterySellTracker {
 		pending = null;
 		reportedTotal = 0;
 		rate = 0;
+		// The hint is spent: the next sale needs its own interaction, so a second sale
+		// can't inherit the first one's dealer.
+		dealer = null;
+		dealerTtl = 0;
 		boolean advanced = credit(sold, total, soldRate, soldTo, satchel);
 		if (ECHO_SALES) {
 			echo(sold, total, soldRate, soldTo, satchel, advanced);
@@ -292,14 +309,14 @@ public final class MasterySellTracker {
 		}
 	}
 
-	/** "White Dealer" out of a nameplate, or null when the entity isn't a dealer. */
+	/** "Orange Dealer" out of a nameplate, or null when the entity isn't a dealer. */
 	static String dealerName(String entityName) {
 		if (entityName == null) {
 			return null;
 		}
 		String plain = FORMATTING.matcher(entityName).replaceAll("").trim();
 		Matcher matched = DEALER.matcher(plain);
-		return matched.matches() ? matched.group(1) : null;
+		return matched.find() ? matched.group(1) + " Dealer" : null;
 	}
 
 	/** Whether any picked challenge is a sell one — the only reason to snapshot at all. */
@@ -351,6 +368,9 @@ public final class MasterySellTracker {
 		}
 		StringBuilder line = new StringBuilder("[Mastery] sale ").append(total)
 				.append(" chems @ ").append(rate).append("x, dealer=").append(dealerName);
+		if (dealerName == null) {
+			line.append(" (last entity: ").append(lastEntity).append(')');
+		}
 		long counted = 0;
 		for (Map.Entry<ChemItems.ChemKey, Long> entry : sold.entrySet()) {
 			counted += entry.getValue();

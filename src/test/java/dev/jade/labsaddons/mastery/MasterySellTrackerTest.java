@@ -227,10 +227,22 @@ public class MasterySellTrackerTest {
 		assertEquals("Red Dealer", MasterySellTracker.dealerName("§cRed Dealer"));
 	}
 
+	/**
+	 * Several dealers carry a tier symbol. An anchored pattern matched the plain ones
+	 * and silently dropped these, which is how a real sale came back with dealer=null.
+	 */
+	@Test
+	public void aTierSymbolDoesNotHideTheDealer() {
+		assertEquals("Orange Dealer", MasterySellTracker.dealerName("◆ Orange Dealer"));
+		assertEquals("Green Dealer", MasterySellTracker.dealerName("▲ Green Dealer"));
+		assertEquals("Pink Dealer", MasterySellTracker.dealerName("§d◆ Pink Dealer"));
+	}
+
 	@Test
 	public void nonDealersAreNotArmed() {
 		assertNull(MasterySellTracker.dealerName("Jade"));
 		assertNull(MasterySellTracker.dealerName("Dealer's Assistant"));
+		assertNull(MasterySellTracker.dealerName("the traveling dealer is not in Spawn"));
 		assertNull(MasterySellTracker.dealerName(null));
 	}
 
