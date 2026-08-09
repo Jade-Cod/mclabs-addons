@@ -1,9 +1,11 @@
 package dev.jade.labsaddons.chem;
 
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.Text;
 
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -33,6 +35,9 @@ public final class SmugglerSatchel {
 			"[\\d,]+x\\s+(\\S+)\\s+has been loaded into your Smuggler Satchel",
 			Pattern.CASE_INSENSITIVE);
 
+	/** Trailing " x1,152" on a summarised display item, which is not part of the label. */
+	private static final Pattern COUNT_SUFFIX = Pattern.compile("\\s*x[\\d,]+\\s*$");
+
 	private static volatile ChemItems.ChemKey contents;
 
 	private SmugglerSatchel() {
@@ -52,11 +57,14 @@ public final class SmugglerSatchel {
 				continue;
 			}
 			ItemStack stack = slot.getStack();
-			if (!ChemItems.isChem(stack) || stack.getCount() <= largestCount) {
+			if (stack.isEmpty() || stack.getCount() < largestCount) {
 				continue;
 			}
-			largest = ChemItems.keyOf(stack);
-			largestCount = stack.getCount();
+			ChemItems.ChemKey key = chemOf(stack);
+			if (key != null) {
+				largest = key;
+				largestCount = stack.getCount();
+			}
 		}
 		// An empty satchel clears the memory: crediting its old chem after it has been
 		// emptied would attribute the next sale's remainder to the wrong challenge.
@@ -78,6 +86,22 @@ public final class SmugglerSatchel {
 		if (loaded.find()) {
 			contents = ChemItems.parseLabel(loaded.group(1));
 		}
+	}
+
+	/**
+	 * The chem a satchel slot holds, or null if it isn't one. Prefers the authoritative
+	 * NBT and falls back to the label, the same way {@link ChemtainerReader} does — a
+	 * summarised "Cactatonate-2-2-2 x1152" display item carries no chem component of
+	 * its own, so NBT alone would read the satchel as empty.
+	 */
+	private static ChemItems.ChemKey chemOf(ItemStack stack) {
+		if (ChemItems.isChem(stack)) {
+			return ChemItems.keyOf(stack);
+		}
+		Text custom = stack.get(DataComponentTypes.CUSTOM_NAME);
+		String label = custom != null ? custom.getString() : stack.getName().getString();
+		ChemItems.ChemKey parsed = ChemItems.parseLabel(COUNT_SUFFIX.matcher(label).replaceAll("").trim());
+		return parsed.chem().isEmpty() ? null : parsed;
 	}
 
 	/** The chem the satchel is loaded with, or null if we have never seen it open. */
