@@ -2,9 +2,7 @@ package dev.jade.labsaddons.mastery;
 
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.SmugglerSatchel;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.text.Text;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -65,13 +63,6 @@ public final class MasterySellTracker {
 	 */
 	static final double[] PROGRESS_MULTIPLIER = {1.00, 1.15, 1.30, 1.50};
 
-	/**
-	 * ponytail: temporary. Echoes what each sale computed so the formula can be checked
-	 * against /mastery in-game. Flip to false (or delete the block in {@link #flush})
-	 * once the numbers are confirmed.
-	 */
-	private static final boolean ECHO_SALES = true;
-
 	/** Deliberately not anchored on "You've" — the apostrophe's encoding is not worth trusting. */
 	private static final Pattern SOLD = Pattern.compile("\\bsold ([\\d,]+) chems\\b");
 	private static final String PRESTIGE = "earned prestige progress";
@@ -109,7 +100,6 @@ public final class MasterySellTracker {
 	private static Map<ChemItems.ChemKey, Long> reference;
 	private static Map<ChemItems.ChemKey, Long> pending;
 	private static String dealer;
-	private static String lastEntity;
 	private static int dealerTtl;
 	private static long reportedTotal;
 	private static double rate;
@@ -125,9 +115,6 @@ public final class MasterySellTracker {
 	 * remembered dealer still credits every chem challenge.
 	 */
 	public static void onInteract(String entityName) {
-		// ponytail: kept only so the calibration echo can show what a nameplate really
-		// said when it failed to match. Goes with ECHO_SALES.
-		lastEntity = entityName;
 		String name = dealerName(entityName);
 		if (name != null) {
 			dealer = name;
@@ -230,11 +217,7 @@ public final class MasterySellTracker {
 		// can't inherit the first one's dealer.
 		dealer = null;
 		dealerTtl = 0;
-		boolean advanced = credit(sold, total, soldRate, soldTo, satchel);
-		if (ECHO_SALES) {
-			echo(sold, total, soldRate, soldTo, satchel, advanced);
-		}
-		return advanced;
+		return credit(sold, total, soldRate, soldTo, satchel);
 	}
 
 	/**
@@ -357,30 +340,6 @@ public final class MasterySellTracker {
 		Map<ChemItems.ChemKey, Long> result = new HashMap<>(pending);
 		result.values().removeIf(count -> count <= 0);
 		return result;
-	}
-
-	/** ponytail: temporary calibration echo, removed once the formula is confirmed. */
-	private static void echo(Map<ChemItems.ChemKey, Long> sold, long total, double rate,
-			String dealerName, ChemItems.ChemKey satchel, boolean advanced) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client == null || client.inGameHud == null) {
-			return;
-		}
-		StringBuilder line = new StringBuilder("[Mastery] sale ").append(total)
-				.append(" chems @ ").append(rate).append("x, dealer=").append(dealerName);
-		if (dealerName == null) {
-			line.append(" (last entity: ").append(lastEntity).append(')');
-		}
-		long counted = 0;
-		for (Map.Entry<ChemItems.ChemKey, Long> entry : sold.entrySet()) {
-			counted += entry.getValue();
-			line.append(" | ").append(entry.getKey().chem()).append('[')
-					.append(entry.getKey().purity()).append("] x").append(entry.getValue());
-		}
-		line.append(" | satchel=").append(satchel == null ? "unknown" : satchel.chem())
-				.append(" x").append(total - counted)
-				.append(advanced ? " -> credited" : " -> NO active sell challenge matched");
-		client.inGameHud.getChatHud().addMessage(Text.literal(line.toString()));
 	}
 
 	private static long parseCount(String grouped) {
