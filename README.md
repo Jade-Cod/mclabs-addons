@@ -179,11 +179,12 @@ automatically on first launch).
 - `update/` — a once-per-join Modrinth check (`ModrinthUpdateChecker`,
   `ModVersion`, `ModrinthLink`) that posts a local-only chat line when a newer
   release exists; clicking it opens that release's Modrinth page.
-- `mixin/` — `FishingBobberEntityAccessor` (synced `CAUGHT_FISH`),
-  `SoundSystemMixin` (mute/replace bobber sounds), `CameraAccessor`,
-  `InGameHudMixin` (bite-marker projection + HUD render tail),
-  `DrawContextMixin` (the item-uses overlay), and `KeyBindingCategoryAccessor`
-  (hoists the McLab Addons keybind category near the top of Controls).
+- `mixin/` — `FishingHookAccessor` (synced `DATA_BITING`),
+  `SoundEngineMixin` (mute/replace bobber sounds),
+  `HudMixin` (bite-marker projection + HUD render tail),
+  `GuiGraphicsExtractorMixin` (the item-uses overlay), and
+  `KeyMappingCategoryAccessor` (hoists the McLab Addons keybind category near
+  the top of Controls).
 
 Design rule: **passive by default**. Chat is parsed; container GUIs are read only
 while the player has them open. Nothing is auto-clicked or auto-closed. The sole
@@ -197,23 +198,24 @@ Drop these in your `mods` folder alongside the mod:
 
 | Dependency | Version | Notes |
 |------------|---------|-------|
-| Minecraft | 1.21.11 exactly | |
+| Minecraft | 26.2 exactly | |
 | Fabric Loader | ≥ 0.17.3 | |
-| [Fabric API](https://modrinth.com/mod/fabric-api) | 0.141.4+1.21.11 | required |
-| [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
-| [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | optional (widgets on that screen) |
+| [Fabric API](https://modrinth.com/mod/fabric-api) | 0.159.0+26.2 | required |
+| [Mod Menu](https://modrinth.com/mod/modmenu) | 20.0.1 | optional (config screen) |
+| [Cloth Config](https://modrinth.com/mod/cloth-config) | 26.2.155 | optional (widgets on that screen) |
 
 Current mod version: **1.15.0**.
 
 ## Building
 
-Requires a **JDK 21**.
+Requires a **JDK 25**. Gradle fetches one automatically if you don't have it.
 
 ```bash
 ./gradlew build      # builds build/libs/mclabs-addons-<version>.jar
 ./gradlew runClient  # launches a dev client
 ```
 
-Toolchain: Fabric Loom 1.17.8, Gradle 9.5.1 (wrapper committed), Yarn mappings
-`1.21.11+build.6`.
+Toolchain: Fabric Loom 1.17.20 (non-remapping), Gradle 9.5.1 (wrapper
+committed), Mojang official mappings — 26.x ships deobfuscated, so there is no
+Yarn or intermediary step.
 <!-- END AUTO-GENERATED -->

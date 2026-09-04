@@ -2,11 +2,11 @@ package dev.jade.labsaddons.mount;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.Durations;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,13 +34,13 @@ public final class RentalMountTimer {
 		if (stack == null || stack.isEmpty()) {
 			return false;
 		}
-		CustomModelDataComponent model = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		CustomModelData model = stack.get(DataComponents.CUSTOM_MODEL_DATA);
 		if (model == null || !model.strings().contains(COUPON_MODEL)) {
 			return false;
 		}
-		LoreComponent lore = stack.get(DataComponentTypes.LORE);
+		ItemLore lore = stack.get(DataComponents.LORE);
 		if (lore != null) {
-			for (Text line : lore.lines()) {
+			for (Component line : lore.lines()) {
 				Matcher m = DURATION.matcher(line.getString());
 				if (m.find()) {
 					long ms = Durations.parseMs(m.group(1));

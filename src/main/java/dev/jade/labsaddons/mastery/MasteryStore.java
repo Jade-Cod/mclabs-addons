@@ -1,10 +1,10 @@
 package dev.jade.labsaddons.mastery;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +77,7 @@ public final class MasteryStore {
 	}
 
 	private static String iconId(ItemStack stack) {
-		return stack == null || stack.isEmpty() ? "" : Registries.ITEM.getId(stack.getItem()).toString();
+		return stack == null || stack.isEmpty() ? "" : BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
 	}
 
 	/** An id that no longer resolves yields an empty stack: the row still shows, minus its icon. */
@@ -86,7 +86,7 @@ public final class MasteryStore {
 			return ItemStack.EMPTY;
 		}
 		Identifier parsed = Identifier.tryParse(id);
-		Item item = parsed == null ? null : Registries.ITEM.getOptionalValue(parsed).orElse(null);
+		Item item = parsed == null ? null : BuiltInRegistries.ITEM.getOptional(parsed).orElse(null);
 		return item == null ? ItemStack.EMPTY : new ItemStack(item);
 	}
 }

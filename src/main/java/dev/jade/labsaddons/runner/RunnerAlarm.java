@@ -1,14 +1,14 @@
 package dev.jade.labsaddons.runner;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Hud;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 import java.util.Map;
@@ -52,8 +52,8 @@ public final class RunnerAlarm {
 	}
 
 	/** Short display name for a sound id, for the HUD Studio picker. */
-	public static Text soundLabel(String id) {
-		return Text.literal(SOUND_NAMES.getOrDefault(id, id));
+	public static Component soundLabel(String id) {
+		return Component.literal(SOUND_NAMES.getOrDefault(id, id));
 	}
 
 	/** Re-evaluate the alarm against the current posted-jobs count; call after it changes. */
@@ -93,13 +93,13 @@ public final class RunnerAlarm {
 	}
 
 	private static void fire(String soundId) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		InGameHud hud = client.inGameHud;
+		Minecraft client = Minecraft.getInstance();
+		Hud hud = client.gui.hud;
 		if (hud != null) {
-			hud.setDefaultTitleFade();
-			hud.setTitle(Text.translatable("labsaddons.hud.runner_jobs.alarm.title")
-					.formatted(Formatting.RED));
-			hud.setSubtitle(Text.translatable(
+			hud.resetTitleTimes();
+			hud.setTitle(Component.translatable("labsaddons.hud.runner_jobs.alarm.title")
+					.withStyle(ChatFormatting.RED));
+			hud.setSubtitle(Component.translatable(
 					"labsaddons.hud.runner_jobs.alarm.subtitle", RunnerTracker.postedJobs()));
 		}
 
@@ -111,10 +111,10 @@ public final class RunnerAlarm {
 
 	private static void playSound(String soundId) {
 		Identifier soundEventId = Identifier.tryParse(isValidSound(soundId) ? soundId : DEFAULT_SOUND);
-		if (soundEventId == null || !Registries.SOUND_EVENT.containsId(soundEventId)) {
+		if (soundEventId == null || !BuiltInRegistries.SOUND_EVENT.containsKey(soundEventId)) {
 			return;
 		}
-		SoundEvent event = Registries.SOUND_EVENT.get(soundEventId);
-		MinecraftClient.getInstance().getSoundManager().play(PositionedSoundInstance.ui(event, 1.0f));
+		SoundEvent event = BuiltInRegistries.SOUND_EVENT.getValue(soundEventId);
+		Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(event, 1.0f));
 	}
 }

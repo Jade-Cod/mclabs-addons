@@ -2,9 +2,9 @@ package dev.jade.labsaddons.bounty;
 
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /** Spawn Bounty Hunt: a chest icon with the bounty chemical and chests remaining. */
@@ -36,13 +36,13 @@ public class BountyHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.bounty.clear"), BountyTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.bounty.clear"), BountyTracker::clear);
 	}
 
 	@Override
 	@Nullable
-	protected Text header(boolean preview) {
-		return Text.translatable("labsaddons.hud.bounty.name");
+	protected Component header(boolean preview) {
+		return Component.translatable("labsaddons.hud.bounty.name");
 	}
 
 	@Override

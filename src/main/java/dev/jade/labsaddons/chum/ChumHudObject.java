@@ -2,13 +2,13 @@ package dev.jade.labsaddons.chum;
 
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 
@@ -43,7 +43,7 @@ public class ChumHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.chum.reset"), ChumTimer::reset);
+		return new EditorAction(Component.translatable("labsaddons.hud.chum.reset"), ChumTimer::reset);
 	}
 
 	private String timeText(boolean preview) {
@@ -53,7 +53,7 @@ public class ChumHudObject extends HudObject {
 	@Override
 	public int contentWidth(boolean preview) {
 		return ICON_SIZE + ICON_TEXT_GAP
-				+ MinecraftClient.getInstance().textRenderer.getWidth(timeText(preview));
+				+ Minecraft.getInstance().font.width(timeText(preview));
 	}
 
 	@Override
@@ -62,11 +62,11 @@ public class ChumHudObject extends HudObject {
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		context.drawItem(icon(), 0, 0);
-		int textY = (ICON_SIZE - client.textRenderer.fontHeight) / 2 + 1;
-		context.drawText(client.textRenderer, Text.literal(timeText(preview)),
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Minecraft client = Minecraft.getInstance();
+		context.item(icon(), 0, 0);
+		int textY = (ICON_SIZE - client.font.lineHeight) / 2 + 1;
+		context.text(client.font, Component.literal(timeText(preview)),
 				ICON_SIZE + ICON_TEXT_GAP, textY, settings().textColor | 0xFF000000, true);
 	}
 
@@ -74,8 +74,8 @@ public class ChumHudObject extends HudObject {
 	private ItemStack icon() {
 		if (chumIcon == null) {
 			ItemStack stack = new ItemStack(Items.SALMON_BUCKET);
-			stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
-					new CustomModelDataComponent(List.of(), List.of(), List.of("chumbucket"), List.of()));
+			stack.set(DataComponents.CUSTOM_MODEL_DATA,
+					new CustomModelData(List.of(), List.of(), List.of("chumbucket"), List.of()));
 			chumIcon = stack;
 		}
 		return chumIcon;

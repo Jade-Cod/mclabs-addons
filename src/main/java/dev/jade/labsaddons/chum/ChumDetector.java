@@ -1,8 +1,8 @@
 package dev.jade.labsaddons.chum;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.item.ItemStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.ItemStack;
 
 /** Recognises the server's Chum Bucket item by its custom_model_data string. */
 public final class ChumDetector {
@@ -21,7 +21,7 @@ public final class ChumDetector {
 		if (stack == null || stack.isEmpty()) {
 			return false;
 		}
-		CustomModelDataComponent modelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		CustomModelData modelData = stack.get(DataComponents.CUSTOM_MODEL_DATA);
 		return modelData != null && modelData.strings().contains(CHUM_MODEL_ID);
 	}
 

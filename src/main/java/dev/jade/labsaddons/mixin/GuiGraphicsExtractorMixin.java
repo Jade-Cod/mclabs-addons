@@ -3,9 +3,9 @@ package dev.jade.labsaddons.mixin;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.item.ItemUses;
 import dev.jade.labsaddons.item.ItemUsesCorner;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3x2fStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,16 +18,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * drawStackOverlay is the one method every slot render (hotbar, inventory,
  * any container screen) funnels through, so one hook covers all of them.
  */
-@Mixin(DrawContext.class)
-public abstract class DrawContextMixin {
+@Mixin(GuiGraphicsExtractor.class)
+public abstract class GuiGraphicsExtractorMixin {
 	private static final int SLOT_SIZE = 16;
 	private static final int INSET = 2;
 
 	@Inject(
-			method = "drawStackOverlay(Lnet/minecraft/client/font/TextRenderer;Lnet/minecraft/item/ItemStack;IILjava/lang/String;)V",
+			method = "itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V",
 			at = @At("TAIL")
 	)
-	private void labsaddons$drawRemainingUses(TextRenderer textRenderer, ItemStack stack,
+	private void labsaddons$drawRemainingUses(Font font, ItemStack stack,
 			int x, int y, String countOverride, CallbackInfo ci) {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.itemUsesEnabled) {
@@ -43,18 +43,18 @@ public abstract class DrawContextMixin {
 		boolean right = corner == ItemUsesCorner.TOP_RIGHT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		boolean bottom = corner == ItemUsesCorner.BOTTOM_LEFT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		int textX = right
-				? x + SLOT_SIZE - INSET - Math.round(textRenderer.getWidth(text) * scale)
+				? x + SLOT_SIZE - INSET - Math.round(font.width(text) * scale)
 				: x + INSET;
 		int textY = bottom
-				? y + SLOT_SIZE - INSET - Math.round(textRenderer.fontHeight * scale)
+				? y + SLOT_SIZE - INSET - Math.round(font.lineHeight * scale)
 				: y + INSET;
 
-		DrawContext self = (DrawContext) (Object) this;
-		Matrix3x2fStack matrices = self.getMatrices();
+		GuiGraphicsExtractor self = (GuiGraphicsExtractor) (Object) this;
+		Matrix3x2fStack matrices = self.pose();
 		matrices.pushMatrix();
 		matrices.translate(textX, textY);
 		matrices.scale(scale);
-		self.drawText(textRenderer, text, 0, 0, config.itemUsesColor, true);
+		self.text(font, text, 0, 0, config.itemUsesColor, true);
 		matrices.popMatrix();
 	}
 }

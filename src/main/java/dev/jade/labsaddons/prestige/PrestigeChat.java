@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.prestige;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,7 +78,7 @@ public final class PrestigeChat {
 	 *         this once, when its window closes — saving is a synchronous file write, and
 	 *         a fourteen-row sync must not mean fourteen of them.
 	 */
-	public static boolean onMessage(Text message) {
+	public static boolean onMessage(Component message) {
 		if (message == null || message.getString() == null) {
 			return false;
 		}

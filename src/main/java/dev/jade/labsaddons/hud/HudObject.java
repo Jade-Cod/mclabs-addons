@@ -2,7 +2,7 @@ package dev.jade.labsaddons.hud;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * A draggable, scalable HUD widget with a rounded translucent background.
@@ -20,8 +20,8 @@ public abstract class HudObject {
 	public abstract HudObjectSettings defaultSettings();
 
 	/** Human-readable widget name, shown in the editor and settings. */
-	public net.minecraft.text.Text displayName() {
-		return net.minecraft.text.Text.translatable("labsaddons.hud." + id() + ".name");
+	public net.minecraft.network.chat.Component displayName() {
+		return net.minecraft.network.chat.Component.translatable("labsaddons.hud." + id() + ".name");
 	}
 
 	public abstract int contentWidth(boolean preview);
@@ -29,13 +29,13 @@ public abstract class HudObject {
 	public abstract int contentHeight(boolean preview);
 
 	/** Draw content at (0,0) in unscaled coordinates; matrices pre-transformed. */
-	protected abstract void renderContent(DrawContext context, boolean preview);
+	protected abstract void renderContent(GuiGraphicsExtractor context, boolean preview);
 
 	/** Whether the object should currently draw outside the editor. */
 	public abstract boolean shouldRender();
 
 	/** Optional widget-specific action shown in its settings popup. */
-	public record EditorAction(net.minecraft.text.Text label, Runnable action) {
+	public record EditorAction(net.minecraft.network.chat.Component label, Runnable action) {
 	}
 
 	/** @return an extra action button for this widget's settings, or null. */
@@ -44,7 +44,7 @@ public abstract class HudObject {
 	}
 
 	/** A widget-specific on/off setting shown as a toggle in the editor inspector. */
-	public record ToggleOption(net.minecraft.text.Text label,
+	public record ToggleOption(net.minecraft.network.chat.Component label,
 			java.util.function.BooleanSupplier value,
 			java.util.function.Consumer<Boolean> onChange) {
 	}
@@ -55,7 +55,7 @@ public abstract class HudObject {
 	}
 
 	/** A two-position switch (e.g. layout direction), shown as a slider in the inspector. */
-	public record SwitchOption(net.minecraft.text.Text leftLabel, net.minecraft.text.Text rightLabel,
+	public record SwitchOption(net.minecraft.network.chat.Component leftLabel, net.minecraft.network.chat.Component rightLabel,
 			java.util.function.BooleanSupplier isRight, java.util.function.Consumer<Boolean> onChange) {
 	}
 
@@ -65,11 +65,11 @@ public abstract class HudObject {
 	}
 
 	/** A collapsible, titled group of related toggles (e.g. per-entry visibility for one category). */
-	public record ToggleGroup(net.minecraft.text.Text label, java.util.List<ToggleOption> options) {
+	public record ToggleGroup(net.minecraft.network.chat.Component label, java.util.List<ToggleOption> options) {
 	}
 
 	/** @return heading shown above {@link #toggleGroups()}, or null if this widget has none. */
-	public net.minecraft.text.Text toggleGroupsLabel() {
+	public net.minecraft.network.chat.Component toggleGroupsLabel() {
 		return null;
 	}
 
@@ -122,25 +122,25 @@ public abstract class HudObject {
 	}
 
 	/** Renders background + content. {@code preview} forces visibility (editor). */
-	public final void render(DrawContext context, boolean preview) {
+	public final void render(GuiGraphicsExtractor context, boolean preview) {
 		HudObjectSettings settings = settings();
 		if (!preview && (!settings.enabled || !shouldRender() || !McLabsSession.isActive())) {
 			return;
 		}
 
-		int x = contentOriginXpx(context.getScaledWindowWidth(), preview);
-		int y = contentOriginYpx(context.getScaledWindowHeight(), preview);
+		int x = contentOriginXpx(context.guiWidth(), preview);
+		int y = contentOriginYpx(context.guiHeight(), preview);
 
-		context.getMatrices().pushMatrix();
-		context.getMatrices().translate(x, y);
-		context.getMatrices().scale(settings.scale, settings.scale);
+		context.pose().pushMatrix();
+		context.pose().translate(x, y);
+		context.pose().scale(settings.scale, settings.scale);
 		if (settings.backgroundEnabled) {
 			drawRoundedRect(context, -PADDING, -PADDING,
 					contentWidth(preview) + PADDING * 2, contentHeight(preview) + PADDING * 2,
 					settings.backgroundColor);
 		}
 		renderContent(context, preview);
-		context.getMatrices().popMatrix();
+		context.pose().popMatrix();
 	}
 
 	/**
@@ -180,7 +180,7 @@ public abstract class HudObject {
 	}
 
 	/** Rounded-corner rect from non-overlapping fills (radius 2). */
-	public static void drawRoundedRect(DrawContext context, int x, int y, int w, int h, int color) {
+	public static void drawRoundedRect(GuiGraphicsExtractor context, int x, int y, int w, int h, int color) {
 		context.fill(x + 2, y, x + w - 2, y + h, color);
 		context.fill(x, y + 2, x + 2, y + h - 2, color);
 		context.fill(x + w - 2, y + 2, x + w, y + h - 2, color);

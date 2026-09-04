@@ -1,10 +1,10 @@
 package dev.jade.labsaddons.hud;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -22,7 +22,7 @@ public abstract class LabeledTimerHudObject extends HudObject {
 
 	/** Caption drawn above the timer, or null for none. */
 	@Nullable
-	protected abstract Text header(boolean preview);
+	protected abstract Component header(boolean preview);
 
 	/** Icon drawn left of the time, or null for none. */
 	@Nullable
@@ -31,30 +31,30 @@ public abstract class LabeledTimerHudObject extends HudObject {
 	protected abstract String timeText(boolean preview);
 
 	/** Extra detail lines drawn below the timer (e.g. reward). */
-	protected List<Text> extraLines(boolean preview) {
+	protected List<Component> extraLines(boolean preview) {
 		return List.of();
 	}
 
-	private static TextRenderer font() {
-		return MinecraftClient.getInstance().textRenderer;
+	private static Font font() {
+		return Minecraft.getInstance().font;
 	}
 
 	private int rowHeight() {
-		return Math.max(ICON_SIZE, font().fontHeight);
+		return Math.max(ICON_SIZE, font().lineHeight);
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		TextRenderer font = font();
+		Font font = font();
 		int width = 0;
-		Text header = header(preview);
+		Component header = header(preview);
 		if (header != null) {
-			width = font.getWidth(header);
+			width = font.width(header);
 		}
 		int iconWidth = icon(preview) != null ? ICON_SIZE + ICON_GAP : 0;
-		width = Math.max(width, iconWidth + font.getWidth(timeText(preview)));
-		for (Text line : extraLines(preview)) {
-			width = Math.max(width, font.getWidth(line));
+		width = Math.max(width, iconWidth + font.width(timeText(preview)));
+		for (Component line : extraLines(preview)) {
+			width = Math.max(width, font.width(line));
 		}
 		return width;
 	}
@@ -63,47 +63,47 @@ public abstract class LabeledTimerHudObject extends HudObject {
 	public int contentHeight(boolean preview) {
 		int height = 0;
 		if (header(preview) != null) {
-			height += font().fontHeight + LINE_GAP;
+			height += font().lineHeight + LINE_GAP;
 		}
 		height += rowHeight();
-		List<Text> extra = extraLines(preview);
+		List<Component> extra = extraLines(preview);
 		if (!extra.isEmpty()) {
-			height += extra.size() * (font().fontHeight + LINE_GAP);
+			height += extra.size() * (font().lineHeight + LINE_GAP);
 		}
 		return height;
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		TextRenderer font = font();
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Font font = font();
 		int color = settings().textColor | 0xFF000000;
 		int y = 0;
 
-		Text header = header(preview);
+		Component header = header(preview);
 		if (header != null) {
-			context.drawText(font, header, 0, y, color, true);
-			y += font.fontHeight + LINE_GAP;
+			context.text(font, header, 0, y, color, true);
+			y += font.lineHeight + LINE_GAP;
 		}
 
 		ItemStack icon = icon(preview);
 		int textX = 0;
 		if (icon != null) {
-			context.drawItem(icon, 0, y + (rowHeight() - ICON_SIZE) / 2);
+			context.item(icon, 0, y + (rowHeight() - ICON_SIZE) / 2);
 			textX = ICON_SIZE + ICON_GAP;
 		}
-		context.drawText(font, Text.literal(timeText(preview)),
-				textX, y + (rowHeight() - font.fontHeight) / 2 + 1, color, true);
+		context.text(font, Component.literal(timeText(preview)),
+				textX, y + (rowHeight() - font.lineHeight) / 2 + 1, color, true);
 		y += rowHeight();
 
-		for (Text line : extraLines(preview)) {
+		for (Component line : extraLines(preview)) {
 			y += LINE_GAP;
-			context.drawText(font, line, 0, y, color, true);
-			y += font.fontHeight;
+			context.text(font, line, 0, y, color, true);
+			y += font.lineHeight;
 		}
 	}
 
 	/** Convenience for subclasses building extra lines. */
-	protected static List<Text> lines(Text... values) {
+	protected static List<Component> lines(Component... values) {
 		return new ArrayList<>(List.of(values));
 	}
 }

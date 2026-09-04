@@ -3,11 +3,11 @@ package dev.jade.labsaddons.booster;
 import dev.jade.labsaddons.chem.ChemIcons;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +42,7 @@ public class BoosterHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.booster.clear"), BoosterTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.booster.clear"), BoosterTracker::clear);
 	}
 
 	private record Row(ItemStack icon, String text) {
@@ -63,14 +63,14 @@ public class BoosterHudObject extends HudObject {
 	}
 
 	private int rowHeight() {
-		return Math.max(ICON_SIZE, MinecraftClient.getInstance().textRenderer.fontHeight);
+		return Math.max(ICON_SIZE, Minecraft.getInstance().font.lineHeight);
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+		Font font = Minecraft.getInstance().font;
 		return rows(preview).stream()
-				.mapToInt(row -> ICON_SIZE + ICON_GAP + font.getWidth(row.text())).max().orElse(0);
+				.mapToInt(row -> ICON_SIZE + ICON_GAP + font.width(row.text())).max().orElse(0);
 	}
 
 	@Override
@@ -80,14 +80,14 @@ public class BoosterHudObject extends HudObject {
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Font font = Minecraft.getInstance().font;
 		int color = settings().textColor | 0xFF000000;
 		int y = 0;
 		for (Row row : rows(preview)) {
-			context.drawItem(row.icon(), 0, y + (rowHeight() - ICON_SIZE) / 2);
-			context.drawText(font, Text.literal(row.text()),
-					ICON_SIZE + ICON_GAP, y + (rowHeight() - font.fontHeight) / 2 + 1, color, true);
+			context.item(row.icon(), 0, y + (rowHeight() - ICON_SIZE) / 2);
+			context.text(font, Component.literal(row.text()),
+					ICON_SIZE + ICON_GAP, y + (rowHeight() - font.lineHeight) / 2 + 1, color, true);
 			y += rowHeight() + LINE_GAP;
 		}
 	}

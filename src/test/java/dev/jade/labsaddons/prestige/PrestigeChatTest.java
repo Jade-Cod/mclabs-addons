@@ -88,7 +88,7 @@ public class PrestigeChatTest {
 		assertEquals(5_516, gains.get(1).amount());
 	}
 
-	/** Flattening a Text can drop the line breaks, running the entries together. */
+	/** Flattening a Component can drop the line breaks, running the entries together. */
 	@Test
 	public void saleEntriesParseWithoutLineBreaks() {
 		List<PrestigeChat.Gain> gains = PrestigeChat.parseEarned(List.of("Cactium x8,273Potatium x5,516"));

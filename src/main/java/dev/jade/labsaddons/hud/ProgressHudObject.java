@@ -10,12 +10,13 @@ import dev.jade.labsaddons.mastery.MasteryTracker;
 import dev.jade.labsaddons.prestige.PrestigeChem;
 import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.prestige.PrestigeTracker;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -83,7 +84,7 @@ public class ProgressHudObject extends HudObject {
 	@Override
 	public EditorAction editorAction() {
 		// Clears the saved boards too, or they would come straight back on next launch.
-		return new EditorAction(Text.translatable("labsaddons.hud.progress.clear"), () -> {
+		return new EditorAction(Component.translatable("labsaddons.hud.progress.clear"), () -> {
 			MasteryStore.clear();
 			PrestigeStore.clear();
 		});
@@ -110,8 +111,8 @@ public class ProgressHudObject extends HudObject {
 	}
 
 	@Override
-	public Text toggleGroupsLabel() {
-		return Text.translatable("labsaddons.hud.progress.pinned");
+	public Component toggleGroupsLabel() {
+		return Component.translatable("labsaddons.hud.progress.pinned");
 	}
 
 	/**
@@ -137,11 +138,11 @@ public class ProgressHudObject extends HudObject {
 			return;
 		}
 		List<ToggleOption> options = names.stream()
-				.map(name -> new ToggleOption(Text.literal(shortName(name)),
+				.map(name -> new ToggleOption(Component.literal(shortName(name)),
 						() -> isPinned(name),
 						pinned -> setPinned(name, pinned)))
 				.toList();
-		groups.add(new ToggleGroup(Text.translatable(labelKey), options));
+		groups.add(new ToggleGroup(Component.translatable(labelKey), options));
 	}
 
 	// --- rows ---
@@ -165,7 +166,7 @@ public class ProgressHudObject extends HudObject {
 		// says so rather than rendering a meaningless "0/0".
 		String figures = chem.hasFigures()
 				? figures(chem.current(), chem.target(), chem.percent())
-				: Text.translatable("labsaddons.hud.progress.complete").getString();
+				: Component.translatable("labsaddons.hud.progress.complete").getString();
 		return new Row(ChemIcons.iconFor(chem.chem()), chem.chem(), figures, chem.fraction(),
 				MasteryGains.delta(chem.chem()), alpha);
 	}
@@ -228,7 +229,7 @@ public class ProgressHudObject extends HudObject {
 				new Row(new ItemStack(Items.CLOCK), "Win Chat Reactions", figures(38, 100, 38), 0.38, 1, 1f),
 				new Row(new ItemStack(Items.IRON_SWORD), "Kill Petrified Archer",
 						figures(412, 750, 55), 0.55, 3, 1f),
-				new Row(new ItemStack(Items.GREEN_DYE), "Cactium",
+				new Row(new ItemStack(Items.DYE.pick(DyeColor.GREEN)), "Cactium",
 						figures(412_880, 1_382_400, 29), 0.29, 8_273, 1f));
 	}
 
@@ -286,15 +287,15 @@ public class ProgressHudObject extends HudObject {
 	// --- layout ---
 
 	private static int rowHeight() {
-		int fontHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+		int fontHeight = Minecraft.getInstance().font.lineHeight;
 		return Math.max(ICON_SIZE, fontHeight) + BAR_GAP + BAR_H;
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+		Font font = Minecraft.getInstance().font;
 		return rows(preview).stream()
-				.mapToInt(row -> ICON_SIZE + GAP + font.getWidth(topLine(row)))
+				.mapToInt(row -> ICON_SIZE + GAP + font.width(topLine(row)))
 				.max().orElse(0);
 	}
 
@@ -311,10 +312,10 @@ public class ProgressHudObject extends HudObject {
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Font font = Minecraft.getInstance().font;
 		int baseColor = settings().textColor | 0xFF000000;
-		int textTop = Math.max(0, (ICON_SIZE - font.fontHeight) / 2);
+		int textTop = Math.max(0, (ICON_SIZE - font.lineHeight) / 2);
 		int barX = ICON_SIZE + GAP;
 		int barW = Math.max(BAR_H, contentWidth(preview) - barX);
 
@@ -323,19 +324,19 @@ public class ProgressHudObject extends HudObject {
 			float alpha = row.alpha();
 
 			if (alpha > ICON_FADE_CUTOFF) {
-				context.drawItem(row.icon(), 0, y);
+				context.item(row.icon(), 0, y);
 			}
 
 			String label = shortName(row.name()) + "  " + row.figures();
-			context.drawText(font, Text.literal(label), barX, y + textTop, faded(baseColor, alpha), true);
+			context.text(font, Component.literal(label), barX, y + textTop, faded(baseColor, alpha), true);
 
 			String gain = gainText(row.delta());
 			if (!gain.isEmpty()) {
-				context.drawText(font, Text.literal(gain), barX + font.getWidth(label), y + textTop,
+				context.text(font, Component.literal(gain), barX + font.width(label), y + textTop,
 						faded(GAIN_COLOR, alpha), true);
 			}
 
-			int barY = y + Math.max(ICON_SIZE, font.fontHeight) + BAR_GAP;
+			int barY = y + Math.max(ICON_SIZE, font.lineHeight) + BAR_GAP;
 			EditorPainter.pill(context, barX, barY, barW, BAR_H, faded(TRACK_COLOR, alpha));
 			int filled = (int) Math.round(barW * Math.clamp(row.fraction(), 0.0, 1.0));
 			if (filled >= BAR_H) {

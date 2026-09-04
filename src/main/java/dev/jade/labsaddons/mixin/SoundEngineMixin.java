@@ -2,17 +2,17 @@ package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.BiteMarker;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.projectile.FishingBobberEntity;
-import net.minecraft.registry.Registries;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.projectile.FishingHook;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.RandomSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,8 +24,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * bobbers that don't belong to the local player, and replaces the catch splash
  * of the player's own bobber with a configurable sound.
  */
-@Mixin(SoundSystem.class)
-public abstract class SoundSystemMixin {
+@Mixin(SoundEngine.class)
+public abstract class SoundEngineMixin {
 	@Unique
 	private static final String BOBBER_SOUND_PREFIX = "entity.fishing_bobber";
 	@Unique
@@ -35,25 +35,25 @@ public abstract class SoundSystemMixin {
 	private static final double MAX_BOBBER_DISTANCE_SQ = 9.0;
 
 	@Inject(
-			method = "play(Lnet/minecraft/client/sound/SoundInstance;)Lnet/minecraft/client/sound/SoundSystem$PlayResult;",
+			method = "play(Lnet/minecraft/client/resources/sounds/SoundInstance;)Lnet/minecraft/client/sounds/SoundEngine$PlayResult;",
 			at = @At("HEAD"),
 			cancellable = true
 	)
 	private void labsaddons$interceptBobberSounds(SoundInstance sound,
-			CallbackInfoReturnable<SoundSystem.PlayResult> cir) {
-		Identifier id = sound.getId();
+			CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
+		Identifier id = sound.getIdentifier();
 		if (id == null || !id.getPath().startsWith(BOBBER_SOUND_PREFIX)) {
 			return;
 		}
 
 		LabsAddonsConfig config = LabsAddonsConfig.get();
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null || client.player == null) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.level == null || client.player == null) {
 			return;
 		}
 
-		FishingBobberEntity bobber = labsaddons$nearestBobber(client,
-				new Vec3d(sound.getX(), sound.getY(), sound.getZ()));
+		FishingHook bobber = labsaddons$nearestBobber(client,
+				new Vec3(sound.getX(), sound.getY(), sound.getZ()));
 		if (bobber == null) {
 			return;
 		}
@@ -61,7 +61,7 @@ public abstract class SoundSystemMixin {
 		boolean isOwn = BiteMarker.isOwnBobber(bobber);
 		if (!isOwn) {
 			if (config.muteOtherBobbers) {
-				cir.setReturnValue(SoundSystem.PlayResult.NOT_STARTED);
+				cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
 			}
 			return;
 		}
@@ -72,12 +72,12 @@ public abstract class SoundSystemMixin {
 	}
 
 	@Unique
-	private static FishingBobberEntity labsaddons$nearestBobber(MinecraftClient client, Vec3d soundPos) {
-		FishingBobberEntity nearest = null;
+	private static FishingHook labsaddons$nearestBobber(Minecraft client, Vec3 soundPos) {
+		FishingHook nearest = null;
 		double bestDistanceSq = MAX_BOBBER_DISTANCE_SQ;
-		for (Entity entity : client.world.getEntities()) {
-			if (entity instanceof FishingBobberEntity candidate) {
-				double distanceSq = candidate.getEntityPos().squaredDistanceTo(soundPos);
+		for (Entity entity : client.level.entitiesForRendering()) {
+			if (entity instanceof FishingHook candidate) {
+				double distanceSq = candidate.position().distanceToSqr(soundPos);
 				if (distanceSq < bestDistanceSq) {
 					bestDistanceSq = distanceSq;
 					nearest = candidate;
@@ -88,9 +88,9 @@ public abstract class SoundSystemMixin {
 	}
 
 	@Unique
-	private static void labsaddons$replaceCatchSound(LabsAddonsConfig config, MinecraftClient client,
+	private static void labsaddons$replaceCatchSound(LabsAddonsConfig config, Minecraft client,
 			SoundInstance sound, Identifier originalId,
-			CallbackInfoReturnable<SoundSystem.PlayResult> cir) {
+			CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
 		if (config.catchSound.isBlank()) {
 			return;
 		}
@@ -100,14 +100,14 @@ public abstract class SoundSystemMixin {
 			return;
 		}
 
-		if (!Registries.SOUND_EVENT.containsId(replacementId)) {
+		if (!BuiltInRegistries.SOUND_EVENT.containsKey(replacementId)) {
 			return;
 		}
-		SoundEvent replacement = Registries.SOUND_EVENT.get(replacementId);
+		SoundEvent replacement = BuiltInRegistries.SOUND_EVENT.getValue(replacementId);
 
-		cir.setReturnValue(SoundSystem.PlayResult.NOT_STARTED);
-		client.getSoundManager().play(new PositionedSoundInstance(
-				replacement, sound.getCategory(), 1.0f, 1.0f, Random.create(),
+		cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
+		client.getSoundManager().play(new SimpleSoundInstance(
+				replacement, sound.getSource(), 1.0f, 1.0f, RandomSource.create(),
 				sound.getX(), sound.getY(), sound.getZ()));
 	}
 }

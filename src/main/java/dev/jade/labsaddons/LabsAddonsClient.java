@@ -8,7 +8,7 @@ import dev.jade.labsaddons.event.PitTracker;
 import dev.jade.labsaddons.labwars.LabWarsHudObject;
 import dev.jade.labsaddons.labwars.LabWarsRatesReader;
 import dev.jade.labsaddons.labwars.LabWarsTracker;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import dev.jade.labsaddons.mount.RentalMountHudObject;
 import dev.jade.labsaddons.mount.RentalMountTimer;
 import dev.jade.labsaddons.personal.PersonalBoosterHudObject;
@@ -55,22 +55,22 @@ import dev.jade.labsaddons.update.ModrinthUpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
-import dev.jade.labsaddons.mixin.KeyBindingCategoryAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.Identifier;
+import dev.jade.labsaddons.mixin.KeyMappingCategoryAccessor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
@@ -82,20 +82,20 @@ import java.util.Locale;
  */
 public class LabsAddonsClient implements ClientModInitializer {
 	/** The mod's own keybind category, moved near the top of the Controls screen. */
-	public static final KeyBinding.Category MCLAB_CATEGORY = registerCategory();
+	public static final KeyMapping.Category MCLAB_CATEGORY = registerCategory();
 
-	private static KeyBinding chumEditorKey;
-	private static KeyBinding chemDepositKey;
-	private static KeyBinding chemWithdrawKey;
-	private static net.minecraft.client.gui.screen.Screen lastRatesScreen;
+	private static KeyMapping chumEditorKey;
+	private static KeyMapping chemDepositKey;
+	private static KeyMapping chemWithdrawKey;
+	private static net.minecraft.client.gui.screens.Screen lastRatesScreen;
 
 	/** Create the "McLab Addons" category and hoist it above the vanilla ones
 	 *  (mod categories are otherwise appended last). Best-effort: if the registry
 	 *  list can't be reordered the category simply stays at the bottom. */
-	private static KeyBinding.Category registerCategory() {
-		KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("labsaddons", "main"));
+	private static KeyMapping.Category registerCategory() {
+		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("labsaddons", "main"));
 		try {
-			List<KeyBinding.Category> categories = KeyBindingCategoryAccessor.getCategories();
+			List<KeyMapping.Category> categories = KeyMappingCategoryAccessor.getCategories();
 			if (categories.remove(category)) {
 				categories.add(0, category);
 			}
@@ -113,8 +113,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 		KeybindMigration.capture();
 
 		// Bite marker: capture frame matrices; the projected "!" is drawn by
-		// HudRenderDispatcher (InGameHudMixin tail hook) alongside the widgets.
-		WorldRenderEvents.END_EXTRACTION.register(BiteMarkerHud::onEndExtraction);
+		// HudRenderDispatcher (HudMixin tail hook) alongside the widgets.
+		LevelExtractionEvents.END_EXTRACTION.register(BiteMarkerHud::onEndExtraction);
 
 		// HUD objects (each gains dragging, snapping, resize, background).
 		HudObjects.register(new ChumHudObject());
@@ -139,8 +139,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 		CooldownHudObject.addSource(PitItemCooldownTracker.source());
 
 		// Track boosters, mini-events, and the Pit from chat/system announcements.
-		// Actionbar (overlay) text is captured in InGameHudMixin instead: servers
-		// that send it via the Set Action Bar Text packet never reach this event.
+		// Actionbar (overlay) text is captured in HudMixin instead: servers
+		// that send it via the Set Action Bar Component packet never reach this event.
 		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
 			if (!overlay) {
 				dispatchChat(message);
@@ -186,16 +186,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// "Sell to <Dealer>". Only a hint — the sale itself is armed by the server's own
 		// confirmation line, so a missed interaction costs attribution, not tracking.
 		UseEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-			if (player == MinecraftClient.getInstance().player && McLabsSession.isActive()) {
+			if (player == Minecraft.getInstance().player && McLabsSession.isActive()) {
 				MasterySellTracker.onInteract(dealerLabel(entity));
 			}
-			return ActionResult.PASS;
+			return InteractionResult.PASS;
 		});
 
 		// Detect Chum Bucket activation (right-click with the item in hand).
 		UseItemCallback.EVENT.register((player, world, hand) -> {
-			if (player == MinecraftClient.getInstance().player) {
-				var stack = player.getStackInHand(hand);
+			if (player == Minecraft.getInstance().player) {
+				var stack = player.getItemInHand(hand);
 				if (ChumDetector.isChumBucket(stack)) {
 					ChumDetector.tryActivate(player.getInventory().getSelectedSlot());
 				} else if (McmmoCooldownTracker.isSmellingSalts(stack)) {
@@ -204,20 +204,20 @@ public class LabsAddonsClient implements ClientModInitializer {
 					RentalMountTimer.tryCoupon(stack);
 				}
 			}
-			return ActionResult.PASS;
+			return InteractionResult.PASS;
 		});
 
 		// Keybind to open the draggable chum HUD editor (unbound by default).
-		chumEditorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.labsaddons.chum_editor", InputUtil.Type.KEYSYM,
+		chumEditorKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.labsaddons.chum_editor", InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_SEMICOLON, MCLAB_CATEGORY));
 		// Chemtainer deposit (default B): send "/ch qd" and track what gets banked.
-		chemDepositKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.labsaddons.chem_deposit", InputUtil.Type.KEYSYM,
+		chemDepositKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.labsaddons.chem_deposit", InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_B, MCLAB_CATEGORY));
 		// Chemtainer withdraw (default N): pull back the largest chem you have.
-		chemWithdrawKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.labsaddons.chem_withdraw", InputUtil.Type.KEYSYM,
+		chemWithdrawKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.labsaddons.chem_withdraw", InputConstants.Type.KEYSYM,
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
 			KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey);
@@ -234,7 +234,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 			RunnerAlarm.tick();
 			// Live "Kill <mob>" progress from the solo Pit: each mob death is your kill,
 			// read straight off the world since no chat line announces it.
-			if (client.world != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.world)) {
+			if (client.level != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.level)) {
 				MasteryStore.save();
 			}
 			// Live "Catch <fish>" progress: the catch is read off the inventory, which
@@ -248,14 +248,14 @@ public class LabsAddonsClient implements ClientModInitializer {
 					&& MasterySellTracker.tick(client.player.getInventory())) {
 				MasteryStore.save();
 			}
-			while (chumEditorKey.wasPressed()) {
-				client.setScreen(new HudEditScreen(client.currentScreen));
+			while (chumEditorKey.consumeClick()) {
+				client.setScreenAndShow(new HudEditScreen(client.gui.screen()));
 			}
-			while (chemDepositKey.wasPressed()) {
+			while (chemDepositKey.consumeClick()) {
 				armDepositCapture();
 				sendChatCommand("ch qd");
 			}
-			while (chemWithdrawKey.wasPressed()) {
+			while (chemWithdrawKey.consumeClick()) {
 				ChemItems.ChemKey target = ChemtainerTracker.largestChem();
 				if (target != null) {
 					sendChatCommand("ch withdraw " + ChemItems.withdrawArg(target));
@@ -265,8 +265,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// Passive: scrape the /lw rates and /chems booster GUIs ONCE per open
 			// (their lore is a static snapshot; re-reading every tick would freeze
 			// the countdown).
-			net.minecraft.client.gui.screen.Screen current = client.currentScreen;
-			if (current instanceof HandledScreen<?> handledScreen) {
+			net.minecraft.client.gui.screens.Screen current = client.gui.screen();
+			if (current instanceof AbstractContainerScreen<?> handledScreen) {
 				if (current != lastRatesScreen) {
 					lastRatesScreen = current;
 					// Ahead of the chain rather than in it: a satchel read only needs the
@@ -299,7 +299,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 
 	/** Snapshot the current inventory and arm the deposit diff (idempotent). */
 	private static void armDepositCapture() {
-		var player = MinecraftClient.getInstance().player;
+		var player = Minecraft.getInstance().player;
 		if (player != null) {
 			ChemtainerDepositCapture.arm(ChemItems.snapshot(player.getInventory()));
 		}
@@ -317,12 +317,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 		if (MasterySellTracker.dealerName(own) != null) {
 			return own;
 		}
-		var world = MinecraftClient.getInstance().world;
+		var world = Minecraft.getInstance().level;
 		if (world == null) {
 			return own;
 		}
-		Box above = entity.getBoundingBox().expand(1.5, 3.0, 1.5);
-		for (Entity nearby : world.getOtherEntities(entity, above)) {
+		AABB above = entity.getBoundingBox().inflate(1.5, 3.0, 1.5);
+		for (Entity nearby : world.getEntities(entity, above)) {
 			String label = entityLabel(nearby);
 			if (MasterySellTracker.dealerName(label) != null) {
 				return label;
@@ -333,44 +333,44 @@ public class LabsAddonsClient implements ClientModInitializer {
 	}
 
 	private static String entityLabel(Entity entity) {
-		Text custom = entity.getCustomName();
+		Component custom = entity.getCustomName();
 		return custom != null ? custom.getString() : entity.getName().getString();
 	}
 
 	/** The mcMMO tool kind the player is holding (FISTS for an empty hand). */
 	private static McmmoAbility.Tool heldTool() {
-		var player = MinecraftClient.getInstance().player;
+		var player = Minecraft.getInstance().player;
 		if (player == null) {
 			return null;
 		}
-		var held = player.getMainHandStack();
+		var held = player.getMainHandItem();
 		if (held.isEmpty()) {
 			return McmmoAbility.Tool.FISTS;
 		}
 		return McmmoAbility.Tool.fromItemId(
-				net.minecraft.registry.Registries.ITEM.getId(held.getItem()).toString());
+				net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(held.getItem()).toString());
 	}
 
 	/** The local player's name, used to tell whether a chat-reaction win was ours. */
 	private static String selfName() {
-		var player = MinecraftClient.getInstance().player;
+		var player = Minecraft.getInstance().player;
 		return player != null ? player.getName().getString() : null;
 	}
 
 	/** Send a chat command (no leading slash); no-op when not connected. */
 	private static void sendChatCommand(String command) {
-		var network = MinecraftClient.getInstance().getNetworkHandler();
+		var network = Minecraft.getInstance().getConnection();
 		if (network != null) {
-			network.sendChatCommand(command);
+			network.sendCommand(command);
 		}
 	}
 
 	/**
 	 * Chat entry point. Nearly every tracker wants the flattened string, but prestige
 	 * figures live in the message's hover tooltips, which {@code getString()} discards —
-	 * so the {@code Text} is passed along intact rather than flattened at the door.
+	 * so the {@code Component} is passed along intact rather than flattened at the door.
 	 */
-	private static void dispatchChat(Text message) {
+	private static void dispatchChat(Component message) {
 		dispatchChat(message.getString());
 		if (PrestigeChat.onMessage(message)) {
 			// A sync or a sale moved a prestige track; keep it across a restart.

@@ -1,9 +1,9 @@
 package dev.jade.labsaddons.mastery;
 
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.text.Text;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,7 +41,7 @@ public final class MasteryKillTracker {
 	}
 
 	/** @return true if a kill advanced an active challenge, so the caller can persist the board. */
-	public static boolean tick(ClientWorld world) {
+	public static boolean tick(ClientLevel world) {
 		Map<String, String> targets = activeKillTargets();
 		if (targets.isEmpty()) {
 			reset();
@@ -49,14 +49,14 @@ public final class MasteryKillTracker {
 		}
 		Set<Integer> present = new HashSet<>();
 		boolean advanced = false;
-		for (Entity entity : world.getEntities()) {
+		for (Entity entity : world.entitiesForRendering()) {
 			if (!(entity instanceof LivingEntity mob)) {
 				continue;
 			}
 			int id = mob.getId();
 			present.add(id);
-			Text name = mob.getCustomName();
-			advanced |= observe(id, name == null ? null : name.getString(), mob.isDead(), targets);
+			Component name = mob.getCustomName();
+			advanced |= observe(id, name == null ? null : name.getString(), mob.isDeadOrDying(), targets);
 		}
 		// Bound both maps to currently-loaded entities: a removed mob's id drops out
 		// (it has already been counted), and a reused id starts tracking fresh.

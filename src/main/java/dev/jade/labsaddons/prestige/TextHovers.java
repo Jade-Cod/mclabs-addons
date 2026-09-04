@@ -1,8 +1,8 @@
 package dev.jade.labsaddons.prestige;
 
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -18,7 +18,7 @@ import java.util.Set;
  * a row reveals {@code Wheatium: 0/806,400}, and the sell confirmation's visible
  * text names the base chems while its hover gives the precise amount each earned.
  *
- * <p>The client receives the whole {@code Text} tree, hovers included, so this
+ * <p>The client receives the whole {@code Component} tree, hovers included, so this
  * reads them without the player hovering anything — {@code getString()} is simply
  * the wrong accessor, not a missing capability.
  *
@@ -36,7 +36,7 @@ public final class TextHovers {
 	 * yield the same tooltip once per run, so duplicates are collapsed. That is safe
 	 * here precisely because each tooltip names its own chem and so is unique.
 	 */
-	public static List<String> tooltips(Text message) {
+	public static List<String> tooltips(Component message) {
 		if (message == null) {
 			return List.of();
 		}

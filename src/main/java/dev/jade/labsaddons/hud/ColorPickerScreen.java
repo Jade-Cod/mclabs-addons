@@ -1,12 +1,12 @@
 package dev.jade.labsaddons.hud;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,10 +28,10 @@ public class ColorPickerScreen extends Screen {
 
 	private int color;
 	private final List<ChannelSlider> sliders = new ArrayList<>();
-	private TextFieldWidget hexField;
+	private EditBox hexField;
 	private boolean updatingHex;
 
-	public ColorPickerScreen(Screen parent, Text title, int initialColor,
+	public ColorPickerScreen(Screen parent, Component title, int initialColor,
 			boolean withAlpha, IntConsumer onApply) {
 		super(title);
 		this.parent = parent;
@@ -41,11 +41,11 @@ public class ColorPickerScreen extends Screen {
 	}
 
 	/** One 0–255 channel bound to a byte of the ARGB int. */
-	private class ChannelSlider extends SliderWidget {
+	private class ChannelSlider extends AbstractSliderButton {
 		private final int shift;
 
 		ChannelSlider(int x, int y, String name, int shift) {
-			super(x, y, ROW_WIDTH, ROW_HEIGHT, Text.literal(name), ((color >> shift) & 0xFF) / 255.0);
+			super(x, y, ROW_WIDTH, ROW_HEIGHT, Component.literal(name), ((color >> shift) & 0xFF) / 255.0);
 			this.shift = shift;
 			updateMessage();
 		}
@@ -70,7 +70,7 @@ public class ColorPickerScreen extends Screen {
 
 		@Override
 		protected void updateMessage() {
-			setMessage(Text.literal(channelName() + ": " + channelValue()));
+			setMessage(Component.literal(channelName() + ": " + channelValue()));
 		}
 
 		@Override
@@ -94,24 +94,24 @@ public class ColorPickerScreen extends Screen {
 		sliders.add(new ChannelSlider(x, y, "R", 16));
 		sliders.add(new ChannelSlider(x, y + ROW_GAP, "G", 8));
 		sliders.add(new ChannelSlider(x, y + ROW_GAP * 2, "B", 0));
-		sliders.forEach(this::addDrawableChild);
+		sliders.forEach(this::addRenderableWidget);
 		y += ROW_GAP * 3;
 
-		hexField = new TextFieldWidget(this.textRenderer, x, y, ROW_WIDTH, ROW_HEIGHT,
-				Text.translatable("labsaddons.color.hex"));
+		hexField = new EditBox(this.font, x, y, ROW_WIDTH, ROW_HEIGHT,
+				Component.translatable("labsaddons.color.hex"));
 		hexField.setMaxLength(9);
-		hexField.setChangedListener(this::onHexTyped);
-		this.addDrawableChild(hexField);
+		hexField.setResponder(this::onHexTyped);
+		this.addRenderableWidget(hexField);
 		syncHexField();
 		y += ROW_GAP + 4;
 
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, button -> {
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> {
 					onApply.accept(color);
-					this.close();
+					this.onClose();
 				})
-				.dimensions(x, y, ROW_WIDTH / 2 - 2, ROW_HEIGHT).build());
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.close())
-				.dimensions(x + ROW_WIDTH / 2 + 2, y, ROW_WIDTH / 2 - 2, ROW_HEIGHT).build());
+				.bounds(x, y, ROW_WIDTH / 2 - 2, ROW_HEIGHT).build());
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_CANCEL, button -> this.onClose())
+				.bounds(x + ROW_WIDTH / 2 + 2, y, ROW_WIDTH / 2 - 2, ROW_HEIGHT).build());
 	}
 
 	private void syncHexField() {
@@ -119,7 +119,7 @@ public class ColorPickerScreen extends Screen {
 			return;
 		}
 		updatingHex = true;
-		hexField.setText(withAlpha
+		hexField.setValue(withAlpha
 				? String.format("#%08X", color)
 				: String.format("#%06X", color & 0xFFFFFF));
 		updatingHex = false;
@@ -146,9 +146,9 @@ public class ColorPickerScreen extends Screen {
 	}
 
 	@Override
-	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-		super.render(context, mouseX, mouseY, delta);
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, 0xFFFFFFFF);
+	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(context, mouseX, mouseY, delta);
+		context.centeredText(this.font, this.title, this.width / 2, 20, 0xFFFFFFFF);
 
 		// Preview swatch over a checkerboard so alpha is visible.
 		int sx = this.width / 2 + ROW_WIDTH / 2 + 12;
@@ -163,9 +163,9 @@ public class ColorPickerScreen extends Screen {
 	}
 
 	@Override
-	public void close() {
-		if (this.client != null) {
-			this.client.setScreen(this.parent);
+	public void onClose() {
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(this.parent);
 		}
 	}
 }

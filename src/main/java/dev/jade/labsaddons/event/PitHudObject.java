@@ -3,9 +3,9 @@ package dev.jade.labsaddons.event;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import dev.jade.labsaddons.hud.TimeFormat;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /** "The Pit" open-window countdown with a netherite sword icon. */
@@ -34,13 +34,13 @@ public class PitHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.pit.clear"), PitTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.pit.clear"), PitTracker::clear);
 	}
 
 	@Override
 	@Nullable
-	protected Text header(boolean preview) {
-		return Text.translatable("labsaddons.hud.pit.name");
+	protected Component header(boolean preview) {
+		return Component.translatable("labsaddons.hud.pit.name");
 	}
 
 	@Override

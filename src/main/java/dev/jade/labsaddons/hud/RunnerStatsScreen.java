@@ -7,18 +7,18 @@ import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import dev.jade.labsaddons.runner.RunnerLeaderboard;
 import dev.jade.labsaddons.runner.RunnerTracker;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.PlayerSkinDrawer;
-import net.minecraft.client.gui.screen.ConfirmScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.network.OtherClientPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.player.RemotePlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -57,7 +57,7 @@ public class RunnerStatsScreen extends Screen {
 	private static final int MODEL_MARGIN = 12;
 	private static final float LIMB_SPEED = 0.9f;
 	/** One game tick — {@link net.minecraft.entity.LimbAnimator#updateLimbs} is meant to be
-	 *  called this often (that's how {@link net.minecraft.entity.LivingEntity#tick()} drives
+	 *  called this often (that's how {@link net.minecraft.world.entity.LivingEntity#tick()} drives
 	 *  it); calling it once per render frame instead plays the run cycle at frame rate. */
 	private static final long LIMB_TICK_MS = 50L;
 
@@ -108,7 +108,7 @@ public class RunnerStatsScreen extends Screen {
 			DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.US).withZone(ZoneId.systemDefault());
 
 	private final Screen parent;
-	private final Map<String, OtherClientPlayerEntity> entityCache = new HashMap<>();
+	private final Map<String, RemotePlayer> entityCache = new HashMap<>();
 	private int scrollOffset = 0;
 	private int lastMaxScroll = 0;
 	private long lastLimbTickMs = 0L;
@@ -126,8 +126,8 @@ public class RunnerStatsScreen extends Screen {
 	// clicking across rows doesn't snap an earlier close instead of finishing it.
 	private Accordion openAccordion;
 	private final List<Accordion> closingAccordions = new ArrayList<>();
-	private ButtonWidget accordionPrevButton;
-	private ButtonWidget accordionNextButton;
+	private Button accordionPrevButton;
+	private Button accordionNextButton;
 
 	/** One row's shutter animation state, keyed by runner name so it survives re-ranking. */
 	private static final class Accordion {
@@ -163,7 +163,7 @@ public class RunnerStatsScreen extends Screen {
 	}
 
 	public RunnerStatsScreen(Screen parent) {
-		super(Text.translatable("labsaddons.hud.stats.title"));
+		super(Component.translatable("labsaddons.hud.stats.title"));
 		this.parent = parent;
 	}
 
@@ -177,22 +177,22 @@ public class RunnerStatsScreen extends Screen {
 		int buttonsY = TOP_MARGIN + cardH - PAD - BUTTON_H;
 		int halfW = (contentW - 8) / 2;
 
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, b -> this.close())
-				.dimensions(contentX, buttonsY, halfW, BUTTON_H).build());
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.stats.reset"), b -> openResetConfirm())
-				.dimensions(contentX + halfW + 8, buttonsY, contentW - halfW - 8, BUTTON_H).build());
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> this.onClose())
+				.bounds(contentX, buttonsY, halfW, BUTTON_H).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.stats.reset"), b -> openResetConfirm())
+				.bounds(contentX + halfW + 8, buttonsY, contentW - halfW - 8, BUTTON_H).build());
 
-		this.accordionPrevButton = ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.jobs.prev"), b -> turnAccordionPage(-1))
-				.dimensions(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
-		this.accordionNextButton = ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.jobs.next"), b -> turnAccordionPage(1))
-				.dimensions(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
+		this.accordionPrevButton = Button.builder(
+						Component.translatable("labsaddons.hud.jobs.prev"), b -> turnAccordionPage(-1))
+				.bounds(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
+		this.accordionNextButton = Button.builder(
+						Component.translatable("labsaddons.hud.jobs.next"), b -> turnAccordionPage(1))
+				.bounds(0, 0, ACCORDION_BUTTON_W, ACCORDION_FOOTER_H).build();
 		this.accordionPrevButton.visible = false;
 		this.accordionNextButton.visible = false;
-		this.addDrawableChild(this.accordionPrevButton);
-		this.addDrawableChild(this.accordionNextButton);
+		this.addRenderableWidget(this.accordionPrevButton);
+		this.addRenderableWidget(this.accordionNextButton);
 	}
 
 	private int cardW() {
@@ -200,8 +200,8 @@ public class RunnerStatsScreen extends Screen {
 	}
 
 	@Override
-	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-		super.renderBackground(context, mouseX, mouseY, delta);
+	public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+		super.extractBackground(context, mouseX, mouseY, delta);
 		pruneClosingAccordions();
 
 		int cardW = cardW();
@@ -217,8 +217,8 @@ public class RunnerStatsScreen extends Screen {
 
 		EditorPainter.panel(context, new int[] {cardX, cardY, cardW, cardH},
 				EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
-		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("labsaddons.hud.stats.title"), this.width / 2, cardY + PAD, EditorTheme.TITLE);
+		context.centeredText(this.font,
+				Component.translatable("labsaddons.hud.stats.title"), this.width / 2, cardY + PAD, EditorTheme.TITLE);
 
 		drawHeader(context, contentX, headerY);
 		context.fill(contentX, viewportTop - 2, contentX + contentW, viewportTop - 1, EditorTheme.PANEL_BORDER);
@@ -232,8 +232,8 @@ public class RunnerStatsScreen extends Screen {
 		this.hoveredRunner = null;
 
 		if (entries.isEmpty()) {
-			context.drawCenteredTextWithShadow(this.textRenderer,
-					Text.translatable("labsaddons.hud.stats.empty"),
+			context.centeredText(this.font,
+					Component.translatable("labsaddons.hud.stats.empty"),
 					this.width / 2, viewportTop + (viewportBottom - viewportTop) / 2 - 4, EditorTheme.TEXT_DIM);
 			lastMaxScroll = 0;
 			scrollOffset = 0;
@@ -248,7 +248,7 @@ public class RunnerStatsScreen extends Screen {
 			contentH += ROW_H + extraHeightFor(entry.name());
 		}
 		lastMaxScroll = Math.max(0, contentH - rowsAreaH);
-		scrollOffset = MathHelper.clamp(scrollOffset, 0, lastMaxScroll);
+		scrollOffset = Mth.clamp(scrollOffset, 0, lastMaxScroll);
 		int hoverIdx = rowIndexAt(mouseX, mouseY);
 
 		context.enableScissor(contentX, viewportTop, contentX + contentW, viewportBottom);
@@ -284,7 +284,7 @@ public class RunnerStatsScreen extends Screen {
 		}
 	}
 
-	private void drawHeader(DrawContext context, int x, int y) {
+	private void drawHeader(GuiGraphicsExtractor context, int x, int y) {
 		cell(context, x + COL_RANK, y, "labsaddons.hud.stats.col.rank");
 		cell(context, x + COL_NAME, y, "labsaddons.hud.stats.col.runner");
 		cell(context, x + COL_DONE, y, "labsaddons.hud.stats.col.completed");
@@ -294,20 +294,20 @@ public class RunnerStatsScreen extends Screen {
 		cell(context, x + COL_VALUE, y, "labsaddons.hud.stats.col.value");
 	}
 
-	private void cell(DrawContext context, int x, int y, String langKey) {
-		context.drawText(this.textRenderer, Text.translatable(langKey), x, y, EditorTheme.TEXT_DIM, false);
+	private void cell(GuiGraphicsExtractor context, int x, int y, String langKey) {
+		context.text(this.font, Component.translatable(langKey), x, y, EditorTheme.TEXT_DIM, false);
 	}
 
-	private void drawRow(DrawContext context, int x, int y, int contentW, int rank,
+	private void drawRow(GuiGraphicsExtractor context, int x, int y, int contentW, int rank,
 			RunnerLeaderboard.Entry entry, boolean hovered) {
 		if (hovered) {
 			context.fill(x, y - 2, x + contentW, y + ROW_H - 2, EditorTheme.ROW_HOVER);
 		} else if (rank % 2 == 0) {
 			context.fill(x, y - 2, x + contentW, y + ROW_H - 2, ROW_ALT);
 		}
-		PlayerSkinDrawer.draw(context, PlayerSkinCache.skin(entry.name()), x + COL_HEAD, y + 1, HEAD_SIZE);
+		PlayerFaceExtractor.extractRenderState(context, PlayerSkinCache.skin(entry.name()), x + COL_HEAD, y + 1, HEAD_SIZE);
 
-		String name = this.textRenderer.trimToWidth(entry.name(), COL_DONE - COL_NAME - 4);
+		String name = this.font.plainSubstrByWidth(entry.name(), COL_DONE - COL_NAME - 4);
 		double rate = entry.stats().successRate() * 100.0;
 		String avg = entry.stats().completed > 0 ? formatDuration(entry.stats().avgTimeMs()) : "—";
 		int ty = y + 3;
@@ -321,8 +321,8 @@ public class RunnerStatsScreen extends Screen {
 		text(context, x + COL_VALUE, ty, "$" + RunnerHudObject.formatMoney(entry.stats().valueSold), C_VALUE);
 	}
 
-	private void text(DrawContext context, int x, int y, String s, int color) {
-		context.drawText(this.textRenderer, Text.literal(s), x, y, color, true);
+	private void text(GuiGraphicsExtractor context, int x, int y, String s, int color) {
+		context.text(this.font, Component.literal(s), x, y, color, true);
 	}
 
 	/** Currently animated (opening, open, or still-closing) extra height for {@code runner}, or 0. */
@@ -375,12 +375,12 @@ public class RunnerStatsScreen extends Screen {
 	/**
 	 * Draws {@code entry}'s job-history shutter beneath its row. Content is always
 	 * drawn at the offsets it would occupy fully open; a scissor narrowed to the
-	 * currently animated height does the actual "rolling" reveal. {@code DrawContext}'s
+	 * currently animated height does the actual "rolling" reveal. {@code GuiGraphicsExtractor}'s
 	 * scissor is a stack, not a single rect — {@code disableScissor} pops back to
 	 * whatever was active before this call (the outer viewport scissor from the row
 	 * loop), so the row loop can keep clipping normally for the rows that follow.
 	 */
-	private void drawAccordionShutter(DrawContext context, int x, int y, int w, int h,
+	private void drawAccordionShutter(GuiGraphicsExtractor context, int x, int y, int w, int h,
 			RunnerLeaderboard.Entry entry, int viewTop, int viewBottom) {
 		int clipTop = Math.max(y, viewTop);
 		int clipBottom = Math.min(y + h, viewBottom);
@@ -392,15 +392,15 @@ public class RunnerStatsScreen extends Screen {
 		context.disableScissor();
 	}
 
-	private void drawAccordionContent(DrawContext context, int x, int y, int w, RunnerLeaderboard.Entry entry) {
+	private void drawAccordionContent(GuiGraphicsExtractor context, int x, int y, int w, RunnerLeaderboard.Entry entry) {
 		Accordion state = accordionStateFor(entry.name());
 		if (state == null) {
 			return;
 		}
 		List<RunnerJob> jobs = RunnerTracker.recentJobs(entry.name());
 		if (jobs.isEmpty()) {
-			context.drawCenteredTextWithShadow(this.textRenderer,
-					Text.translatable("labsaddons.hud.jobs.empty"),
+			context.centeredText(this.font,
+					Component.translatable("labsaddons.hud.jobs.empty"),
 					x + w / 2, y + ACCORDION_TOP_INSET + 6, EditorTheme.TEXT_DIM);
 			return;
 		}
@@ -430,22 +430,22 @@ public class RunnerStatsScreen extends Screen {
 	/** Right-aligns the "Page X/Y" label a fixed gap before the `<`/`>` buttons, measuring
 	 *  the actual text width instead of a hand-tuned offset — a wider label (bigger page
 	 *  counts) can't drift into the buttons this way. */
-	private void drawPageIndicator(DrawContext context, int x, int w, int footerY, int page, int pageCount) {
-		Text label = Text.translatable("labsaddons.hud.jobs.page", page, pageCount);
+	private void drawPageIndicator(GuiGraphicsExtractor context, int x, int w, int footerY, int page, int pageCount) {
+		Component label = Component.translatable("labsaddons.hud.jobs.page", page, pageCount);
 		int buttonsLeft = x + w - ACCORDION_BUTTON_W - ACCORDION_BUTTON_GAP - ACCORDION_BUTTON_W;
 		int textRight = buttonsLeft - PAGE_TEXT_GAP;
-		context.drawTextWithShadow(this.textRenderer, label,
-				textRight - this.textRenderer.getWidth(label), footerY + 6, EditorTheme.TEXT_DIM);
+		context.text(this.font, label,
+				textRight - this.font.width(label), footerY + 6, EditorTheme.TEXT_DIM);
 	}
 
-	private void drawJobRow(DrawContext context, int x, int y, int contentW, boolean alt, RunnerJob job) {
+	private void drawJobRow(GuiGraphicsExtractor context, int x, int y, int contentW, boolean alt, RunnerJob job) {
 		if (alt) {
 			context.fill(x, y - 2, x + contentW, y + ACCORDION_ROW_H - 2, ROW_ALT);
 		}
 		String jobLabel = job.qty > 0 && !job.drug.isEmpty()
 				? job.qty + "x " + job.drug
 				: (job.drug.isEmpty() ? "—" : job.drug);
-		jobLabel = this.textRenderer.trimToWidth(jobLabel, JCOL_VALUE - JCOL_JOB - 4);
+		jobLabel = this.font.plainSubstrByWidth(jobLabel, JCOL_VALUE - JCOL_JOB - 4);
 		String time = job.durationMs > 0 ? formatDuration(job.durationMs) : "—";
 		String date = job.completedMs > 0 ? DATE_FMT.format(Instant.ofEpochMilli(job.completedMs)) : "—";
 
@@ -515,23 +515,22 @@ public class RunnerStatsScreen extends Screen {
 	 * aiming it at the panel gives a slight lean/turn toward the leaderboard
 	 * instead of a straight-on stare.
 	 */
-	private void renderRunnerModel(DrawContext context, String runner, int panelRight) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.world == null) {
+	private void renderRunnerModel(GuiGraphicsExtractor context, String runner, int panelRight) {
+		if (minecraft.level == null) {
 			return;
 		}
 		GameProfile profile = PlayerSkinCache.profile(runner);
 		if (profile == null) {
 			return; // not resolved yet — nothing to render this frame
 		}
-		OtherClientPlayerEntity entity = entityCache.computeIfAbsent(runner,
-				n -> new OtherClientPlayerEntity(client.world, profile));
+		RemotePlayer entity = entityCache.computeIfAbsent(runner,
+				n -> new RemotePlayer(minecraft.level, profile));
 
 		// Advance the run cycle once per game tick, same as LivingEntity.tick() would —
 		// not once per render call, which played it back at frame rate instead of real time.
 		long now = System.currentTimeMillis();
 		if (now - lastLimbTickMs >= LIMB_TICK_MS) {
-			entity.limbAnimator.updateLimbs(LIMB_SPEED, 0.4f, 1.0f);
+			entity.walkAnimation.update(LIMB_SPEED, 0.4f, 1.0f);
 			lastLimbTickMs = now;
 		}
 
@@ -542,7 +541,7 @@ public class RunnerStatsScreen extends Screen {
 		int y2 = cy + MODEL_BOX_H / 2;
 		float lookX = panelRight;
 		float lookY = (y1 + y2) / 2.0f;
-		InventoryScreen.drawEntity(context, x1, y1, x2, y2, MODEL_SIZE, 0.0f, lookX, lookY, entity);
+		InventoryScreen.extractEntityInInventoryFollowsMouse(context, x1, y1, x2, y2, MODEL_SIZE, 0.0f, lookX, lookY, entity);
 	}
 
 	/** Row index under (mouseX,mouseY) within the viewport, or -1. Only the row's own
@@ -576,26 +575,26 @@ public class RunnerStatsScreen extends Screen {
 	}
 
 	private void openResetConfirm() {
-		if (this.client == null) {
+		if (this.minecraft == null) {
 			return;
 		}
-		this.client.setScreen(new ConfirmScreen(confirmed -> {
+		this.minecraft.setScreenAndShow(new ConfirmScreen(confirmed -> {
 			if (confirmed) {
 				RunnerTracker.resetLeaderboard();
 				openAccordion = null;
 				closingAccordions.clear();
 			}
-			this.client.setScreen(this);
-		}, Text.translatable("labsaddons.hud.stats.reset.title"),
-				Text.translatable("labsaddons.hud.stats.reset.message")));
+			this.minecraft.setScreenAndShow(this);
+		}, Component.translatable("labsaddons.hud.stats.reset.title"),
+				Component.translatable("labsaddons.hud.stats.reset.message")));
 	}
 
 	@Override
-	public boolean mouseClicked(Click click, boolean doubled) {
+	public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
 		if (super.mouseClicked(click, doubled)) {
 			return true;
 		}
-		if (click.button() == 0 && this.client != null) {
+		if (click.button() == 0 && this.minecraft != null) {
 			int idx = rowIndexAt(click.x(), click.y());
 			if (idx >= 0) {
 				toggleAccordion(lastEntries.get(idx).name());
@@ -638,7 +637,7 @@ public class RunnerStatsScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-		scrollOffset = MathHelper.clamp(
+		scrollOffset = Mth.clamp(
 				scrollOffset - (int) Math.round(verticalAmount) * ROW_H * 2, 0, lastMaxScroll);
 		return true;
 	}
@@ -649,9 +648,9 @@ public class RunnerStatsScreen extends Screen {
 	}
 
 	@Override
-	public void close() {
-		if (this.client != null) {
-			this.client.setScreen(this.parent);
+	public void onClose() {
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(this.parent);
 		}
 	}
 }

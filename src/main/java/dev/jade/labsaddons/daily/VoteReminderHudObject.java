@@ -2,9 +2,9 @@ package dev.jade.labsaddons.daily;
 
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /** Reminder of how many of the 7 daily votes are done; resets at 9 PM Pacific. */
@@ -36,8 +36,8 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 
 	@Override
 	@Nullable
-	protected Text header(boolean preview) {
-		return Text.translatable("labsaddons.hud.votes.name");
+	protected Component header(boolean preview) {
+		return Component.translatable("labsaddons.hud.votes.name");
 	}
 
 	@Override
@@ -58,6 +58,6 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 	// Cross-machine sync is intentionally out of scope; this is local-only.
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.votes.mark_voted"), VoteTracker::markAllDone);
+		return new EditorAction(Component.translatable("labsaddons.hud.votes.mark_voted"), VoteTracker::markAllDone);
 	}
 }

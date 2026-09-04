@@ -1,16 +1,16 @@
 package dev.jade.labsaddons;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import dev.jade.labsaddons.mixin.FishingBobberEntityAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.projectile.FishingBobberEntity;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
+import dev.jade.labsaddons.mixin.FishingHookAccessor;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.FishingHook;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 
 /**
  * Decides which marker (if any) is shown above a fishing bobber and where. The
@@ -28,41 +28,41 @@ public final class BiteMarker {
 	}
 
 	/** Ownership by UUID — robust across servers and respawns. */
-	public static boolean isOwnBobber(FishingBobberEntity bobber) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		PlayerEntity owner = bobber.getPlayerOwner();
+	public static boolean isOwnBobber(FishingHook bobber) {
+		Minecraft client = Minecraft.getInstance();
+		Player owner = bobber.getPlayerOwner();
 		return owner != null && client.player != null
-				&& owner.getUuid().equals(client.player.getUuid());
+				&& owner.getUUID().equals(client.player.getUUID());
 	}
 
 	/**
 	 * @return the marker text for this bobber, or {@code null} when no marker
 	 *         should be drawn (mod disabled, or not the local player's bobber).
 	 */
-	public static Text markerFor(FishingBobberEntity bobber) {
+	public static Component markerFor(FishingHook bobber) {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		if (!config.enabled || !isOwnBobber(bobber)) {
 			return null;
 		}
 
-		boolean caught = bobber.getDataTracker()
-				.get(FishingBobberEntityAccessor.getCaughtFishTracker());
+		boolean caught = bobber.getEntityData()
+				.get(FishingHookAccessor.getBitingTracker());
 		int color = caught ? config.biteColor : config.waitingColor;
-		return Text.literal("!").formatted(Formatting.BOLD).withColor(color);
+		return Component.literal("!").withStyle(ChatFormatting.BOLD).withColor(color);
 	}
 
 	/** Label offset, raised so the marker stays above a submerged bobber's water. */
-	public static Vec3d labelPosFor(FishingBobberEntity bobber, float tickProgress) {
-		Vec3d lerped = bobber.getLerpedPos(tickProgress);
+	public static Vec3 labelPosFor(FishingHook bobber, float tickProgress) {
+		Vec3 lerped = bobber.getPosition(tickProgress);
 		double offsetY = BASE_OFFSET;
 
-		World world = bobber.getEntityWorld();
-		BlockPos pos = BlockPos.ofFloored(lerped);
-		if (world.getFluidState(pos).isIn(FluidTags.WATER)) {
+		Level world = bobber.level();
+		BlockPos pos = BlockPos.containing(lerped);
+		if (world.getFluidState(pos).is(FluidTags.WATER)) {
 			int topY = pos.getY();
-			BlockPos.Mutable mutablePos = pos.mutableCopy();
+			BlockPos.MutableBlockPos mutablePos = pos.mutable();
 			while (topY - pos.getY() < MAX_SURFACE_SCAN
-					&& world.getFluidState(mutablePos.set(pos.getX(), topY + 1, pos.getZ())).isIn(FluidTags.WATER)) {
+					&& world.getFluidState(mutablePos.set(pos.getX(), topY + 1, pos.getZ())).is(FluidTags.WATER)) {
 				topY++;
 			}
 			mutablePos.set(pos.getX(), topY, pos.getZ());
@@ -70,6 +70,6 @@ public final class BiteMarker {
 			offsetY = Math.max(offsetY, surfaceY + SURFACE_CLEARANCE - lerped.y);
 		}
 
-		return new Vec3d(0.0, offsetY, 0.0);
+		return new Vec3(0.0, offsetY, 0.0);
 	}
 }

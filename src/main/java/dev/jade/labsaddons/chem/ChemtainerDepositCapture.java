@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.chem;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -112,7 +112,7 @@ public final class ChemtainerDepositCapture {
 			if (reference == null) {
 				return;
 			}
-			PlayerInventory inventory = inventory();
+			Inventory inventory = inventory();
 			if (inventory == null) {
 				return;
 			}
@@ -228,8 +228,8 @@ public final class ChemtainerDepositCapture {
 		confirmTimeout = 0;
 	}
 
-	private static PlayerInventory inventory() {
-		MinecraftClient client = MinecraftClient.getInstance();
+	private static Inventory inventory() {
+		Minecraft client = Minecraft.getInstance();
 		return client.player == null ? null : client.player.getInventory();
 	}
 }

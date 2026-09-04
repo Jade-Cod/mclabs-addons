@@ -1,9 +1,9 @@
 package dev.jade.labsaddons.server;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.scoreboard.ScoreboardDisplaySlot;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
 
@@ -20,10 +20,10 @@ public final class McLabsSession {
 	private static final String SIDEBAR_MARKER = "mclabs";
 
 	private static volatile boolean onMcLabs = false;
-	// Identity-cached: the server only swaps in a new Text when the sidebar title
+	// Identity-cached: the server only swaps in a new Component when the sidebar title
 	// actually changes, so re-deriving the lowercase match on every tick (20/sec,
 	// for as long as any sidebar objective is shown) is wasted work.
-	private static Text lastSidebarTitle;
+	private static Component lastSidebarTitle;
 	private static boolean lastSidebarMatched;
 
 	private McLabsSession() {
@@ -33,23 +33,23 @@ public final class McLabsSession {
 	 * Re-evaluates the sidebar scoreboard for the current world.
 	 * @return true the moment this call is the one that activates the session.
 	 */
-	public static boolean tick(MinecraftClient client) {
+	public static boolean tick(Minecraft client) {
 		boolean wasActive = onMcLabs;
 		onMcLabs = isOnMcLabsNetwork(client);
 		return onMcLabs && !wasActive;
 	}
 
-	private static boolean isOnMcLabsNetwork(MinecraftClient client) {
-		if (client.world == null) {
+	private static boolean isOnMcLabsNetwork(Minecraft client) {
+		if (client.level == null) {
 			lastSidebarTitle = null;
 			return false;
 		}
-		ScoreboardObjective sidebar = client.world.getScoreboard().getObjectiveForSlot(ScoreboardDisplaySlot.SIDEBAR);
+		Objective sidebar = client.level.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
 		if (sidebar == null) {
 			lastSidebarTitle = null;
 			return false;
 		}
-		Text title = sidebar.getDisplayName();
+		Component title = sidebar.getDisplayName();
 		if (title != lastSidebarTitle) {
 			lastSidebarTitle = title;
 			lastSidebarMatched = title.getString().toLowerCase(Locale.ROOT).contains(SIDEBAR_MARKER);

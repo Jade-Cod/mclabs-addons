@@ -3,9 +3,9 @@ package dev.jade.labsaddons.mount;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import dev.jade.labsaddons.hud.TimeFormat;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 /** Rental mount countdown (saddle icon). */
@@ -34,13 +34,13 @@ public class RentalMountHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.rental_mount.clear"), RentalMountTimer::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.rental_mount.clear"), RentalMountTimer::clear);
 	}
 
 	@Override
 	@Nullable
-	protected Text header(boolean preview) {
-		return Text.translatable("labsaddons.hud.rental_mount.name");
+	protected Component header(boolean preview) {
+		return Component.translatable("labsaddons.hud.rental_mount.name");
 	}
 
 	@Override

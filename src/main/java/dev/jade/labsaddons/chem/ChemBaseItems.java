@@ -1,7 +1,8 @@
 package dev.jade.labsaddons.chem;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,7 +31,7 @@ public final class ChemBaseItems {
 		put(Items.COCOA_BEANS, "cocobium");
 		put(Items.BEETROOT, "betronium");
 		put(Items.CHORUS_FRUIT, "chorufrium");
-		put(Items.GREEN_DYE, "cactium");
+		put(Items.DYE.pick(DyeColor.GREEN), "cactium");
 		put(Items.MELON_SEEDS, "melonium");
 		put(Items.PUMPKIN_SEEDS, "pumpkonium");
 		put(Items.PAPER, "paprium");
@@ -42,7 +43,7 @@ public final class ChemBaseItems {
 		put(Items.BREAD, "triwheanide");
 		// Processed chems.
 		put(Items.POPPED_CHORUS_FRUIT, "chorufrinide");
-		put(Items.LIME_DYE, "cactinide");
+		put(Items.DYE.pick(DyeColor.LIME), "cactinide");
 		put(Items.BAKED_POTATO, "potatinide");
 		// Raw forms fold into their base chem.
 		put(Items.CACTUS, "cactium");

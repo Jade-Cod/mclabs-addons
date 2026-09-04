@@ -1,10 +1,10 @@
 package dev.jade.labsaddons.hud;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.util.DefaultSkinHelper;
-import net.minecraft.component.type.ProfileComponent;
-import net.minecraft.entity.player.SkinTextures;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.world.item.component.ResolvableProfile;
+import net.minecraft.world.entity.player.PlayerSkin;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -20,7 +20,7 @@ import java.util.function.Supplier;
  * fetched, the same way vanilla renders any player.
  */
 public final class PlayerSkinCache {
-	private record Entry(Supplier<SkinTextures> skin, GameProfile profile) {
+	private record Entry(Supplier<PlayerSkin> skin, GameProfile profile) {
 	}
 
 	/** Sentinel for "resolve in flight" so a name is only looked up once. */
@@ -31,13 +31,13 @@ public final class PlayerSkinCache {
 	}
 
 	/** Skin to draw for {@code name}: the real one once resolved, a default until then. */
-	public static SkinTextures skin(String name) {
+	public static PlayerSkin skin(String name) {
 		Entry entry = CACHE.get(name);
 		if (entry != null && entry.skin() != null) {
 			return entry.skin().get();
 		}
 		resolve(name);
-		return DefaultSkinHelper.getSkinTextures(offlineUuid(name));
+		return DefaultPlayerSkin.get(offlineUuid(name));
 	}
 
 	/** Resolved {@link GameProfile} for {@code name}, or {@code null} if not yet available. */
@@ -54,11 +54,11 @@ public final class PlayerSkinCache {
 		if (CACHE.putIfAbsent(name, IN_FLIGHT) != null) {
 			return; // already resolving or resolved
 		}
-		MinecraftClient client = MinecraftClient.getInstance();
-		ProfileComponent.ofDynamic(name)
-				.resolve(client.getApiServices().profileResolver())
+		Minecraft client = Minecraft.getInstance();
+		ResolvableProfile.createUnresolved(name)
+				.resolveProfile(client.services().profileResolver())
 				.thenAccept(profile -> {
-					Supplier<SkinTextures> supplier = client.getSkinProvider().supplySkinTextures(profile, false);
+					Supplier<PlayerSkin> supplier = client.getSkinManager().createLookup(profile, false);
 					CACHE.put(name, new Entry(supplier, profile));
 				})
 				.exceptionally(e -> {

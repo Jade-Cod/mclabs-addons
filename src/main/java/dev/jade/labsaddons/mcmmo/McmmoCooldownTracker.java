@@ -211,11 +211,11 @@ public final class McmmoCooldownTracker {
 	 * {@link dev.jade.labsaddons.chum.ChumDetector}, which also owns debounce state),
 	 * so it lives here rather than in its own class.
 	 */
-	public static boolean isSmellingSalts(net.minecraft.item.ItemStack stack) {
+	public static boolean isSmellingSalts(net.minecraft.world.item.ItemStack stack) {
 		if (stack == null || stack.isEmpty()) {
 			return false;
 		}
-		var modelData = stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_MODEL_DATA);
+		var modelData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_MODEL_DATA);
 		return modelData != null && modelData.strings().contains("smellingsalts");
 	}
 
@@ -233,7 +233,7 @@ public final class McmmoCooldownTracker {
 				}
 
 				@Override
-				public net.minecraft.item.ItemStack iconFor(String key) {
+				public net.minecraft.world.item.ItemStack iconFor(String key) {
 					return McmmoSkillIcons.iconFor(key);
 				}
 

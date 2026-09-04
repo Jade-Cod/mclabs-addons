@@ -5,20 +5,20 @@ import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -117,7 +117,7 @@ public class HudEditScreen extends Screen {
 	private int bgSwatchX;
 	private int bgSwatchY;
 	private int groupsLabelY;
-	private Text groupsLabelText;
+	private Component groupsLabelText;
 	private int thresholdLabelY;
 
 	// Which toggle groups (by label) are expanded in the current inspector.
@@ -130,7 +130,7 @@ public class HudEditScreen extends Screen {
 	private final List<AbilityRow> abilityRows = new ArrayList<>();
 
 	public HudEditScreen(Screen parent) {
-		super(Text.translatable("labsaddons.hud.editor.title"));
+		super(Component.translatable("labsaddons.hud.editor.title"));
 		this.parent = parent;
 	}
 
@@ -157,68 +157,68 @@ public class HudEditScreen extends Screen {
 			return;
 		}
 		welcomeChecked = true;
-		if (!LabsAddonsConfig.get().hasSeenWelcome && this.client != null) {
-			this.client.setScreen(new HelpScreen(this, true));
+		if (!LabsAddonsConfig.get().hasSeenWelcome && this.minecraft != null) {
+			this.minecraft.setScreenAndShow(new HelpScreen(this, true));
 		}
 	}
 
 	private void openHelp() {
-		if (this.client != null) {
-			this.client.setScreen(new HelpScreen(this, false));
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(new HelpScreen(this, false));
 		}
 	}
 
 	private void openStatistics() {
-		if (this.client != null) {
-			this.client.setScreen(new RunnerStatsScreen(this));
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(new RunnerStatsScreen(this));
 		}
 	}
 
 	private void buildToolbar() {
 		int y = this.height - EditorTheme.TOOLBAR_H + (EditorTheme.TOOLBAR_H - 20) / 2;
 		int x = EditorTheme.MARGIN;
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, b -> this.close())
-				.dimensions(x, y, 48, 20).build());
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> this.onClose())
+				.bounds(x, y, 48, 20).build());
 		x += 52;
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.editor.open_config"), b -> openMainConfig())
-				.dimensions(x, y, 96, 20).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.editor.open_config"), b -> openMainConfig())
+				.bounds(x, y, 96, 20).build());
 		x += 100;
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.editor.reset_all"), b -> resetAll())
-				.dimensions(x, y, 78, 20)
-				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.reset_all.tooltip"))).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.editor.reset_all"), b -> resetAll())
+				.bounds(x, y, 78, 20)
+				.tooltip(Tooltip.create(Component.translatable("labsaddons.hud.editor.reset_all.tooltip"))).build());
 		x += 82;
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.editor.help"), b -> openHelp())
-				.dimensions(x, y, 48, 20)
-				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.help.tooltip"))).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.editor.help"), b -> openHelp())
+				.bounds(x, y, 48, 20)
+				.tooltip(Tooltip.create(Component.translatable("labsaddons.hud.editor.help.tooltip"))).build());
 		x += 52;
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.editor.stats"), b -> openStatistics())
-				.dimensions(x, y, 48, 20)
-				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.stats.tooltip"))).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.editor.stats"), b -> openStatistics())
+				.bounds(x, y, 48, 20)
+				.tooltip(Tooltip.create(Component.translatable("labsaddons.hud.editor.stats.tooltip"))).build());
 
 		int rx = this.width - EditorTheme.MARGIN - 64;
-		this.addDrawableChild(ButtonWidget.builder(snapLabel(), b -> {
+		this.addRenderableWidget(Button.builder(snapLabel(), b -> {
 					snapEnabled = !snapEnabled;
 					b.setMessage(snapLabel());
-				}).dimensions(rx, y, 64, 20)
-				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.snap.tooltip"))).build());
+				}).bounds(rx, y, 64, 20)
+				.tooltip(Tooltip.create(Component.translatable("labsaddons.hud.editor.snap.tooltip"))).build());
 		rx -= 68;
-		this.addDrawableChild(ButtonWidget.builder(gridLabel(), b -> {
+		this.addRenderableWidget(Button.builder(gridLabel(), b -> {
 					gridEnabled = !gridEnabled;
 					b.setMessage(gridLabel());
-				}).dimensions(rx, y, 64, 20)
-				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.grid.tooltip"))).build());
+				}).bounds(rx, y, 64, 20)
+				.tooltip(Tooltip.create(Component.translatable("labsaddons.hud.editor.grid.tooltip"))).build());
 	}
 
-	private Text snapLabel() {
-		return Text.translatable("labsaddons.hud.editor.snap").append(": ").append(ScreenTexts.onOrOff(snapEnabled));
+	private Component snapLabel() {
+		return Component.translatable("labsaddons.hud.editor.snap").append(": ").append(CommonComponents.optionStatus(snapEnabled));
 	}
 
-	private Text gridLabel() {
-		return Text.translatable("labsaddons.hud.editor.grid").append(": ").append(ScreenTexts.onOrOff(gridEnabled));
+	private Component gridLabel() {
+		return Component.translatable("labsaddons.hud.editor.grid").append(": ").append(CommonComponents.optionStatus(gridEnabled));
 	}
 
 	private void buildInspector(HudObject widget) {
@@ -270,100 +270,100 @@ public class HudEditScreen extends Screen {
 		this.nameY = y;
 		y += EditorTheme.NAME_H;
 
-		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.enabled).build(
+		this.addRenderableWidget(CycleButton.onOffBuilder(s.enabled).create(
 				innerX, y, innerW, EditorTheme.ROW,
-				Text.translatable("labsaddons.config.hud.enabled"),
+				Component.translatable("labsaddons.config.hud.enabled"),
 				(b, v) -> s.enabled = v));
 		y += rowStep;
 
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.config.hud.text_color"), b -> openPicker(widget, false))
-				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.config.hud.text_color"), b -> openPicker(widget, false))
+				.bounds(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.textSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.textSwatchY = y;
 		y += rowStep;
 
-		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.backgroundEnabled).build(
+		this.addRenderableWidget(CycleButton.onOffBuilder(s.backgroundEnabled).create(
 				innerX, y, innerW, EditorTheme.ROW,
-				Text.translatable("labsaddons.config.hud.background"),
+				Component.translatable("labsaddons.config.hud.background"),
 				(b, v) -> s.backgroundEnabled = v));
 		y += rowStep;
 
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.config.hud.background_color"), b -> openPicker(widget, true))
-				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.config.hud.background_color"), b -> openPicker(widget, true))
+				.bounds(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.bgSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.bgSwatchY = y;
 		y += rowStep;
 
 		for (HudObject.ToggleOption toggle : toggles) {
-			this.addDrawableChild(CyclingButtonWidget.onOffBuilder(toggle.value().getAsBoolean()).build(
+			this.addRenderableWidget(CycleButton.onOffBuilder(toggle.value().getAsBoolean()).create(
 					innerX, y, innerW, EditorTheme.ROW, toggle.label(),
 					(b, v) -> toggle.onChange().accept(v)));
 			y += rowStep;
 		}
 
 		if (switchOption != null) {
-			this.addDrawableChild(new DirectionSwitch(innerX, y, innerW, EditorTheme.ROW, switchOption));
+			this.addRenderableWidget(new DirectionSwitch(innerX, y, innerW, EditorTheme.ROW, switchOption));
 			y += rowStep;
 		}
 
 		HudObject.EditorAction action = widget.editorAction();
 		if (action != null) {
-			this.addDrawableChild(ButtonWidget.builder(action.label(), b -> action.action().run())
-					.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+			this.addRenderableWidget(Button.builder(action.label(), b -> action.action().run())
+					.bounds(innerX, y, innerW, EditorTheme.ROW).build());
 			y += rowStep;
 		}
 
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.editor.reset_widget"), b -> {
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.editor.reset_widget"), b -> {
 							widget.settings().resetTo(widget.defaultSettings());
-							clearAndInit();
+							rebuildWidgets();
 						})
-				.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+				.bounds(innerX, y, innerW, EditorTheme.ROW).build());
 		y += rowStep;
 
 		if (isRunnerJobs) {
 			LabsAddonsConfig config = LabsAddonsConfig.get();
-			this.addDrawableChild(ButtonWidget.builder(
-							groupHeaderLabel(Text.translatable("labsaddons.hud.runner_jobs.alarm"), alarmExpanded),
+			this.addRenderableWidget(Button.builder(
+							groupHeaderLabel(Component.translatable("labsaddons.hud.runner_jobs.alarm"), alarmExpanded),
 							b -> {
 								if (!expandedGroups.remove(ALARM_GROUP_KEY)) {
 									expandedGroups.add(ALARM_GROUP_KEY);
 								}
-								clearAndInit();
+								rebuildWidgets();
 							})
-					.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+					.bounds(innerX, y, innerW, EditorTheme.ROW).build());
 			y += rowStep;
 
 			if (alarmExpanded) {
-				this.addDrawableChild(CyclingButtonWidget.onOffBuilder(config.runnerAlarmEnabled).build(
+				this.addRenderableWidget(CycleButton.onOffBuilder(config.runnerAlarmEnabled).create(
 						innerX, y, innerW, EditorTheme.ROW,
-						Text.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
+						Component.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
 						(b, v) -> config.runnerAlarmEnabled = v));
 				y += rowStep;
 
 				this.thresholdLabelY = y;
 				y += EditorTheme.NAME_H;
 
-				TextFieldWidget thresholdField = new TextFieldWidget(this.textRenderer,
+				EditBox thresholdField = new EditBox(this.font,
 						innerX, y, innerW, EditorTheme.ROW,
-						Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
+						Component.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
 				thresholdField.setMaxLength(4);
-				thresholdField.setPlaceholder(Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
-				thresholdField.setText(String.valueOf(config.runnerAlarmThreshold));
-				thresholdField.setChangedListener(text -> {
+				thresholdField.setHint(Component.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
+				thresholdField.setValue(String.valueOf(config.runnerAlarmThreshold));
+				thresholdField.setResponder(text -> {
 					if (text.matches("\\d+")) {
 						config.runnerAlarmThreshold = Integer.parseInt(text);
 					}
 				});
-				this.addDrawableChild(thresholdField);
+				this.addRenderableWidget(thresholdField);
 				y += rowStep;
 
-				this.addDrawableChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
-						.values(RunnerAlarm.SOUND_IDS)
-						.build(innerX, y, innerW, EditorTheme.ROW,
-								Text.translatable("labsaddons.hud.runner_jobs.alarm.sound"),
+				this.addRenderableWidget(CycleButton.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
+						.withValues(RunnerAlarm.SOUND_IDS)
+						.create(innerX, y, innerW, EditorTheme.ROW,
+								Component.translatable("labsaddons.hud.runner_jobs.alarm.sound"),
 								(b, v) -> config.runnerAlarmSound = v));
 				y += rowStep;
 			}
@@ -378,13 +378,13 @@ public class HudEditScreen extends Screen {
 			for (HudObject.ToggleGroup group : groups) {
 				String groupKey = group.label().getString();
 				boolean expanded = expandedGroups.contains(groupKey);
-				this.addDrawableChild(ButtonWidget.builder(groupHeaderLabel(group.label(), expanded), b -> {
+				this.addRenderableWidget(Button.builder(groupHeaderLabel(group.label(), expanded), b -> {
 							if (!expandedGroups.remove(groupKey)) {
 								expandedGroups.add(groupKey);
 							}
-							clearAndInit();
+							rebuildWidgets();
 						})
-						.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
+						.bounds(innerX, y, innerW, EditorTheme.ROW).build());
 				y += rowStep;
 				if (expanded) {
 					for (HudObject.ToggleOption option : group.options()) {
@@ -397,8 +397,8 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
-	private static Text groupHeaderLabel(Text label, boolean expanded) {
-		return Text.literal(expanded ? "v " : "> ").append(label);
+	private static Component groupHeaderLabel(Component label, boolean expanded) {
+		return Component.literal(expanded ? "v " : "> ").append(label);
 	}
 
 	/**
@@ -407,7 +407,7 @@ public class HudEditScreen extends Screen {
 	 * on the switch flips it; the thumb eases to its new side over
 	 * {@value #ANIM_MS}ms rather than jumping instantly.
 	 */
-	private static final class DirectionSwitch extends SliderWidget {
+	private static final class DirectionSwitch extends AbstractSliderButton {
 		private static final long ANIM_MS = 150L;
 
 		private final HudObject.SwitchOption option;
@@ -416,7 +416,7 @@ public class HudEditScreen extends Screen {
 		private long animStartMs;
 
 		DirectionSwitch(int x, int y, int width, int height, HudObject.SwitchOption option) {
-			super(x, y, width, height, Text.empty(), option.isRight().getAsBoolean() ? 1.0 : 0.0);
+			super(x, y, width, height, Component.empty(), option.isRight().getAsBoolean() ? 1.0 : 0.0);
 			this.option = option;
 			this.currentRight = option.isRight().getAsBoolean();
 			this.animFrom = this.currentRight ? 1.0 : 0.0;
@@ -435,7 +435,7 @@ public class HudEditScreen extends Screen {
 
 		/** A click anywhere on the switch flips it — where exactly you click doesn't matter. */
 		@Override
-		public void onClick(Click click, boolean doubled) {
+		public void onClick(MouseButtonEvent click, boolean doubled) {
 			setRight(!currentRight);
 		}
 
@@ -458,7 +458,7 @@ public class HudEditScreen extends Screen {
 		}
 
 		@Override
-		public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+		public void extractWidgetRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
 			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(), EditorTheme.SWITCH_TRACK);
 
 			float progress = progress();
@@ -466,11 +466,11 @@ public class HudEditScreen extends Screen {
 			int thumbX = getX() + Math.round(progress * (getWidth() - thumbW));
 			EditorPainter.pill(context, thumbX, getY(), thumbW, getHeight(), EditorTheme.ACCENT);
 
-			TextRenderer font = MinecraftClient.getInstance().textRenderer;
-			Text label = progress < 0.5f ? option.leftLabel() : option.rightLabel();
-			int textX = thumbX + (thumbW - font.getWidth(label)) / 2;
-			int textY = getY() + (getHeight() - font.fontHeight) / 2 + 1;
-			context.drawText(font, label, textX, textY, EditorTheme.SWITCH_THUMB_TEXT, false);
+			Font font = Minecraft.getInstance().font;
+			Component label = progress < 0.5f ? option.leftLabel() : option.rightLabel();
+			int textX = thumbX + (thumbW - font.width(label)) / 2;
+			int textY = getY() + (getHeight() - font.lineHeight) / 2 + 1;
+			context.text(font, label, textX, textY, EditorTheme.SWITCH_THUMB_TEXT, false);
 		}
 	}
 
@@ -480,7 +480,7 @@ public class HudEditScreen extends Screen {
 			if (contains(row.rect(), mx, my)) {
 				HudObject.ToggleOption option = row.option();
 				option.onChange().accept(!option.value().getAsBoolean());
-				clearAndInit();
+				rebuildWidgets();
 				return true;
 			}
 		}
@@ -494,23 +494,23 @@ public class HudEditScreen extends Screen {
 	}
 
 	private void openPicker(HudObject widget, boolean background) {
-		if (this.client == null) {
+		if (this.minecraft == null) {
 			return;
 		}
 		HudObjectSettings s = widget.settings();
 		if (background) {
-			this.client.setScreen(new ColorPickerScreen(this,
-					Text.translatable("labsaddons.config.hud.background_color"),
+			this.minecraft.setScreenAndShow(new ColorPickerScreen(this,
+					Component.translatable("labsaddons.config.hud.background_color"),
 					s.backgroundColor, true, color -> s.backgroundColor = color));
 		} else {
-			this.client.setScreen(new ColorPickerScreen(this,
-					Text.translatable("labsaddons.config.hud.text_color"),
+			this.minecraft.setScreenAndShow(new ColorPickerScreen(this,
+					Component.translatable("labsaddons.config.hud.text_color"),
 					s.textColor, false, color -> s.textColor = 0xFF000000 | (color & 0xFFFFFF)));
 		}
 	}
 
 	private void openMainConfig() {
-		MinecraftClient.getInstance().setScreen(
+		Minecraft.getInstance().setScreenAndShow(
 				dev.jade.labsaddons.config.LabsAddonsConfigScreenFactory.create(this));
 	}
 
@@ -519,40 +519,40 @@ public class HudEditScreen extends Screen {
 			obj.settings().resetTo(obj.defaultSettings());
 		}
 		selection.clear();
-		clearAndInit();
+		rebuildWidgets();
 	}
 
 	private void selectOnly(HudObject obj) {
 		selection.clear();
 		selection.add(obj);
-		clearAndInit();
+		rebuildWidgets();
 	}
 
 	private void toggleSelection(HudObject obj) {
 		if (!selection.remove(obj)) {
 			selection.add(obj);
 		}
-		clearAndInit();
+		rebuildWidgets();
 	}
 
 	// --- rendering ------------------------------------------------------------
 
 	@Override
-	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+	public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
 		// Custom light dim is drawn in render() so the live game stays visible;
 		// suppress the vanilla blur/dirt background entirely.
 	}
 
 	@Override
-	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
 		context.fill(0, 0, this.width, this.height, EditorTheme.DIM);
 		if (gridEnabled) {
 			EditorPainter.gridOverlay(context, this.width, this.height, EditorTheme.GRID_STEP, EditorTheme.GRID);
 		}
 
-		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 12, EditorTheme.TITLE);
-		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("labsaddons.hud.editor.hint"), this.width / 2, 24, EditorTheme.TEXT_DIM);
+		context.centeredText(this.font, this.title, this.width / 2, 12, EditorTheme.TITLE);
+		context.centeredText(this.font,
+				Component.translatable("labsaddons.hud.editor.hint"), this.width / 2, 24, EditorTheme.TEXT_DIM);
 
 		HudObject one = singleSelected();
 		for (HudObject obj : HudObjects.all()) {
@@ -570,7 +570,7 @@ public class HudEditScreen extends Screen {
 			}
 			if (obj == one && resizing) {
 				int pct = Math.round(obj.settings().scale * 100);
-				context.drawCenteredTextWithShadow(this.textRenderer, Text.literal(pct + "%"),
+				context.centeredText(this.font, Component.literal(pct + "%"),
 						b[0] + b[2] / 2, Math.max(2, b[1] - 12), EditorTheme.TEXT_ACCENT);
 			} else if (isSelected || hovered) {
 				drawNameChip(context, obj, b);
@@ -594,20 +594,20 @@ public class HudEditScreen extends Screen {
 		if (one != null && panel != null) {
 			drawInspector(context, one, mouseX, mouseY);
 		} else if (selection.size() > 1) {
-			context.drawCenteredTextWithShadow(this.textRenderer,
-					Text.translatable("labsaddons.hud.editor.multi_hint", selection.size()),
+			context.centeredText(this.font,
+					Component.translatable("labsaddons.hud.editor.multi_hint", selection.size()),
 					this.width / 2, this.height - EditorTheme.TOOLBAR_H - 12, EditorTheme.TEXT_ACCENT);
 		}
 
 		context.fill(0, this.height - EditorTheme.TOOLBAR_H, this.width, this.height, EditorTheme.TOOLBAR_BG);
-		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("labsaddons.hud.editor.nudge_hint"),
+		context.centeredText(this.font,
+				Component.translatable("labsaddons.hud.editor.nudge_hint"),
 				this.width / 2, this.height - EditorTheme.TOOLBAR_H / 2 - 4, EditorTheme.TEXT_DIM);
 
-		super.render(context, mouseX, mouseY, delta);
+		super.extractRenderState(context, mouseX, mouseY, delta);
 	}
 
-	private void drawResizeHandles(DrawContext context, int[] b) {
+	private void drawResizeHandles(GuiGraphicsExtractor context, int[] b) {
 		for (int[] spec : HANDLE_SPECS) {
 			int cx = b[0] + (spec[0] + 1) * b[2] / 2;
 			int cy = b[1] + (spec[1] + 1) * b[3] / 2;
@@ -616,22 +616,22 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
-	private void drawNameChip(DrawContext context, HudObject obj, int[] b) {
+	private void drawNameChip(GuiGraphicsExtractor context, HudObject obj, int[] b) {
 		boolean enabled = obj.settings().enabled;
-		Text label = enabled ? obj.displayName()
-				: Text.translatable("labsaddons.hud.editor.hidden_suffix", obj.displayName());
+		Component label = enabled ? obj.displayName()
+				: Component.translatable("labsaddons.hud.editor.hidden_suffix", obj.displayName());
 		int color = enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN;
-		boolean above = b[1] - (this.textRenderer.fontHeight + 4) >= EditorTheme.TOP + 4;
-		int chipY = above ? b[1] - this.textRenderer.fontHeight - 3 : b[1] + b[3] + 3;
-		int chipX = MathHelper.clamp(b[0], EditorTheme.MARGIN,
-				this.width - EditorTheme.MARGIN - this.textRenderer.getWidth(label));
-		EditorPainter.nameChip(context, this.textRenderer, label, chipX, chipY, color);
+		boolean above = b[1] - (this.font.lineHeight + 4) >= EditorTheme.TOP + 4;
+		int chipY = above ? b[1] - this.font.lineHeight - 3 : b[1] + b[3] + 3;
+		int chipX = Mth.clamp(b[0], EditorTheme.MARGIN,
+				this.width - EditorTheme.MARGIN - this.font.width(label));
+		EditorPainter.nameChip(context, this.font, label, chipX, chipY, color);
 	}
 
-	private void drawRail(DrawContext context, int mouseX, int mouseY) {
+	private void drawRail(GuiGraphicsExtractor context, int mouseX, int mouseY) {
 		int[] r = railRect();
 		EditorPainter.panel(context, r, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
-		context.drawText(this.textRenderer, Text.translatable("labsaddons.hud.editor.layers"),
+		context.text(this.font, Component.translatable("labsaddons.hud.editor.layers"),
 				r[0] + 5, r[1] + 3, EditorTheme.TEXT_ACCENT, false);
 
 		List<HudObject> objects = HudObjects.all();
@@ -647,8 +647,8 @@ public class HudEditScreen extends Screen {
 			boolean enabled = obj.settings().enabled;
 			int textMaxW = row[2] - EditorTheme.RAIL_TOGGLE - 10;
 			String name = elide(obj.displayName().getString(), textMaxW);
-			context.drawText(this.textRenderer, Text.literal(name), row[0] + 4,
-					row[1] + (row[3] - this.textRenderer.fontHeight) / 2 + 1,
+			context.text(this.font, Component.literal(name), row[0] + 4,
+					row[1] + (row[3] - this.font.lineHeight) / 2 + 1,
 					enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
 
 			int[] tb = toggleRect(row);
@@ -660,14 +660,14 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
-	private void drawInspector(DrawContext context, HudObject widget, int mouseX, int mouseY) {
+	private void drawInspector(GuiGraphicsExtractor context, HudObject widget, int mouseX, int mouseY) {
 		HudObjectSettings s = widget.settings();
 		EditorPainter.panel(context, panel, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
 
 		String name = elide(widget.displayName().getString(), innerW);
-		context.drawText(this.textRenderer, Text.literal(name), innerX, nameY, EditorTheme.TEXT, false);
+		context.text(this.font, Component.literal(name), innerX, nameY, EditorTheme.TEXT, false);
 
 		EditorPainter.swatch(context, textSwatchX, textSwatchY, EditorTheme.SWATCH, s.textColor | 0xFF000000);
 		EditorPainter.swatch(context, bgSwatchX, bgSwatchY, EditorTheme.SWATCH, s.backgroundColor);
@@ -676,23 +676,23 @@ public class HudEditScreen extends Screen {
 			drawGroupsHeading(context);
 		}
 		if (widget instanceof RunnerHudObject && expandedGroups.contains(ALARM_GROUP_KEY)) {
-			context.drawText(this.textRenderer,
-					Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"),
+			context.text(this.font,
+					Component.translatable("labsaddons.hud.runner_jobs.alarm.threshold"),
 					innerX, thresholdLabelY, EditorTheme.TEXT_DIM, false);
 		}
 		drawAbilityRows(context, mouseX, mouseY);
 	}
 
 	/** The "Ability Visibility" heading, styled identically to the widget name above it. */
-	private void drawGroupsHeading(DrawContext context) {
+	private void drawGroupsHeading(GuiGraphicsExtractor context) {
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
 		String name = elide(groupsLabelText.getString(), innerW);
-		context.drawText(this.textRenderer, Text.literal(name), innerX, groupsLabelY, EditorTheme.TEXT, false);
+		context.text(this.font, Component.literal(name), innerX, groupsLabelY, EditorTheme.TEXT, false);
 	}
 
 	/** Ability toggle rows, styled like the Widgets rail: filled/hollow tick + normal/italic-red label. */
-	private void drawAbilityRows(DrawContext context, int mouseX, int mouseY) {
+	private void drawAbilityRows(GuiGraphicsExtractor context, int mouseX, int mouseY) {
 		for (AbilityRow row : abilityRows) {
 			int[] r = row.rect();
 			if (contains(r, mouseX, mouseY)) {
@@ -709,9 +709,9 @@ public class HudEditScreen extends Screen {
 
 			int textMaxW = r[2] - EditorTheme.RAIL_TOGGLE - 10;
 			String name = elide(row.option().label().getString(), textMaxW);
-			Text label = Text.literal(name).styled(style -> style.withItalic(!on));
-			context.drawText(this.textRenderer, label, r[0] + 4,
-					r[1] + (r[3] - this.textRenderer.fontHeight) / 2 + 1,
+			Component label = Component.literal(name).withStyle(style -> style.withItalic(!on));
+			context.text(this.font, label, r[0] + 4,
+					r[1] + (r[3] - this.font.lineHeight) / 2 + 1,
 					on ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
 		}
 	}
@@ -734,7 +734,7 @@ public class HudEditScreen extends Screen {
 		if (railWidthCache == 0) {
 			int widest = 0;
 			for (HudObject obj : HudObjects.all()) {
-				widest = Math.max(widest, this.textRenderer.getWidth(obj.displayName()));
+				widest = Math.max(widest, this.font.width(obj.displayName()));
 			}
 			int cap = Math.max(EditorTheme.RAIL_W, this.width / RAIL_MAX_SHARE);
 			railWidthCache = Math.clamp(widest + RAIL_TEXT_INSET, EditorTheme.RAIL_W, cap);
@@ -748,14 +748,14 @@ public class HudEditScreen extends Screen {
 	 * reads as a broken label rather than a shortened one.
 	 */
 	private String elide(String text, int maxWidth) {
-		if (this.textRenderer.getWidth(text) <= maxWidth) {
+		if (this.font.width(text) <= maxWidth) {
 			return text;
 		}
 		String ellipsis = "…";
-		int budget = maxWidth - this.textRenderer.getWidth(ellipsis);
+		int budget = maxWidth - this.font.width(ellipsis);
 		// Too narrow for even one character plus the ellipsis: a hard cut is all that fits.
-		return budget <= 0 ? this.textRenderer.trimToWidth(text, maxWidth)
-				: this.textRenderer.trimToWidth(text, budget) + ellipsis;
+		return budget <= 0 ? this.font.plainSubstrByWidth(text, maxWidth)
+				: this.font.plainSubstrByWidth(text, budget) + ellipsis;
 	}
 
 	private int[] railRect() {
@@ -867,7 +867,7 @@ public class HudEditScreen extends Screen {
 	// --- input ----------------------------------------------------------------
 
 	@Override
-	public boolean mouseClicked(Click click, boolean doubled) {
+	public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
 		if (super.mouseClicked(click, doubled)) {
 			return true;
 		}
@@ -913,7 +913,7 @@ public class HudEditScreen extends Screen {
 					HudObjectSettings settings = obj.settings();
 					settings.enabled = !settings.enabled;
 					if (selection.contains(obj)) {
-						clearAndInit();
+						rebuildWidgets();
 					}
 				} else if (shift) {
 					toggleSelection(obj);
@@ -951,7 +951,7 @@ public class HudEditScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+	public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
 		boolean snap = snapEnabled && (click.modifiers() & GLFW.GLFW_MOD_ALT) == 0;
 		if (resizing) {
 			doResize(click.x(), click.y(), snap);
@@ -987,9 +987,9 @@ public class HudEditScreen extends Screen {
 		} else {
 			scale = (float) (Math.abs(my - resizeAnchorY) / contentH);
 		}
-		scale = MathHelper.clamp(scale, HudObjectSettings.MIN_SCALE, HudObjectSettings.MAX_SCALE);
+		scale = Mth.clamp(scale, HudObjectSettings.MIN_SCALE, HudObjectSettings.MAX_SCALE);
 		if (snap) {
-			float nearest = MathHelper.clamp(Math.round(scale / SCALE_STEP) * SCALE_STEP,
+			float nearest = Mth.clamp(Math.round(scale / SCALE_STEP) * SCALE_STEP,
 					HudObjectSettings.MIN_SCALE, HudObjectSettings.MAX_SCALE);
 			if (Math.abs(scale - nearest) <= SCALE_SNAP_TOLERANCE) {
 				scale = nearest;
@@ -1014,8 +1014,8 @@ public class HudEditScreen extends Screen {
 			rawX = snapAxis(rawX, grabWidth, snapTargets(true), true);
 			rawY = snapAxis(rawY, grabHeight, snapTargets(false), false);
 		}
-		int dx = MathHelper.clamp(rawX - grabOriginX, -groupMinX, this.width - groupMaxX);
-		int dy = MathHelper.clamp(rawY - grabOriginY, -groupMinY, this.height - groupMaxY);
+		int dx = Mth.clamp(rawX - grabOriginX, -groupMinX, this.width - groupMaxX);
+		int dy = Mth.clamp(rawY - grabOriginY, -groupMinY, this.height - groupMaxY);
 		for (int i = 0; i < dragWidgets.size(); i++) {
 			int[] o = dragOrigins.get(i);
 			dragWidgets.get(i).setScreenBoxPosition(o[0] + dx, o[1] + dy, this.width, this.height);
@@ -1095,7 +1095,7 @@ public class HudEditScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(KeyInput input) {
+	public boolean keyPressed(KeyEvent input) {
 		if (!selection.isEmpty()) {
 			int step = (input.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 ? 10 : 1;
 			int dx = 0;
@@ -1129,8 +1129,8 @@ public class HudEditScreen extends Screen {
 			maxX = Math.max(maxX, b[0] + b[2]);
 			maxY = Math.max(maxY, b[1] + b[3]);
 		}
-		dx = MathHelper.clamp(dx, -minX, this.width - maxX);
-		dy = MathHelper.clamp(dy, -minY, this.height - maxY);
+		dx = Mth.clamp(dx, -minX, this.width - maxX);
+		dy = Mth.clamp(dy, -minY, this.height - maxY);
 		for (HudObject obj : selection) {
 			int[] b = obj.screenBounds(this.width, this.height, true);
 			obj.setScreenBoxPosition(b[0] + dx, b[1] + dy, this.width, this.height);
@@ -1138,14 +1138,14 @@ public class HudEditScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseReleased(Click click) {
+	public boolean mouseReleased(MouseButtonEvent click) {
 		if (marqueeing) {
 			if (!marqueeMoved && !marqueeAdditive) {
 				selection.clear();
 			}
 			marqueeing = false;
 			marqueeBase = null;
-			clearAndInit();
+			rebuildWidgets();
 		}
 		groupDragging = false;
 		resizing = false;
@@ -1155,10 +1155,10 @@ public class HudEditScreen extends Screen {
 	}
 
 	@Override
-	public void close() {
+	public void onClose() {
 		LabsAddonsConfig.get().save();
-		if (this.client != null) {
-			this.client.setScreen(this.parent);
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(this.parent);
 		}
 	}
 }

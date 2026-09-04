@@ -7,12 +7,12 @@ import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.SharedConstants;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +77,7 @@ public final class ModrinthUpdateChecker {
 			return;
 		}
 		try {
-			String mcVersion = SharedConstants.getGameVersion().name();
+			String mcVersion = SharedConstants.getCurrentVersion().name();
 			JsonArray versions = JsonParser.parseString(response.body()).getAsJsonArray();
 			for (JsonElement element : versions) {
 				JsonObject version = element.getAsJsonObject();
@@ -106,11 +106,11 @@ public final class ModrinthUpdateChecker {
 	}
 
 	private static void notifyPlayer(String latestVersion) {
-		MinecraftClient client = MinecraftClient.getInstance();
+		Minecraft client = Minecraft.getInstance();
 		URI downloadUri = ModrinthLink.downloadUri(latestVersion);
 		client.execute(() -> {
 			if (client.player != null) {
-				client.player.sendMessage(buildMessage(latestVersion, downloadUri), false);
+				client.player.sendSystemMessage(buildMessage(latestVersion, downloadUri));
 			}
 		});
 	}
@@ -119,13 +119,13 @@ public final class ModrinthUpdateChecker {
 	 * The whole line is clickable: the click and hover events sit on the root
 	 * style, which the appended sibling inherits.
 	 */
-	private static MutableText buildMessage(String latestVersion, URI downloadUri) {
-		return Text.literal("[MCLabs Addons] ").formatted(Formatting.AQUA)
-				.append(Text.literal("v" + latestVersion + " is available on Modrinth.")
-						.formatted(Formatting.GRAY))
-				.styled(style -> style
+	private static MutableComponent buildMessage(String latestVersion, URI downloadUri) {
+		return Component.literal("[MCLabs Addons] ").withStyle(ChatFormatting.AQUA)
+				.append(Component.literal("v" + latestVersion + " is available on Modrinth.")
+						.withStyle(ChatFormatting.GRAY))
+				.withStyle(style -> style
 						.withClickEvent(new ClickEvent.OpenUrl(downloadUri))
 						.withHoverEvent(new HoverEvent.ShowText(
-								Text.translatable("labsaddons.update.download_hover"))));
+								Component.translatable("labsaddons.update.download_hover"))));
 	}
 }

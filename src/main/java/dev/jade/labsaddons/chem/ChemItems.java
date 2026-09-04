@@ -1,11 +1,11 @@
 package dev.jade.labsaddons.chem;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -49,7 +49,7 @@ public final class ChemItems {
 		if (!chem.isEmpty()) {
 			return chem;
 		}
-		CustomModelDataComponent model = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		CustomModelData model = stack.get(DataComponents.CUSTOM_MODEL_DATA);
 		if (model != null && !model.strings().isEmpty()) {
 			return model.strings().get(0).toLowerCase(Locale.ROOT);
 		}
@@ -58,14 +58,14 @@ public final class ChemItems {
 
 	/** The purity string "v-p-s" (e.g. "2-2-2"), or "" when the item has no purity. */
 	public static String purity(ItemStack stack) {
-		NbtCompound data = customData(stack);
+		CompoundTag data = customData(stack);
 		if (data == null || !data.contains("purity")) {
 			return "";
 		}
-		NbtCompound purity = data.getCompoundOrEmpty("purity");
-		int score = purity.getInt("score", -1);
-		int value = purity.getInt("value", -1);
-		int progress = purity.getInt("progress", -1);
+		CompoundTag purity = data.getCompoundOrEmpty("purity");
+		int score = purity.getIntOr("score", -1);
+		int value = purity.getIntOr("value", -1);
+		int progress = purity.getIntOr("progress", -1);
 		if (score < 0 && value < 0 && progress < 0) {
 			return "";
 		}
@@ -77,10 +77,10 @@ public final class ChemItems {
 	}
 
 	/** Total count of each chem (by key+purity) across the whole inventory. */
-	public static Map<ChemKey, Long> snapshot(PlayerInventory inventory) {
+	public static Map<ChemKey, Long> snapshot(Inventory inventory) {
 		Map<ChemKey, Long> totals = new HashMap<>();
-		for (int i = 0; i < inventory.size(); i++) {
-			ItemStack stack = inventory.getStack(i);
+		for (int i = 0; i < inventory.getContainerSize(); i++) {
+			ItemStack stack = inventory.getItem(i);
 			if (!isChem(stack)) {
 				continue;
 			}
@@ -116,13 +116,13 @@ public final class ChemItems {
 	}
 
 	private static String chemName(ItemStack stack) {
-		NbtCompound data = customData(stack);
-		return data == null ? "" : data.getString("chem", "").toLowerCase(Locale.ROOT);
+		CompoundTag data = customData(stack);
+		return data == null ? "" : data.getStringOr("chem", "").toLowerCase(Locale.ROOT);
 	}
 
-	private static NbtCompound customData(ItemStack stack) {
-		NbtComponent component = stack.get(DataComponentTypes.CUSTOM_DATA);
-		return component == null ? null : component.copyNbt();
+	private static CompoundTag customData(ItemStack stack) {
+		CustomData component = stack.get(DataComponents.CUSTOM_DATA);
+		return component == null ? null : component.copyTag();
 	}
 
 	private static String capitalize(String text) {

@@ -1,10 +1,10 @@
 package dev.jade.labsaddons.item;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.component.type.NbtComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,13 +30,13 @@ public final class ItemUses {
 	}
 
 	private static int customDataUses(ItemStack stack) {
-		NbtComponent component = stack.get(DataComponentTypes.CUSTOM_DATA);
-		NbtCompound data = component == null ? null : component.copyNbt();
-		return data != null && data.contains("uses") ? data.getInt("uses", -1) : -1;
+		CustomData component = stack.get(DataComponents.CUSTOM_DATA);
+		CompoundTag data = component == null ? null : component.copyTag();
+		return data != null && data.contains("uses") ? data.getIntOr("uses", -1) : -1;
 	}
 
 	private static int loreCharges(ItemStack stack) {
-		LoreComponent lore = stack.get(DataComponentTypes.LORE);
+		ItemLore lore = stack.get(DataComponents.LORE);
 		if (lore == null) {
 			return -1;
 		}

@@ -3,9 +3,9 @@ package dev.jade.labsaddons.event;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import dev.jade.labsaddons.hud.TimeFormat;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
@@ -36,19 +36,19 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.mini_event.clear"), MiniEventTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.mini_event.clear"), MiniEventTracker::clear);
 	}
 
 	@Override
 	@Nullable
-	protected Text header(boolean preview) {
+	protected Component header(boolean preview) {
 		if (MiniEventTracker.isActive()) {
-			return Text.literal(MiniEventTracker.type() + " Event");
+			return Component.literal(MiniEventTracker.type() + " Event");
 		}
 		if (MiniEventTracker.isUpcoming()) {
-			return Text.translatable("labsaddons.hud.mini_event.upcoming");
+			return Component.translatable("labsaddons.hud.mini_event.upcoming");
 		}
-		return Text.literal("Fishing Event");
+		return Component.literal("Fishing Event");
 	}
 
 	@Override
@@ -74,7 +74,7 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 		return "30:00";
 	}
 
-	private static net.minecraft.item.Item iconForType(String type) {
+	private static net.minecraft.world.item.Item iconForType(String type) {
 		String lower = type.toLowerCase(Locale.ROOT);
 		if (lower.contains("cache")) {
 			return Items.PLAYER_HEAD;

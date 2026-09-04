@@ -1,10 +1,11 @@
 package dev.jade.labsaddons.chem;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.HashMap;
 import java.util.List;
@@ -24,30 +25,30 @@ public final class ChemIcons {
 	/** chem name (lowercase) -> base vanilla item carrying the server model. */
 	private static final Map<String, Item> ITEMS = Map.ofEntries(
 			// --- Compounds (exact, from the chems GUI dump) ---
-			Map.entry("betromelonide", Items.WHITE_DYE),
+			Map.entry("betromelonide", Items.DYE.pick(DyeColor.WHITE)),
 			Map.entry("cocobinide", Items.INK_SAC),
 			Map.entry("cactatonate", Items.POISONOUS_POTATO),
-			Map.entry("cartatonide", Items.GRAY_DYE),
-			Map.entry("chorberrium", Items.RED_DYE),
-			Map.entry("chorumpkinate", Items.PURPLE_DYE),
-			Map.entry("chowartusite", Items.ORANGE_DYE),
+			Map.entry("cartatonide", Items.DYE.pick(DyeColor.GRAY)),
+			Map.entry("chorberrium", Items.DYE.pick(DyeColor.RED)),
+			Map.entry("chorumpkinate", Items.DYE.pick(DyeColor.PURPLE)),
+			Map.entry("chowartusite", Items.DYE.pick(DyeColor.ORANGE)),
 			Map.entry("copaprinide", Items.BONE_MEAL),
 			Map.entry("glocarronide", Items.BLAZE_POWDER),
 			Map.entry("glocobinide", Items.PRISMARINE_CRYSTALS),
 			Map.entry("glompkinide", Items.PRISMARINE_SHARD),
-			Map.entry("glorootinide", Items.LIGHT_BLUE_DYE),
-			Map.entry("melcobinide", Items.BLUE_DYE),
-			Map.entry("melpotinide", Items.YELLOW_DYE),
-			Map.entry("papcactinide", Items.LIGHT_GRAY_DYE),
+			Map.entry("glorootinide", Items.DYE.pick(DyeColor.LIGHT_BLUE)),
+			Map.entry("melcobinide", Items.DYE.pick(DyeColor.BLUE)),
+			Map.entry("melpotinide", Items.DYE.pick(DyeColor.YELLOW)),
+			Map.entry("papcactinide", Items.DYE.pick(DyeColor.LIGHT_GRAY)),
 			Map.entry("papwartinide", Items.BRICK),
 			Map.entry("pumpsugrinide", Items.GLOWSTONE_DUST),
 			Map.entry("pumpwartinide", Items.NETHER_BRICK),
 			Map.entry("sugcarronide", Items.CLAY_BALL),
-			Map.entry("sweemelonide", Items.MAGENTA_DYE),
-			Map.entry("sweepaprinide", Items.PINK_DYE),
-			Map.entry("wheasugrinide", Items.BLACK_DYE),
-			Map.entry("wheacactinide", Items.CYAN_DYE),
-			Map.entry("wheacobinide", Items.BROWN_DYE),
+			Map.entry("sweemelonide", Items.DYE.pick(DyeColor.MAGENTA)),
+			Map.entry("sweepaprinide", Items.DYE.pick(DyeColor.PINK)),
+			Map.entry("wheasugrinide", Items.DYE.pick(DyeColor.BLACK)),
+			Map.entry("wheacactinide", Items.DYE.pick(DyeColor.CYAN)),
+			Map.entry("wheacobinide", Items.DYE.pick(DyeColor.BROWN)),
 			Map.entry("whearootinide", Items.BREAD),
 			// --- Base/processed chems renamed by the server texture pack ---
 			Map.entry("canium", Items.SUGAR_CANE),
@@ -61,7 +62,7 @@ public final class ChemIcons {
 			Map.entry("cocobium", Items.COCOA_BEANS),
 			Map.entry("betronium", Items.BEETROOT),
 			Map.entry("chorufrium", Items.CHORUS_FRUIT),
-			Map.entry("cactium", Items.GREEN_DYE),
+			Map.entry("cactium", Items.DYE.pick(DyeColor.GREEN)),
 			Map.entry("melonium", Items.MELON_SEEDS),
 			Map.entry("pumpkonium", Items.PUMPKIN_SEEDS),
 			Map.entry("paprium", Items.PAPER),
@@ -70,7 +71,7 @@ public final class ChemIcons {
 			Map.entry("sweeberrium", Items.SWEET_BERRIES),
 			// --- Processed single-ingredient chems ---
 			Map.entry("chorufrinide", Items.POPPED_CHORUS_FRUIT),
-			Map.entry("cactinide", Items.LIME_DYE),
+			Map.entry("cactinide", Items.DYE.pick(DyeColor.LIME)),
 			Map.entry("potatinide", Items.BAKED_POTATO));
 
 	/** Lazily built, reused stacks (no per-frame allocation). */
@@ -119,8 +120,8 @@ public final class ChemIcons {
 		}
 		ItemStack stack = new ItemStack(item);
 		// Re-attach the server's custom_model_data string so the pack skins it.
-		stack.set(DataComponentTypes.CUSTOM_MODEL_DATA,
-				new CustomModelDataComponent(List.of(), List.of(), List.of(key), List.of()));
+		stack.set(DataComponents.CUSTOM_MODEL_DATA,
+				new CustomModelData(List.of(), List.of(), List.of(key), List.of()));
 		return stack;
 	}
 

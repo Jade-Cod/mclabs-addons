@@ -4,12 +4,12 @@ import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.TimeFormat;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -88,7 +88,7 @@ public class CooldownHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.ability_cooldowns.clear"),
+		return new EditorAction(Component.translatable("labsaddons.hud.ability_cooldowns.clear"),
 				() -> SOURCES.forEach(CooldownSource::clear));
 	}
 
@@ -99,8 +99,8 @@ public class CooldownHudObject extends HudObject {
 	@Override
 	public SwitchOption switchOption() {
 		return new SwitchOption(
-				Text.translatable("labsaddons.hud.ability_cooldowns.horizontal_label"),
-				Text.translatable("labsaddons.hud.ability_cooldowns.vertical_label"),
+				Component.translatable("labsaddons.hud.ability_cooldowns.horizontal_label"),
+				Component.translatable("labsaddons.hud.ability_cooldowns.vertical_label"),
 				CooldownHudObject::vertical,
 				isVertical -> {
 					LabsAddonsConfig.get().cooldownsStackVertical = isVertical;
@@ -109,8 +109,8 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	@Override
-	public Text toggleGroupsLabel() {
-		return Text.translatable("labsaddons.hud.ability_cooldowns.visibility");
+	public Component toggleGroupsLabel() {
+		return Component.translatable("labsaddons.hud.ability_cooldowns.visibility");
 	}
 
 	@Override
@@ -123,7 +123,7 @@ public class CooldownHudObject extends HudObject {
 				continue;
 			}
 			List<ToggleOption> options = keys.stream()
-					.map(k -> new ToggleOption(Text.literal(k.label()),
+					.map(k -> new ToggleOption(Component.literal(k.label()),
 							() -> !LabsAddonsConfig.get().hiddenCooldownKeys.contains(k.key()),
 							visible -> {
 								var hidden = LabsAddonsConfig.get().hiddenCooldownKeys;
@@ -135,7 +135,7 @@ public class CooldownHudObject extends HudObject {
 								LabsAddonsConfig.get().save();
 							}))
 					.toList();
-			groups.add(new ToggleGroup(Text.literal(category), options));
+			groups.add(new ToggleGroup(Component.literal(category), options));
 		}
 		return groups;
 	}
@@ -164,12 +164,12 @@ public class CooldownHudObject extends HudObject {
 		return rings;
 	}
 
-	private static TextRenderer font() {
-		return MinecraftClient.getInstance().textRenderer;
+	private static Font font() {
+		return Minecraft.getInstance().font;
 	}
 
 	private static float itemLength() {
-		return DIAMETER + TEXT_GAP + font().fontHeight;
+		return DIAMETER + TEXT_GAP + font().lineHeight;
 	}
 
 	@Override
@@ -193,20 +193,20 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		TextRenderer font = font();
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Font font = font();
 		boolean vertical = vertical();
 		float cx = RING_OUTER_RADIUS;
 		float cy = RING_OUTER_RADIUS;
 		for (Ring ring : rings(preview)) {
 			drawRing(context, cx, cy, ring);
 			if (ring.icon() != null) {
-				context.drawItem(ring.icon(), Math.round(cx - ICON_SIZE / 2f), Math.round(cy - ICON_SIZE / 2f));
+				context.item(ring.icon(), Math.round(cx - ICON_SIZE / 2f), Math.round(cy - ICON_SIZE / 2f));
 			}
 			String text = timeText(ring);
 			if (text != null) {
 				int textY = Math.round(cy - RING_OUTER_RADIUS + DIAMETER + TEXT_GAP);
-				context.drawCenteredTextWithShadow(font, text, Math.round(cx), textY, TEXT_COLOR);
+				context.centeredText(font, text, Math.round(cx), textY, TEXT_COLOR);
 			}
 			if (vertical) {
 				cy += itemLength() + GAP;
@@ -222,7 +222,7 @@ public class CooldownHudObject extends HudObject {
 		return ring.active() ? null : TimeFormat.precise(ring.remainingMs());
 	}
 
-	private static void drawRing(DrawContext context, float cx, float cy, Ring ring) {
+	private static void drawRing(GuiGraphicsExtractor context, float cx, float cy, Ring ring) {
 		if (ring.active()) {
 			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, angleDeg -> COLOR_ACTIVE);
 		} else if (ring.ready()) {
@@ -250,7 +250,7 @@ public class CooldownHudObject extends HudObject {
 	 * each pixel is touched exactly once, so there's no overlap for translucency to
 	 * compound into a moiré.
 	 */
-	private static void fillRingAA(DrawContext context, float cx, float cy, float innerR, float outerR,
+	private static void fillRingAA(GuiGraphicsExtractor context, float cx, float cy, float innerR, float outerR,
 			AngleColorFn colorFn) {
 		int top = (int) Math.floor(cy - outerR - 1);
 		int bottom = (int) Math.ceil(cy + outerR + 1);

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.mastery;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * One active Mastery challenge as shown in the {@code /mastery} GUI: the quest's

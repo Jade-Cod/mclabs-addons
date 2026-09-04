@@ -1,13 +1,13 @@
 package dev.jade.labsaddons.hud;
 
 import dev.jade.labsaddons.BiteMarkerHud;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.DeltaTracker;
 
 /**
  * Draws every labsaddons HUD element from a single hook at the tail of the vanilla
- * HUD render (see {@code InGameHudMixin}).
+ * HUD render (see {@code HudMixin}).
  *
  * <p>Historically these elements were registered through Fabric's
  * {@code HudElementRegistry.addLast}, but client overlays such as Feather replace
@@ -21,14 +21,14 @@ public final class HudRenderDispatcher {
 	}
 
 	/** Draws the bite marker and all widgets, honouring F1 and the editor screen. */
-	public static void renderAll(DrawContext context, RenderTickCounter tickCounter) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.options.hudHidden) {
+	public static void renderAll(GuiGraphicsExtractor context, DeltaTracker tickCounter) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.gui.hud.isHidden()) {
 			return;
 		}
 		// The editor draws its own preview widgets; skip the live pass while it is
 		// open so active widgets aren't drawn twice underneath the previews.
-		if (client.currentScreen instanceof HudEditScreen) {
+		if (client.gui.screen() instanceof HudEditScreen) {
 			return;
 		}
 

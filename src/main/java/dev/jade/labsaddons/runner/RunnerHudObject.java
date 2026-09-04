@@ -2,10 +2,10 @@ package dev.jade.labsaddons.runner;
 
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +46,7 @@ public class RunnerHudObject extends HudObject {
 
     @Override
     public EditorAction editorAction() {
-        return new EditorAction(Text.translatable("labsaddons.hud.runner_jobs.reset"), RunnerTracker::resetSession);
+        return new EditorAction(Component.translatable("labsaddons.hud.runner_jobs.reset"), RunnerTracker::resetSession);
     }
 
     private record Row(String text, int color) {
@@ -87,26 +87,26 @@ public class RunnerHudObject extends HudObject {
 
     @Override
     public int contentWidth(boolean preview) {
-        TextRenderer font = MinecraftClient.getInstance().textRenderer;
+        Font font = Minecraft.getInstance().font;
         return rows(preview).stream()
-                .mapToInt(row -> font.getWidth(row.text()))
+                .mapToInt(row -> font.width(row.text()))
                 .max().orElse(0);
     }
 
     @Override
     public int contentHeight(boolean preview) {
         List<Row> rows = rows(preview);
-        int fontHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+        int fontHeight = Minecraft.getInstance().font.lineHeight;
         return rows.size() * fontHeight + Math.max(0, rows.size() - 1) * LINE_GAP;
     }
 
     @Override
-    protected void renderContent(DrawContext context, boolean preview) {
-        TextRenderer font = MinecraftClient.getInstance().textRenderer;
-        int fontHeight = font.fontHeight;
+    protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+        Font font = Minecraft.getInstance().font;
+        int fontHeight = font.lineHeight;
         int y = 0;
         for (Row row : rows(preview)) {
-            context.drawText(font, Text.literal(row.text()), 0, y, row.color(), true);
+            context.text(font, Component.literal(row.text()), 0, y, row.color(), true);
             y += fontHeight + LINE_GAP;
         }
     }

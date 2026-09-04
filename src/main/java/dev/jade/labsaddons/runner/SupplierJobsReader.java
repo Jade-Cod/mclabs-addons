@@ -1,12 +1,12 @@
 package dev.jade.labsaddons.runner;
 
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
 
@@ -34,11 +34,11 @@ public final class SupplierJobsReader {
 	}
 
 	/** @return true if this looked like the /supplier GUI (and the count was reconciled). */
-	public static boolean tryRead(HandledScreen<?> screen) {
-		ScreenHandler handler = screen.getScreenHandler();
+	public static boolean tryRead(AbstractContainerScreen<?> screen) {
+		AbstractContainerMenu handler = screen.getMenu();
 		int jobs = 0;
 		for (Slot slot : handler.slots) {
-			ItemStack stack = slot.getStack();
+			ItemStack stack = slot.getItem();
 			if (!stack.isEmpty() && isSupplierJob(stack)) {
 				jobs++;
 			}
@@ -52,13 +52,13 @@ public final class SupplierJobsReader {
 
 	/** A slot on your own /supplier menu (unclaimed or claimed), excluding the public board. */
 	private static boolean isSupplierJob(ItemStack stack) {
-		LoreComponent lore = stack.get(DataComponentTypes.LORE);
+		ItemLore lore = stack.get(DataComponents.LORE);
 		if (lore == null) {
 			return false;
 		}
 		boolean own = false;
 		boolean board = false;
-		for (Text line : lore.lines()) {
+		for (Component line : lore.lines()) {
 			String text = line.getString().toLowerCase(Locale.ROOT);
 			if (text.contains(CANCEL) || text.contains(CLAIMED)) {
 				own = true;

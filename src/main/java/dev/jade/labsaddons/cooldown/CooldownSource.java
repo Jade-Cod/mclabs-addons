@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.cooldown;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;

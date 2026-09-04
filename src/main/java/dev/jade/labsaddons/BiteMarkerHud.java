@@ -1,15 +1,15 @@
 package dev.jade.labsaddons;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import dev.jade.labsaddons.mixin.CameraAccessor;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldExtractionContext;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.entity.projectile.FishingBobberEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.world.entity.projectile.FishingHook;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
@@ -29,45 +29,46 @@ public final class BiteMarkerHud {
 	// View/projection of the frame being rendered, captured at extraction end.
 	private static final Matrix4f VIEW = new Matrix4f();
 	private static final Matrix4f PROJECTION = new Matrix4f();
-	private static Vec3d cameraPos = Vec3d.ZERO;
+	private static Vec3 cameraPos = Vec3.ZERO;
 	private static float tickProgress;
 	private static boolean frameValid;
 
 	private BiteMarkerHud() {
 	}
 
-	/** WorldRenderEvents.END_EXTRACTION: capture this frame's camera matrices. */
-	public static void onEndExtraction(WorldExtractionContext context) {
-		VIEW.set(context.viewMatrix());
-		PROJECTION.set(context.cullProjectionMatrix());
-		cameraPos = ((CameraAccessor) context.camera()).getPos();
-		tickProgress = context.tickCounter().getTickProgress(false);
+	/** LevelExtractionEvents.END_EXTRACTION: capture this frame's camera matrices. */
+	public static void onEndExtraction(LevelExtractionContext context) {
+		CameraRenderState camera = context.levelState().cameraRenderState;
+		VIEW.set(camera.viewRotationMatrix);
+		PROJECTION.set(camera.projectionMatrix);
+		cameraPos = camera.pos;
+		tickProgress = context.deltaTracker().getGameTimeDeltaPartialTick(false);
 		frameValid = true;
 	}
 
 	/** HudElementRegistry element: project and draw the marker. */
-	public static void render(DrawContext drawContext, RenderTickCounter tickCounter) {
+	public static void render(GuiGraphicsExtractor drawContext, DeltaTracker tickCounter) {
 		if (!frameValid) {
 			return;
 		}
 
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.player == null || client.options.hudHidden) {
+		Minecraft client = Minecraft.getInstance();
+		if (client.player == null || client.gui.hud.isHidden()) {
 			return;
 		}
 
-		FishingBobberEntity bobber = client.player.fishHook;
+		FishingHook bobber = client.player.fishing;
 		if (bobber == null) {
 			return;
 		}
 
-		Text marker = BiteMarker.markerFor(bobber);
+		Component marker = BiteMarker.markerFor(bobber);
 		if (marker == null) {
 			return;
 		}
 
-		Vec3d labelOffset = BiteMarker.labelPosFor(bobber, tickProgress);
-		Vec3d world = bobber.getLerpedPos(tickProgress).add(labelOffset);
+		Vec3 labelOffset = BiteMarker.labelPosFor(bobber, tickProgress);
+		Vec3 world = bobber.getPosition(tickProgress).add(labelOffset);
 
 		// Camera-relative position through view + projection into clip space.
 		Vector4f clip = new Vector4f(
@@ -81,18 +82,18 @@ public final class BiteMarkerHud {
 			return;
 		}
 
-		float screenX = (clip.x / clip.w * 0.5f + 0.5f) * drawContext.getScaledWindowWidth();
-		float screenY = (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * drawContext.getScaledWindowHeight();
+		float screenX = (clip.x / clip.w * 0.5f + 0.5f) * drawContext.guiWidth();
+		float screenY = (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * drawContext.guiHeight();
 
-		TextRenderer textRenderer = client.textRenderer;
+		Font font = client.font;
 		float scale = BASE_SCALE * LabsAddonsConfig.get().markerScale;
-		float halfWidth = textRenderer.getWidth(marker) / 2.0f;
+		float halfWidth = font.width(marker) / 2.0f;
 
-		drawContext.getMatrices().pushMatrix();
-		drawContext.getMatrices().translate(screenX, screenY);
-		drawContext.getMatrices().scale(scale, scale);
-		drawContext.drawTextWithShadow(textRenderer, marker,
-				Math.round(-halfWidth), -textRenderer.fontHeight, 0xFFFFFFFF);
-		drawContext.getMatrices().popMatrix();
+		drawContext.pose().pushMatrix();
+		drawContext.pose().translate(screenX, screenY);
+		drawContext.pose().scale(scale, scale);
+		drawContext.text(font, marker,
+				Math.round(-halfWidth), -font.lineHeight, 0xFFFFFFFF);
+		drawContext.pose().popMatrix();
 	}
 }

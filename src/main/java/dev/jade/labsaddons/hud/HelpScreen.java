@@ -3,12 +3,12 @@ package dev.jade.labsaddons.hud;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,11 +69,11 @@ public class HelpScreen extends Screen {
 	private int maxScroll;
 
 	/** A single rendered line: its text, colour, left indent and the gap above it. */
-	private record Line(OrderedText text, int color, int indent, int gapAbove) {
+	private record Line(FormattedCharSequence text, int color, int indent, int gapAbove) {
 	}
 
 	public HelpScreen(Screen parent, boolean firstRun) {
-		super(Text.translatable("labsaddons.hud.help.title"));
+		super(Component.translatable("labsaddons.hud.help.title"));
 		this.parent = parent;
 		this.firstRun = firstRun;
 		// Persist "seen" immediately so the welcome can never reappear, even if the
@@ -107,9 +107,9 @@ public class HelpScreen extends Screen {
 		this.maxScroll = Math.max(0, linesContentH - (linesViewBottom - linesViewTop));
 		this.scrollOffset = 0;
 
-		this.addDrawableChild(ButtonWidget.builder(
-						Text.translatable("labsaddons.hud.help.dismiss"), b -> this.close())
-				.dimensions(this.width / 2 - BUTTON_W / 2, buttonY, BUTTON_W, BUTTON_H).build());
+		this.addRenderableWidget(Button.builder(
+						Component.translatable("labsaddons.hud.help.dismiss"), b -> this.onClose())
+				.bounds(this.width / 2 - BUTTON_W / 2, buttonY, BUTTON_W, BUTTON_H).build());
 	}
 
 	private void buildLines() {
@@ -117,48 +117,48 @@ public class HelpScreen extends Screen {
 		int innerW = CARD_W - 2 * PAD;
 
 		add(bold("MCLabs Addons"), EditorTheme.TITLE, 0, 0, innerW);
-		add(Text.literal(firstRun
+		add(Component.literal(firstRun
 						? "Thanks for downloading — here’s the quick tour."
 						: "Quick reference for syncing and your HUD."),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 
 		add(bold("SYNC COMMANDS"), EditorTheme.TEXT_ACCENT, 0, SECTION_GAP, innerW);
-		add(Text.literal("Run these so the HUD matches the server:"),
+		add(Component.literal("Run these so the HUD matches the server:"),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 		for (String[] command : SYNC_COMMANDS) {
-			add(Text.literal(command[0]), EditorTheme.TEXT_ACCENT, 0, 4, innerW);
-			add(Text.literal(command[1]), EditorTheme.TEXT_DIM, INDENT, 1, innerW - INDENT);
+			add(Component.literal(command[0]), EditorTheme.TEXT_ACCENT, 0, 4, innerW);
+			add(Component.literal(command[1]), EditorTheme.TEXT_DIM, INDENT, 1, innerW - INDENT);
 		}
 
 		add(bold("AUTOMATIC"), EditorTheme.TEXT_ACCENT, 0, SECTION_GAP, innerW);
-		add(Text.literal("Boosters, mini-events, the Pit, bounties, rental mounts and the "
+		add(Component.literal("Boosters, mini-events, the Pit, bounties, rental mounts and the "
 						+ "Chum timer track themselves from chat — just play."),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 
 		add(bold("YOUR HUD"), EditorTheme.TEXT_ACCENT, 0, SECTION_GAP, innerW);
-		add(Text.literal("Drag to move, pull the handles to resize, click a widget for colours."),
+		add(Component.literal("Drag to move, pull the handles to resize, click a widget for colours."),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
-		add(Text.literal("Reopen this guide anytime with the Help button."),
+		add(Component.literal("Reopen this guide anytime with the Help button."),
 				EditorTheme.TEXT_DIM, 0, 1, innerW);
 	}
 
 	/** Wraps {@code text} to {@code wrapW} and appends each visual line; only the
 	 *  first wrapped line carries {@code gapAbove}. */
-	private void add(Text text, int color, int indent, int gapAbove, int wrapW) {
+	private void add(Component text, int color, int indent, int gapAbove, int wrapW) {
 		int gap = gapAbove;
-		for (OrderedText ordered : this.textRenderer.wrapLines(text, wrapW)) {
+		for (FormattedCharSequence ordered : this.font.split(text, wrapW)) {
 			lines.add(new Line(ordered, color, indent, gap));
 			gap = 0;
 		}
 	}
 
-	private static Text bold(String text) {
-		return Text.literal(text).styled(style -> style.withBold(true));
+	private static Component bold(String text) {
+		return Component.literal(text).withStyle(style -> style.withBold(true));
 	}
 
 	@Override
-	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-		super.renderBackground(context, mouseX, mouseY, delta);
+	public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+		super.extractBackground(context, mouseX, mouseY, delta);
 		float fade = fade();
 
 		// Layered, transparent drop shadow so the card reads above the dimmed editor.
@@ -174,7 +174,7 @@ public class HelpScreen extends Screen {
 		for (Line line : lines) {
 			y += line.gapAbove();
 			if (y + LINE_H >= linesViewTop && y <= linesViewBottom) {
-				context.drawText(this.textRenderer, line.text(), x + line.indent(), y, mul(line.color(), fade), false);
+				context.text(this.font, line.text(), x + line.indent(), y, mul(line.color(), fade), false);
 			}
 			y += LINE_H;
 		}
@@ -183,13 +183,13 @@ public class HelpScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-		scrollOffset = MathHelper.clamp(scrollOffset - (int) Math.round(verticalAmount) * LINE_H * 2, 0, maxScroll);
+		scrollOffset = Mth.clamp(scrollOffset - (int) Math.round(verticalAmount) * LINE_H * 2, 0, maxScroll);
 		return true;
 	}
 
 	/** Smoothstep 0..1 over the first {@link #FADE_MS} after the screen opens. */
 	private float fade() {
-		float t = MathHelper.clamp((System.currentTimeMillis() - openTimeMs) / (float) FADE_MS, 0f, 1f);
+		float t = Mth.clamp((System.currentTimeMillis() - openTimeMs) / (float) FADE_MS, 0f, 1f);
 		return t * t * (3 - 2 * t);
 	}
 
@@ -200,9 +200,9 @@ public class HelpScreen extends Screen {
 	}
 
 	@Override
-	public void close() {
-		if (this.client != null) {
-			this.client.setScreen(this.parent);
+	public void onClose() {
+		if (this.minecraft != null) {
+			this.minecraft.setScreenAndShow(this.parent);
 		}
 	}
 }

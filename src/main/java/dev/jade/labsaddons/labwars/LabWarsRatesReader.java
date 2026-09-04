@@ -1,12 +1,12 @@
 package dev.jade.labsaddons.labwars;
 
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,12 +35,12 @@ public final class LabWarsRatesReader {
 	}
 
 	/** @return true if this looks like the /lw rates GUI. */
-	public static boolean tryRead(HandledScreen<?> screen) {
-		ScreenHandler handler = screen.getScreenHandler();
+	public static boolean tryRead(AbstractContainerScreen<?> screen) {
+		AbstractContainerMenu handler = screen.getMenu();
 		boolean looksLikeRates = false;
 
 		for (Slot slot : handler.slots) {
-			ItemStack stack = slot.getStack();
+			ItemStack stack = slot.getItem();
 			if (stack.isEmpty()) {
 				continue;
 			}
@@ -100,15 +100,15 @@ public final class LabWarsRatesReader {
 	}
 
 	private static String nameString(ItemStack stack) {
-		Text name = stack.get(DataComponentTypes.CUSTOM_NAME);
-		return name != null ? name.getString() : stack.getName().getString();
+		Component name = stack.get(DataComponents.CUSTOM_NAME);
+		return name != null ? name.getString() : stack.getHoverName().getString();
 	}
 
 	private static List<String> loreStrings(ItemStack stack) {
-		LoreComponent lore = stack.get(DataComponentTypes.LORE);
+		ItemLore lore = stack.get(DataComponents.LORE);
 		if (lore == null) {
 			return List.of();
 		}
-		return lore.lines().stream().map(Text::getString).toList();
+		return lore.lines().stream().map(Component::getString).toList();
 	}
 }

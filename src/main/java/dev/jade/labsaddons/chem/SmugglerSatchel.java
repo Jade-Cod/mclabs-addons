@@ -1,11 +1,11 @@
 package dev.jade.labsaddons.chem;
 
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.Text;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -50,20 +50,20 @@ public final class SmugglerSatchel {
 	}
 
 	/** @return true if this was the satchel GUI (and the remembered contents were refreshed). */
-	public static boolean tryRead(HandledScreen<?> screen) {
+	public static boolean tryRead(AbstractContainerScreen<?> screen) {
 		if (!screen.getTitle().getString().toLowerCase(Locale.ROOT).contains(TITLE_MARKER)) {
 			return false;
 		}
 		ChemItems.ChemKey largest = null;
 		int largestCount = 0;
 		boolean anyItem = false;
-		for (Slot slot : screen.getScreenHandler().slots) {
+		for (Slot slot : screen.getMenu().slots) {
 			// The player's own inventory is mirrored into the bottom of every chest
 			// GUI; only the satchel's own slots say what the satchel holds.
-			if (slot.inventory instanceof PlayerInventory) {
+			if (slot.container instanceof Inventory) {
 				continue;
 			}
-			ItemStack stack = slot.getStack();
+			ItemStack stack = slot.getItem();
 			if (stack.isEmpty()) {
 				continue;
 			}
@@ -121,8 +121,8 @@ public final class SmugglerSatchel {
 		if (ChemItems.isChem(stack)) {
 			return ChemItems.keyOf(stack);
 		}
-		Text custom = stack.get(DataComponentTypes.CUSTOM_NAME);
-		String label = custom != null ? custom.getString() : stack.getName().getString();
+		Component custom = stack.get(DataComponents.CUSTOM_NAME);
+		String label = custom != null ? custom.getString() : stack.getHoverName().getString();
 		ChemItems.ChemKey parsed = ChemItems.parseLabel(COUNT_SUFFIX.matcher(label).replaceAll("").trim());
 		return parsed.chem().isEmpty() ? null : parsed;
 	}

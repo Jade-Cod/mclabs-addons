@@ -3,10 +3,10 @@ package dev.jade.labsaddons.mixin;
 import dev.jade.labsaddons.hud.HudRenderDispatcher;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.Hud;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,31 +18,31 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <p>This replaces Fabric's {@code HudElementRegistry.addLast} dispatch, which
  * client overlays such as Feather break by replacing the per-element vanilla
  * render anchors Fabric hangs its layers off of. Injecting at the return of
- * {@link InGameHud#render} is anchored to the method itself, not to any single
+ * {@link Hud#render} is anchored to the method itself, not to any single
  * vanilla element, so it survives the overlay and still runs in plain vanilla.
  */
-@Mixin(InGameHud.class)
-public abstract class InGameHudMixin {
+@Mixin(Hud.class)
+public abstract class HudMixin {
 	@Inject(
-			method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V",
+			method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/DeltaTracker;)V",
 			at = @At("TAIL")
 	)
-	private void labsaddons$renderHudElements(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+	private void labsaddons$renderHudElements(GuiGraphicsExtractor context, DeltaTracker tickCounter, CallbackInfo ci) {
 		HudRenderDispatcher.renderAll(context, tickCounter);
 	}
 
 	/**
 	 * Actionbar text can arrive two ways: system chat with the overlay flag, or
-	 * the dedicated Set Action Bar Text packet. Fabric's
+	 * the dedicated Set Action Bar Component packet. Fabric's
 	 * {@code ClientReceiveMessageEvents.GAME} only fires for the former — mcMMO
 	 * on Paper uses the packet, so both paths are captured here where they
 	 * converge instead.
 	 */
 	@Inject(
-			method = "setOverlayMessage(Lnet/minecraft/text/Text;Z)V",
+			method = "setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V",
 			at = @At("HEAD")
 	)
-	private void labsaddons$captureOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
+	private void labsaddons$captureOverlayMessage(Component message, boolean tinted, CallbackInfo ci) {
 		if (message != null) {
 			McmmoCooldownTracker.onMessage(message.getString());
 			PitItemCooldownTracker.onMessage(message.getString());

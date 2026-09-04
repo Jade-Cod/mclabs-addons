@@ -2,9 +2,9 @@ package dev.jade.labsaddons;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,23 +70,23 @@ final class KeybindMigration {
 	}
 
 	/** CLIENT_STARTED phase: bind the captured keys and persist them. */
-	static void apply(MinecraftClient client, KeyBinding chumEditor,
-			KeyBinding chemDeposit, KeyBinding chemWithdraw) {
+	static void apply(Minecraft client, KeyMapping chumEditor,
+			KeyMapping chemDeposit, KeyMapping chemWithdraw) {
 		if (pending.isEmpty()) {
 			return;
 		}
-		Map<String, KeyBinding> bindings = Map.of(
+		Map<String, KeyMapping> bindings = Map.of(
 				"chum_editor", chumEditor,
 				"chem_deposit", chemDeposit,
 				"chem_withdraw", chemWithdraw);
 		boolean changed = false;
 		for (Map.Entry<String, String> entry : pending.entrySet()) {
-			KeyBinding binding = bindings.get(entry.getKey());
+			KeyMapping binding = bindings.get(entry.getKey());
 			if (binding == null) {
 				continue;
 			}
 			try {
-				binding.setBoundKey(InputUtil.fromTranslationKey(entry.getValue()));
+				binding.setKey(InputConstants.getKey(entry.getValue()));
 				changed = true;
 			} catch (IllegalArgumentException ignored) {
 				// Unparsable key name — keep this binding's default.
@@ -94,8 +94,8 @@ final class KeybindMigration {
 		}
 		pending = Map.of();
 		if (changed) {
-			KeyBinding.updateKeysByCode();
-			client.options.write();
+			KeyMapping.resetMapping();
+			client.options.save();
 			LOGGER.info("[labsaddons] Carried over pre-rename keybind rebinds from options.txt.");
 		}
 	}

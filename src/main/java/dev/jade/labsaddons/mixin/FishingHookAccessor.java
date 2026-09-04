@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.mixin;
 
-import net.minecraft.entity.data.TrackedData;
-import net.minecraft.entity.projectile.FishingBobberEntity;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.world.entity.projectile.FishingHook;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -11,10 +11,10 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  * bobber has been pulled under, which is exactly the window in which reeling in
  * lands a catch.
  */
-@Mixin(FishingBobberEntity.class)
-public interface FishingBobberEntityAccessor {
-	@Accessor("CAUGHT_FISH")
-	static TrackedData<Boolean> getCaughtFishTracker() {
+@Mixin(FishingHook.class)
+public interface FishingHookAccessor {
+	@Accessor("DATA_BITING")
+	static EntityDataAccessor<Boolean> getBitingTracker() {
 		throw new AssertionError("Mixin accessor was not applied");
 	}
 }

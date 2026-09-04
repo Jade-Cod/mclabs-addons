@@ -134,7 +134,7 @@ public final class PitItemCooldownTracker {
 
 				@Override
 				@Nullable
-				public net.minecraft.item.ItemStack iconFor(String key) {
+				public net.minecraft.world.item.ItemStack iconFor(String key) {
 					return PitItemIcons.iconFor(key);
 				}
 

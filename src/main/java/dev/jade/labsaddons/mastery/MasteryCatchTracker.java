@@ -1,10 +1,10 @@
 package dev.jade.labsaddons.mastery;
 
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -19,7 +19,7 @@ import java.util.Map;
  * the one place the catch shows up either way: whether the server spawns an item at
  * the bobber (vanilla behaviour) or hands it straight to the player, the stack ends
  * up in the inventory. This mirrors {@code ChemtainerDepositCapture}'s snapshot-and-
- * diff of {@link PlayerInventory}.
+ * diff of {@link Inventory}.
  *
  * <p>Crediting is gated on actually fishing — a bobber in the water, plus a short
  * grace window so the catch still counts once the bobber is gone on reel-in. Without
@@ -48,13 +48,13 @@ public final class MasteryCatchTracker {
 	}
 
 	/** @return true if a catch advanced an active challenge, so the caller can persist the board. */
-	public static boolean tick(ClientPlayerEntity player) {
+	public static boolean tick(LocalPlayer player) {
 		Map<String, String> targets = activeCatchTargets();
 		if (targets.isEmpty()) {
 			reset();
 			return false;
 		}
-		return observe(count(player.getInventory(), targets), player.fishHook != null);
+		return observe(count(player.getInventory(), targets), player.fishing != null);
 	}
 
 	/**
@@ -87,15 +87,15 @@ public final class MasteryCatchTracker {
 	}
 
 	/** Total held per challenge name, counting only items an active challenge asks for. */
-	private static Map<String, Integer> count(PlayerInventory inventory, Map<String, String> targets) {
+	private static Map<String, Integer> count(Inventory inventory, Map<String, String> targets) {
 		Map<String, Integer> totals = new HashMap<>();
 		// Seed every target at zero: a stack that runs out must still be a known key,
 		// otherwise its baseline vanishes and the next catch reads as a fresh gain.
 		for (String challenge : targets.values()) {
 			totals.put(challenge, 0);
 		}
-		for (int i = 0; i < inventory.size(); i++) {
-			ItemStack stack = inventory.getStack(i);
+		for (int i = 0; i < inventory.getContainerSize(); i++) {
+			ItemStack stack = inventory.getItem(i);
 			if (stack.isEmpty()) {
 				continue;
 			}
@@ -109,8 +109,8 @@ public final class MasteryCatchTracker {
 
 	/** The server's rename if there is one, else the item's own name. */
 	private static String displayName(ItemStack stack) {
-		Text name = stack.get(DataComponentTypes.CUSTOM_NAME);
-		return name != null ? name.getString() : stack.getName().getString();
+		Component name = stack.get(DataComponents.CUSTOM_NAME);
+		return name != null ? name.getString() : stack.getHoverName().getString();
 	}
 
 	/** Active {@code Catch X} challenges as normalised item name -> the exact challenge name. */

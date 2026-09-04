@@ -3,11 +3,11 @@ package dev.jade.labsaddons.chem;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -54,13 +54,13 @@ public class ChemtainerHudObject extends HudObject {
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.chemtainer.clear"), ChemtainerTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.chemtainer.clear"), ChemtainerTracker::clear);
 	}
 
 	@Override
 	public List<ToggleOption> toggleOptions() {
 		return List.of(new ToggleOption(
-				Text.translatable("labsaddons.hud.chemtainer.satchel"),
+				Component.translatable("labsaddons.hud.chemtainer.satchel"),
 				() -> LabsAddonsConfig.get().chemtainerSatchel,
 				value -> {
 					LabsAddonsConfig.get().chemtainerSatchel = value;
@@ -123,15 +123,15 @@ public class ChemtainerHudObject extends HudObject {
 	}
 
 	private static int rowHeight(Row row) {
-		int fontHeight = MinecraftClient.getInstance().textRenderer.fontHeight;
+		int fontHeight = Minecraft.getInstance().font.lineHeight;
 		return row.icon() != null ? Math.max(ICON_SIZE, fontHeight) : fontHeight;
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+		Font font = Minecraft.getInstance().font;
 		return rows(preview).stream()
-				.mapToInt(row -> (row.icon() != null ? ICON_SIZE + ICON_GAP : 0) + font.getWidth(row.text()))
+				.mapToInt(row -> (row.icon() != null ? ICON_SIZE + ICON_GAP : 0) + font.width(row.text()))
 				.max().orElse(0);
 	}
 
@@ -146,17 +146,17 @@ public class ChemtainerHudObject extends HudObject {
 	}
 
 	@Override
-	protected void renderContent(DrawContext context, boolean preview) {
-		TextRenderer font = MinecraftClient.getInstance().textRenderer;
+	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
+		Font font = Minecraft.getInstance().font;
 		int y = 0;
 		for (Row row : rows(preview)) {
 			int height = rowHeight(row);
 			int textX = 0;
 			if (row.icon() != null) {
-				context.drawItem(row.icon(), 0, y + (height - ICON_SIZE) / 2);
+				context.item(row.icon(), 0, y + (height - ICON_SIZE) / 2);
 				textX = ICON_SIZE + ICON_GAP;
 			}
-			context.drawText(font, Text.literal(row.text()), textX, y + (height - font.fontHeight) / 2 + 1,
+			context.text(font, Component.literal(row.text()), textX, y + (height - font.lineHeight) / 2 + 1,
 					row.color(), true);
 			y += height + LINE_GAP;
 		}

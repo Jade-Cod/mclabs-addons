@@ -2,7 +2,7 @@ package dev.jade.labsaddons.mastery;
 
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.SmugglerSatchel;
-import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.world.entity.player.Inventory;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -169,7 +169,7 @@ public final class MasterySellTracker {
 	}
 
 	/** @return true if an active challenge advanced, so the caller can persist the board. */
-	public static boolean tick(PlayerInventory inventory) {
+	public static boolean tick(Inventory inventory) {
 		if (dealerTtl > 0 && --dealerTtl == 0) {
 			dealer = null;
 		}
