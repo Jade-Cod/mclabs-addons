@@ -119,10 +119,16 @@ public class RaidMineHudObject extends HudObject {
 		return perHour <= 0 ? "" : amount(perHour) + "/h";
 	}
 
-	private int nameWidth(List<RaidMineSession.Row> rows) {
+	/**
+	 * Width of the symbol column. On screen a resource is drawn as the symbol the
+	 * server uses, not its name: the rows are glanced at mid-mine, and eight full
+	 * names would take more width than the numbers beside them. The names live in
+	 * the HUD editor's toggles instead, where there is room and time to read them.
+	 */
+	private int symbolWidth(List<RaidMineSession.Row> rows) {
 		int width = 0;
 		for (RaidMineSession.Row row : rows) {
-			width = Math.max(width, font().width(RaidMineResources.name(row.code())));
+			width = Math.max(width, font().width(row.code()));
 		}
 		return width;
 	}
@@ -132,10 +138,10 @@ public class RaidMineHudObject extends HudObject {
 		Font font = font();
 		List<RaidMineSession.Row> rows = rows(preview);
 		int width = showsTimer(preview) ? ICON_SIZE + ICON_GAP + font.width(timeText(preview)) : 0;
-		int names = nameWidth(rows);
+		int symbols = symbolWidth(rows);
 		for (RaidMineSession.Row row : rows) {
 			int value = font.width(amount(row.total()) + "  " + rate(row.perHour()));
-			width = Math.max(width, names + COLUMN_GAP + value);
+			width = Math.max(width, symbols + COLUMN_GAP + value);
 		}
 		return width;
 	}
@@ -165,19 +171,19 @@ public class RaidMineHudObject extends HudObject {
 		}
 
 		List<RaidMineSession.Row> rows = rows(preview);
-		int names = nameWidth(rows);
+		int symbols = symbolWidth(rows);
 		for (RaidMineSession.Row row : rows) {
 			y += LINE_GAP;
-			// The resource keeps the colour the server draws it in, which is what tells
-			// the Flux and Essence tiers of a resource apart at a glance.
-			context.text(font, Component.literal(RaidMineResources.name(row.code())),
+			// The symbol keeps the colour the server draws it in, which is what tells
+			// the Flux and Essence tiers of a resource apart — they share a letter.
+			context.text(font, Component.literal(row.code()),
 					0, y, row.color() | 0xFF000000, true);
 			String value = amount(row.total());
 			String perHour = rate(row.perHour());
-			context.text(font, Component.literal(value), names + COLUMN_GAP, y, color, true);
+			context.text(font, Component.literal(value), symbols + COLUMN_GAP, y, color, true);
 			if (!perHour.isEmpty()) {
 				context.text(font, Component.literal(perHour),
-						names + COLUMN_GAP + font.width(value + "  "), y, 0xFFAAAAAA, true);
+						symbols + COLUMN_GAP + font.width(value + "  "), y, 0xFFAAAAAA, true);
 			}
 			y += font.lineHeight;
 		}

@@ -3,7 +3,7 @@
 ## [1.16.0] - 2026-09-04
 
 ### Added
-- **The Raid Mine widget now tracks what you gather.** Raid mine blocks drop no items — the server shows a short-lived hologram saying what you generated — so the widget reads those holograms and keeps a running total for the session, with a per-hour rate beside each resource. All ten resources are recognised by name: Energy, the Flux and Essence tiers of Value, Progress and Score, Siege Fuel, Company Gold and Raid Points. Each keeps the colour the server draws it in, which is what tells the Flux and Essence tiers apart at a glance. A resource the server adds later still tracks, shown under its own symbol until it can be named.
+- **The Raid Mine widget now tracks what you gather.** Raid mine blocks drop no items — the server shows a short-lived hologram saying what you generated — so the widget reads those holograms and keeps a running total for the session, with a per-hour rate beside each resource. On screen each resource is shown as the server's own coloured symbol, keeping the rows narrow enough to read at a glance — the colour is what tells the Flux and Essence tiers apart, since they share a letter. Full names (Energy, the Flux and Essence tiers of Value, Progress and Score, Siege Fuel, Company Gold and Raid Points) appear in the HUD editor, where there is room for them. A resource the server adds later still tracks, under its own symbol.
 - **Choose which resources the widget shows.** Every resource seen this session gets its own on/off switch in the HUD editor's inspector, so you can watch only what you are actually farming.
 - **The widget only appears during a raid**, and its totals are cleared by a Reset Session action in the HUD editor — nothing resets on its own.
 
