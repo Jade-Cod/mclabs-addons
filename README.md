@@ -119,8 +119,10 @@ Everything updates **passively** from chat — you never have to run anything sp
   roll extends rather than restarts it) and totals up what the session has
   gathered, with a per-hour rate for each resource. Breaking a mine block drops no
   items, so the totals come from the holograms the server shows in their place.
-  Only visible during a raid; totals clear only via **Reset Session** in the HUD
-  editor, where each resource also gets its own show/hide switch.
+  Rows are drawn with the server's own coloured symbol to stay compact; the full
+  resource names appear in the HUD editor. Only visible during a raid; totals clear
+  only via **Reset Session** in the HUD editor, where each resource also gets its
+  own show/hide switch.
 
 Don't see a widget? Each one only renders when it has something to show. Open the
 HUD editor to preview and position every widget, including idle ones.
