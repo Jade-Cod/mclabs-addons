@@ -60,6 +60,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import dev.jade.labsaddons.mixin.KeyMappingCategoryAccessor;
@@ -182,6 +183,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 			}
 		});
 
+		// Attribute Pit kills. The client is never told who dealt a mob its fatal
+		// blow, so the player's own swings are the only attribution available: a
+		// mob that dies without one of these is someone else's kill.
+		AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+			if (player == Minecraft.getInstance().player && McLabsSession.isActive()) {
+				MasteryKillTracker.onPlayerHit(entity.getId());
+			}
+			return InteractionResult.PASS;
+		});
+
 		// Remember the dealer the player touched, so the next sale can be attributed to
 		// "Sell to <Dealer>". Only a hint — the sale itself is armed by the server's own
 		// confirmation line, so a missed interaction costs attribution, not tracking.
@@ -232,8 +243,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
 			RunnerAlarm.tick();
-			// Live "Kill <mob>" progress from the solo Pit: each mob death is your kill,
-			// read straight off the world since no chat line announces it.
+			// Live "Kill <mob>" progress: no chat line announces a Pit kill, so deaths
+			// are read straight off the world and matched against the mobs we hit.
 			if (client.level != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.level)) {
 				MasteryStore.save();
 			}
