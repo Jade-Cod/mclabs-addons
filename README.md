@@ -50,7 +50,7 @@ booster shows an end crystal labelled "All").
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**
    into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
-2. Put `mclabs-addons-1.16.0.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.15.1.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -213,7 +213,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 20.0.1 | optional (config screen) |
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 26.2.155 | optional (widgets on that screen) |
 
-Current mod version: **1.16.0**.
+Current mod version: **1.15.1**.
 
 ## Building
 

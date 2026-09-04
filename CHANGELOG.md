@@ -1,16 +1,21 @@
 # Changelog
 
-## [1.16.0] - 2026-09-04
-
-### Added
-- **The Raid Mine widget now tracks what you gather.** Raid mine blocks drop no items — the server shows a short-lived hologram saying what you generated — so the widget reads those holograms and keeps a running total for the session, with a per-hour rate beside each resource. On screen each resource is shown as the server's own coloured symbol and its figures are compacted ("64k", "1.32m/h"), keeping the rows narrow enough to read at a glance — the colour is what tells the Flux and Essence tiers apart, since they share a letter. Full names (Energy, the Flux and Essence tiers of Value, Progress and Score, Siege Fuel, Company Gold and Raid Points) appear in the HUD editor, where there is room for them. A resource the server adds later still tracks, under its own symbol.
-- **Choose which resources the widget shows.** Every resource seen this session gets its own on/off switch in the HUD editor's inspector, so you can watch only what you are actually farming.
-- **The widget only appears during a raid**, and its totals are cleared by a Reset Session action in the HUD editor — nothing resets on its own.
-
 ## [1.15.1] - 2026-09-04
+
+> **Updating from 1.15.0:** the in-game "update available" notice in 1.15.0 may
+> send you to the wrong download. 1.15.1 is the first release published for more
+> than one Minecraft version, and the old notice built its link from the version
+> number alone, which no longer identifies a single file — so it can offer a jar
+> built for a different Minecraft version than the one you are running, which will
+> not load. **Please download this release manually from the Modrinth page and
+> check the file matches your Minecraft version.** The notice is fixed in this
+> release, so updating from 1.15.1 onwards works normally.
 
 ### Added
 - **New Raid Mine HUD widget.** Tracks the Raid Mine's double mine drops buff, counting down the seconds you have left. Each proc stacks on whatever time is still running, so a fresh roll during an active buff extends it rather than replacing it. The duration is read from the message itself, so both the 15-second and 30-second rolls work. The widget only appears while the buff is up.
+- **The Raid Mine widget now tracks what you gather.** Raid mine blocks drop no items — the server shows a short-lived hologram saying what you generated — so the widget reads those holograms and keeps a running total for the session, with a per-hour rate beside each resource. On screen each resource is shown as the server's own coloured symbol and its figures are compacted ("64k", "1.32m/h"), keeping the rows narrow enough to read at a glance — the colour is what tells the Flux and Essence tiers apart, since they share a letter. Full names (Energy, the Flux and Essence tiers of Value, Progress and Score, Siege Fuel, Company Gold and Raid Points) appear in the HUD editor, where there is room for them. A resource the server adds later still tracks, under its own symbol.
+- **Choose which resources the widget shows.** Every resource seen this session gets its own on/off switch in the HUD editor's inspector, so you can watch only what you are actually farming.
+- **The widget only appears during a raid**, and its totals are cleared by a Reset Session action in the HUD editor — nothing resets on its own.
 
 ### Fixed
 - **The "update available" chat notice now links to the right download.** The link was built from the version number, which is about to stop being unique — the same version is published once per Minecraft version. Modrinth resolves such a link to only one of them, arbitrarily, so a player could be sent a jar built for a different Minecraft version than the one they are running. The notice now links by Modrinth's own version id, which identifies exactly one file.
