@@ -25,7 +25,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | Booster Timer | Server revenue boosters, each with its **chem icon** | "Booster activated!" chat + the `/chems` "Booster(s) active!" GUI (read only while you have it open, so you can pick up boosters you joined mid-way) |
 | Mini-Event | Upcoming + active mini-events (type, time) | "Mini-Event …" chat |
 | The Pit | Pit open window (stacks sponsor/extend) | "The Pit …" chat |
-| Raid Mine | Double mine drops countdown | "Double mine drops for N seconds!" chat (each proc stacks on the time left) |
+| Raid Mine | Double mine drops countdown, plus session totals and per-hour rates for every resource gathered | "Double mine drops for N seconds!" chat; resource holograms read from the world (the mine drops no items) |
 | Lab Wars Boosters | Per-category revenue boosts (multiplier + time) | "Lab Wars …" chat + the `/lw rates` GUI (read only while you have it open) |
 | Rental Mount | Rental mount access time | "purchased temporary access" chat; or right-click a Mount Rental Coupon |
 | Personal Boosters | Chem-price + prestige boosts | redeem chat + `/checkboost` output |
@@ -50,7 +50,7 @@ booster shows an end crystal labelled "All").
 1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**
    into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
-2. Put `mclabs-addons-1.15.1.jar` in `mods` and launch. The mod is **client-side**,
+2. Put `mclabs-addons-1.16.0.jar` in `mods` and launch. The mod is **client-side**,
    so it works on the MCLabs server with nothing installed server-side.
 
 ### First launch
@@ -115,8 +115,12 @@ Everything updates **passively** from chat — you never have to run anything sp
   counting.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
-- **Raid Mine** — counts down the Raid Mine's double mine drops buff. Procs stack,
-  so a fresh roll while one is running extends it instead of restarting it.
+- **Raid Mine** — counts down the double mine drops buff (procs stack, so a fresh
+  roll extends rather than restarts it) and totals up what the session has
+  gathered, with a per-hour rate for each resource. Breaking a mine block drops no
+  items, so the totals come from the holograms the server shows in their place.
+  Only visible during a raid; totals clear only via **Reset Session** in the HUD
+  editor, where each resource also gets its own show/hide switch.
 
 Don't see a widget? Each one only renders when it has something to show. Open the
 HUD editor to preview and position every widget, including idle ones.
@@ -206,7 +210,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | optional (widgets on that screen) |
 
-Current mod version: **1.15.1**.
+Current mod version: **1.16.0**.
 
 ## Building
 
