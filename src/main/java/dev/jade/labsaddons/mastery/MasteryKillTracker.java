@@ -12,9 +12,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Advances the {@code Kill <mob>} Mastery challenges live from the world. The Pit
- * is solo, so every mob death there is the player's own kill and no attribution is
- * needed — and no chat line announces it, so the death has to be read off the world.
+ * Advances the {@code Kill <mob>} Mastery challenges live from the world. No chat
+ * line announces a Pit kill, so the death has to be read off the world — and the
+ * Pit is not private: mobs another player is fighting die in front of you too, so
+ * the death alone is not enough. A kill only counts as yours if you landed the
+ * blow that ended it.
  *
  * <p>A dying mob is observable client-side from its own custom name (the name tag):
  * the server rewrites that tag to a heart bar while you fight the mob and back to the
@@ -24,20 +26,47 @@ import java.util.Set;
  * then credit the kill exactly once when it dies (the death animation lingers ~20
  * ticks, all reporting {@code isDead()}).
  *
+ * <p>Attribution comes from {@link #onPlayerHit}, which the client fires when the
+ * player attacks an entity. A death only counts if our own last hit on that mob
+ * landed within {@link #LAST_HIT_WINDOW_MS} of it, which is what separates the mob
+ * you just killed from the one you tagged and abandoned.
+ *
  * <p>Gated implicitly on an active {@code Kill} challenge: with none, nothing is
  * scanned, and {@link MasteryTracker#advance} ignores any mob whose challenge the
- * player has not selected — so a plain-name mob elsewhere can never miscredit. The
- * bumps are optimistic; the next {@code /mastery} scrape reconciles against the server.
+ * player has not selected. The bumps are optimistic; the next {@code /mastery}
+ * scrape reconciles against the server.
  */
 public final class MasteryKillTracker {
+	/**
+	 * How recently we must have hit a mob for its death to read as our kill. The
+	 * client is never told who dealt the fatal blow, so this is the closest we get:
+	 * long enough to cover the swing-to-death gap, short enough that a mob we walked
+	 * away from and someone else finished is no longer ours.
+	 *
+	 * <p>ponytail: a mob we hit that someone else finishes within the window still
+	 * counts for us. Narrowing that needs the server to name the killer.
+	 */
+	public static final long LAST_HIT_WINDOW_MS = 2_000L;
+
 	private static final String KILL_PREFIX = "kill ";
 
 	// entity id -> the active challenge its tag matched; survives the heart-bar phase.
 	private static final Map<Integer, String> matched = new HashMap<>();
+	// entity id -> when we last attacked it, the only kill attribution the client has.
+	private static final Map<Integer, Long> hitAtMs = new HashMap<>();
 	// Ids already credited, so the multi-tick death animation counts a kill once.
 	private static final Set<Integer> counted = new HashSet<>();
 
 	private MasteryKillTracker() {
+	}
+
+	/** Records that the player just attacked this entity. */
+	public static void onPlayerHit(int entityId) {
+		onPlayerHit(entityId, System.currentTimeMillis());
+	}
+
+	static void onPlayerHit(int entityId, long nowMs) {
+		hitAtMs.put(entityId, nowMs);
 	}
 
 	/** @return true if a kill advanced an active challenge, so the caller can persist the board. */
@@ -47,6 +76,7 @@ public final class MasteryKillTracker {
 			reset();
 			return false;
 		}
+		long nowMs = System.currentTimeMillis();
 		Set<Integer> present = new HashSet<>();
 		boolean advanced = false;
 		for (Entity entity : world.getEntities()) {
@@ -56,22 +86,23 @@ public final class MasteryKillTracker {
 			int id = mob.getId();
 			present.add(id);
 			Text name = mob.getCustomName();
-			advanced |= observe(id, name == null ? null : name.getString(), mob.isDead(), targets);
+			advanced |= observe(id, name == null ? null : name.getString(), mob.isDead(), targets, nowMs);
 		}
-		// Bound both maps to currently-loaded entities: a removed mob's id drops out
+		// Bound the maps to currently-loaded entities: a removed mob's id drops out
 		// (it has already been counted), and a reused id starts tracking fresh.
 		matched.keySet().retainAll(present);
+		hitAtMs.keySet().retainAll(present);
 		counted.retainAll(present);
 		return advanced;
 	}
 
 	/**
 	 * Records one mob sighting for a tick. Minecraft-free seam so the matching,
-	 * heart-phase survival, and count-once behaviour are unit-testable.
+	 * heart-phase survival, attribution, and count-once behaviour are unit-testable.
 	 *
 	 * @return true if this call is the one that credits the kill.
 	 */
-	static boolean observe(int id, String tag, boolean dead, Map<String, String> targets) {
+	static boolean observe(int id, String tag, boolean dead, Map<String, String> targets, long nowMs) {
 		String challenge = matched.get(id);
 		if (challenge == null && tag != null) {
 			challenge = matchChallenge(tag, targets);
@@ -79,10 +110,16 @@ public final class MasteryKillTracker {
 				matched.put(id, challenge);
 			}
 		}
-		if (challenge != null && dead && counted.add(id)) {
+		if (challenge != null && dead && weLandedTheLastHit(id, nowMs) && counted.add(id)) {
 			return MasteryTracker.advance(challenge, 1);
 		}
 		return false;
+	}
+
+	/** Whether our own hit on this mob is recent enough to have been the killing blow. */
+	private static boolean weLandedTheLastHit(int id, long nowMs) {
+		Long hitMs = hitAtMs.get(id);
+		return hitMs != null && nowMs - hitMs <= LAST_HIT_WINDOW_MS;
 	}
 
 	/** Active {@code Kill X} challenges as lowercase mob name -> the exact challenge name. */
@@ -114,6 +151,7 @@ public final class MasteryKillTracker {
 	/** Drop all per-session state (call on disconnect / when no Kill challenge is active). */
 	public static void reset() {
 		matched.clear();
+		hitAtMs.clear();
 		counted.clear();
 	}
 }

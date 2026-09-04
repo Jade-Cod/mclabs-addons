@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.15.1] - 2026-09-04
+
+### Added
+- **New Raid Mine HUD widget.** Tracks the Raid Mine's double mine drops buff, counting down the seconds you have left. Each proc stacks on whatever time is still running, so a fresh roll during an active buff extends it rather than replacing it. The duration is read from the message itself, so both the 15-second and 30-second rolls work. The widget only appears while the buff is up.
+
+### Fixed
+- **The "update available" chat notice now links to the right download.** The link was built from the version number, which is about to stop being unique — the same version is published once per Minecraft version. Modrinth resolves such a link to only one of them, arbitrarily, so a player could be sent a jar built for a different Minecraft version than the one they are running. The notice now links by Modrinth's own version id, which identifies exactly one file.
+- **Pit kills are only credited when you landed the last hit.** The Pit is shared, so mobs other players were fighting died in front of you and counted toward your `Kill <mob>` Mastery challenge. A kill now only counts if one of your own hits landed on that mob within the last two seconds.
+
 ## [1.15.0] - 2026-08-09
 
 ### Added
