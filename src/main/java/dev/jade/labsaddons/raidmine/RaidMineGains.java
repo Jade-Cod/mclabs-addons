@@ -24,7 +24,14 @@ public final class RaidMineGains {
 	public record Gain(String code, double amount, int color) {
 	}
 
-	private static final Pattern AMOUNT = Pattern.compile("\\+(\\d+(?:\\.\\d+)?)");
+	/**
+	 * An amount, thousands separators included: the server writes large drops as
+	 * "+3,177💰". Stopping at the comma would read the amount as 3, take the comma
+	 * itself as the resource code, and lose the rest of the number along with the
+	 * resource it belonged to. Groups of exactly three digits keep this from
+	 * swallowing a comma that is separating two different things.
+	 */
+	private static final Pattern AMOUNT = Pattern.compile("\\+(\\d+(?:,\\d{3})*(?:\\.\\d+)?)");
 
 	private RaidMineGains() {
 	}
@@ -48,7 +55,8 @@ public final class RaidMineGains {
 			if (isAmbiguous(codePoint)) {
 				continue;
 			}
-			gains.add(new Gain(code, Double.parseDouble(matcher.group(1)), colorAt(segments, codeStart)));
+			double amount = Double.parseDouble(matcher.group(1).replace(",", ""));
+			gains.add(new Gain(code, amount, colorAt(segments, codeStart)));
 		}
 		return gains;
 	}
@@ -58,7 +66,8 @@ public final class RaidMineGains {
 	 * resource code at all — a bare number, or one amount running into the next.
 	 */
 	private static boolean isAmbiguous(int codePoint) {
-		return Character.isDigit(codePoint) || codePoint == '+' || codePoint == '-';
+		return Character.isDigit(codePoint) || codePoint == '+' || codePoint == '-'
+				|| codePoint == ',' || codePoint == '.';
 	}
 
 	private static int skipSpaces(String text, int from) {

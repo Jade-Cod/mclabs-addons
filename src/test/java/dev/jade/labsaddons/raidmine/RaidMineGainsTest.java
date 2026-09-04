@@ -82,4 +82,32 @@ public class RaidMineGainsTest {
 		assertEquals("Ω", RaidMineResources.name(gains.get(0).code()));
 		assertFalse(RaidMineResources.isKnown("Ω"));
 	}
+
+	@Test
+	public void readsAmountsWithThousandsSeparators() {
+		// "+3,177💰" — a big Company Gold drop. Stopping at the comma read this as
+		// +3 of a resource called "," and dropped the gold entirely.
+		List<RaidMineGains.Gain> gains = RaidMineGains.parse(
+				holo("+", 0xFFAE00, "3,177", 0xFFAE00, "💰", 0xFFAE00));
+		assertEquals(1, gains.size());
+		assertEquals("💰", gains.get(0).code());
+		assertEquals(3177.0, gains.get(0).amount());
+	}
+
+	@Test
+	public void neverTreatsASeparatorAsAResource() {
+		for (RaidMineGains.Gain gain : RaidMineGains.parse(
+				holo("+", 0xFFAE00, "1,234,567", 0xFFAE00, "💰", 0xFFAE00))) {
+			assertNotEquals(",", gain.code());
+			assertNotEquals(".", gain.code());
+		}
+	}
+
+	@Test
+	public void readsMillions() {
+		List<RaidMineGains.Gain> gains = RaidMineGains.parse(
+				holo("+", 0xFFAE00, "1,234,567", 0xFFAE00, "💰", 0xFFAE00));
+		assertEquals(1, gains.size());
+		assertEquals(1234567.0, gains.get(0).amount());
+	}
 }
