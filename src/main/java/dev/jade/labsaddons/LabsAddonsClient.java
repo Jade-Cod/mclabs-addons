@@ -42,6 +42,8 @@ import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.prestige.PrestigeChat;
+import dev.jade.labsaddons.raidmine.RaidMineHudObject;
+import dev.jade.labsaddons.raidmine.RaidMineTracker;
 import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
@@ -122,6 +124,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new BoosterHudObject());
 		HudObjects.register(new MiniEventHudObject());
 		HudObjects.register(new PitHudObject());
+		HudObjects.register(new RaidMineHudObject());
 		HudObjects.register(new LabWarsHudObject());
 		HudObjects.register(new RentalMountHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
@@ -393,6 +396,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		BoosterTracker.onMessage(text);
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
+		RaidMineTracker.onMessage(text);
 		LabWarsTracker.onMessage(text);
 		ChumTimer.onMessage(text);
 		RentalMountTimer.onMessage(text);

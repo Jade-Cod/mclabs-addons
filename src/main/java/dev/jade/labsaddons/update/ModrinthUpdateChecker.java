@@ -86,7 +86,11 @@ public final class ModrinthUpdateChecker {
 				}
 				String latest = version.get("version_number").getAsString();
 				if (ModVersion.isNewer(latest, currentVersion)) {
-					notifyPlayer(latest);
+					// Linked by Modrinth's version id, not the version number: the same
+					// number is published once per Minecraft line, and a by-number URL
+					// resolves to whichever of them Modrinth picks. Getting that wrong
+					// hands a 1.21.11 player the 26.2 jar, which won't load.
+					notifyPlayer(latest, version.get("id").getAsString());
 				}
 				return; // entries are newest-first; the first matching entry is the answer
 			}
@@ -105,9 +109,9 @@ public final class ModrinthUpdateChecker {
 		return false;
 	}
 
-	private static void notifyPlayer(String latestVersion) {
+	private static void notifyPlayer(String latestVersion, String versionId) {
 		Minecraft client = Minecraft.getInstance();
-		URI downloadUri = ModrinthLink.downloadUri(latestVersion);
+		URI downloadUri = ModrinthLink.downloadUri(versionId);
 		client.execute(() -> {
 			if (client.player != null) {
 				client.player.sendSystemMessage(buildMessage(latestVersion, downloadUri));
