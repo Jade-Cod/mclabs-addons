@@ -108,15 +108,27 @@ public class RaidMineHudObject extends HudObject {
 		return rows;
 	}
 
-	/** "1,234" for whole amounts, "14.2" when the server sends a fractional one. */
+	/**
+	 * "1,234" for whole amounts, otherwise up to two decimals with trailing zeros
+	 * trimmed — "14.2", "6.25". Two are needed because the multiplier items go to
+	 * 1.25, which turns a base 5 into 6.25; one decimal would round that to 6.3 and
+	 * quietly drift as the session total adds up. Trimming keeps whole and one-decimal
+	 * totals from growing a pointless "0" on the end.
+	 */
 	static String amount(double value) {
-		return value == Math.rint(value)
-				? String.format(Locale.ROOT, "%,d", (long) value)
-				: String.format(Locale.ROOT, "%,.1f", value);
+		if (value == Math.rint(value)) {
+			return String.format(Locale.ROOT, "%,d", (long) value);
+		}
+		String text = String.format(Locale.ROOT, "%,.2f", value);
+		return text.endsWith("0") ? text.substring(0, text.length() - 1) : text;
 	}
 
+	/**
+	 * Rates are rounded to whole numbers: they are extrapolated from a short sample,
+	 * so decimal places on them read as precision that isn't there.
+	 */
 	static String rate(double perHour) {
-		return perHour <= 0 ? "" : amount(perHour) + "/h";
+		return perHour <= 0 ? "" : String.format(Locale.ROOT, "%,d", Math.round(perHour)) + "/h";
 	}
 
 	/**
