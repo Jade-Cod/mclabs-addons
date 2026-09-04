@@ -85,7 +85,10 @@ done
 
 for i in "${!dirs[@]}"; do
 	echo "== publishing ${BRANCHES[$i]} =="
-	(cd "${dirs[$i]}" && ./gradlew modrinth -PchangelogFile="$changelog" "${gradle_flags[@]}")
+	# The ${a[@]+"${a[@]}"} form is deliberate: under `set -u`, bash 3.2 (what macOS
+	# ships) treats an empty array expansion as an unbound variable. A dry run puts a
+	# flag in the array and so never hits it — only a real publish does.
+	(cd "${dirs[$i]}" && ./gradlew modrinth -PchangelogFile="$changelog" ${gradle_flags[@]+"${gradle_flags[@]}"})
 done
 
 echo "== done: v${versions[0]} published for ${#BRANCHES[@]} Minecraft versions =="
