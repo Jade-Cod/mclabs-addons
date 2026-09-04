@@ -6,8 +6,6 @@ import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -22,8 +20,6 @@ import java.util.Locale;
 public class RaidMineHudObject extends HudObject {
 	public static final String ID = "raid_mine";
 	private static final int DEFAULT_TEXT_COLOR = 0xFFFFCC55;
-	private static final int ICON_SIZE = 16;
-	private static final int ICON_GAP = 4;
 	private static final int LINE_GAP = 2;
 	/** Gap between a row's name and its total, so the columns don't touch. */
 	private static final int COLUMN_GAP = 6;
@@ -90,6 +86,11 @@ public class RaidMineHudObject extends HudObject {
 		return RaidMineTracker.isActive()
 				? TimeFormat.precise(RaidMineTracker.remainingMs())
 				: PREVIEW_TIME;
+	}
+
+	/** The buff line, read as "Double Drops: 12.4" rather than an icon and a bare number. */
+	private Text timerLine(boolean preview) {
+		return Text.translatable("labsaddons.hud.raid_mine.double_drops_time", timeText(preview));
 	}
 
 	private boolean showsTimer(boolean preview) {
@@ -178,22 +179,43 @@ public class RaidMineHudObject extends HudObject {
 		return width;
 	}
 
-	@Override
-	public int contentWidth(boolean preview) {
-		TextRenderer font = font();
-		List<RaidMineSession.Row> rows = rows(preview);
-		int width = showsTimer(preview) ? ICON_SIZE + ICON_GAP + font.getWidth(timeText(preview)) : 0;
-		int symbols = symbolWidth(rows);
+	/** Widest rendered value in the totals column. */
+	private int valueWidth(List<RaidMineSession.Row> rows) {
+		int width = 0;
 		for (RaidMineSession.Row row : rows) {
-			int value = font.getWidth(amount(row.total()) + "  " + rate(row.perHour()));
-			width = Math.max(width, symbols + COLUMN_GAP + value);
+			width = Math.max(width, font().getWidth(amount(row.total())));
 		}
 		return width;
 	}
 
+	/** Widest rendered rate; 0 when no row has one yet. */
+	private int rateWidth(List<RaidMineSession.Row> rows) {
+		int width = 0;
+		for (RaidMineSession.Row row : rows) {
+			width = Math.max(width, font().getWidth(rate(row.perHour())));
+		}
+		return width;
+	}
+
+	/** Combined width of the three columns: symbol, total, rate. */
+	private int rowsWidth(List<RaidMineSession.Row> rows) {
+		if (rows.isEmpty()) {
+			return 0;
+		}
+		int width = symbolWidth(rows) + COLUMN_GAP + valueWidth(rows);
+		int rates = rateWidth(rows);
+		return rates == 0 ? width : width + COLUMN_GAP + rates;
+	}
+
+	@Override
+	public int contentWidth(boolean preview) {
+		int width = showsTimer(preview) ? font().getWidth(timerLine(preview)) : 0;
+		return Math.max(width, rowsWidth(rows(preview)));
+	}
+
 	@Override
 	public int contentHeight(boolean preview) {
-		int height = showsTimer(preview) ? Math.max(ICON_SIZE, font().fontHeight) : 0;
+		int height = showsTimer(preview) ? font().fontHeight : 0;
 		List<RaidMineSession.Row> rows = rows(preview);
 		if (!rows.isEmpty()) {
 			height += rows.size() * (font().fontHeight + LINE_GAP);
@@ -208,15 +230,21 @@ public class RaidMineHudObject extends HudObject {
 		int y = 0;
 
 		if (showsTimer(preview)) {
-			int rowHeight = Math.max(ICON_SIZE, font.fontHeight);
-			context.drawItem(new ItemStack(Items.DIAMOND_PICKAXE), 0, y + (rowHeight - ICON_SIZE) / 2);
-			context.drawText(font, Text.literal(timeText(preview)), ICON_SIZE + ICON_GAP,
-					y + (rowHeight - font.fontHeight) / 2 + 1, color, true);
-			y += rowHeight;
+			context.drawText(font, timerLine(preview), 0, y, color, true);
+			y += font.fontHeight;
 		}
 
 		List<RaidMineSession.Row> rows = rows(preview);
-		int symbols = symbolWidth(rows);
+		if (rows.isEmpty()) {
+			return;
+		}
+		// Both number columns are right-aligned so digits line up by place value
+		// however wide the figures get. The widths are measured across the whole
+		// column rather than per row, so the alignment holds as totals grow.
+		int width = contentWidth(preview);
+		int rates = rateWidth(rows);
+		int valueRight = rates == 0 ? width : width - rates - COLUMN_GAP;
+
 		for (RaidMineSession.Row row : rows) {
 			y += LINE_GAP;
 			// The symbol keeps the colour the server draws it in, which is what tells
@@ -224,11 +252,12 @@ public class RaidMineHudObject extends HudObject {
 			context.drawText(font, Text.literal(row.code()),
 					0, y, row.color() | 0xFF000000, true);
 			String value = amount(row.total());
+			context.drawText(font, Text.literal(value),
+					valueRight - font.getWidth(value), y, color, true);
 			String perHour = rate(row.perHour());
-			context.drawText(font, Text.literal(value), symbols + COLUMN_GAP, y, color, true);
 			if (!perHour.isEmpty()) {
 				context.drawText(font, Text.literal(perHour),
-						symbols + COLUMN_GAP + font.getWidth(value + "  "), y, 0xFFAAAAAA, true);
+						width - font.getWidth(perHour), y, 0xFFAAAAAA, true);
 			}
 			y += font.fontHeight;
 		}

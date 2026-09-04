@@ -69,6 +69,7 @@
 	"labsaddons.hud.raid_mine.name": "Raid Mine",
 	"labsaddons.hud.raid_mine.double_drops": "Double Drops",
 	"labsaddons.hud.raid_mine.clear": "Clear Timer",
+	"labsaddons.hud.raid_mine.double_drops_time": "Double Drops: %s",
 	"labsaddons.hud.raid_mine.reset": "Reset Session",
 	"labsaddons.hud.raid_mine.resources": "Resources",
 	"labsaddons.hud.lab_wars.name": "Lab Wars Boosters",
