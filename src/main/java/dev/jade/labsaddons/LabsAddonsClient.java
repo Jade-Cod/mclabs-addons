@@ -42,6 +42,7 @@ import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.prestige.PrestigeChat;
+import dev.jade.labsaddons.raidmine.RaidMineHologramReader;
 import dev.jade.labsaddons.raidmine.RaidMineHudObject;
 import dev.jade.labsaddons.raidmine.RaidMineTracker;
 import dev.jade.labsaddons.prestige.PrestigeStore;
@@ -56,6 +57,7 @@ import dev.jade.labsaddons.server.McLabsSession;
 import dev.jade.labsaddons.update.ModrinthUpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -156,6 +158,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// The MCLabs-only HUD widgets and update check key off this per-connection
 		// session flag; reset it on every fresh connection so a stale "yes" can't
 		// leak into a different server (or singleplayer).
+		// Raid Mine resource holograms: the mine drops no items, so the popup the
+		// server spawns in their place is the only record of what was generated.
+		ClientEntityEvents.ENTITY_LOAD.register(RaidMineHologramReader::onEntityLoad);
+
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> McLabsSession.reset());
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			McLabsSession.reset();
@@ -168,6 +174,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			MasterySellTracker.reset();
 			SmugglerSatchel.reset();
 			PrestigeChat.reset();
+			// Entity ids are per-server; drop any hologram queued for reading.
+			RaidMineHologramReader.reset();
 		});
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
@@ -246,6 +254,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
 			RunnerAlarm.tick();
+			RaidMineHologramReader.tick(client);
 			// Live "Kill <mob>" progress: no chat line announces a Pit kill, so deaths
 			// are read straight off the world and matched against the mobs we hit.
 			if (client.level != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.level)) {

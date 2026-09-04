@@ -123,6 +123,9 @@ public class LabsAddonsConfig {
 	/** Cooldown entry keys (e.g. "mcmmo:super_breaker") hidden from the widget. */
 	public java.util.Set<String> hiddenCooldownKeys = new java.util.LinkedHashSet<>();
 
+	/** Raid Mine resource codes the player has switched off in the widget. */
+	public java.util.Set<String> hiddenRaidMineCodes = new java.util.LinkedHashSet<>();
+
 	// --- HUD objects (position/scale/colors per widget id) ---
 	public java.util.Map<String, HudObjectSettings> hudObjects = new java.util.LinkedHashMap<>();
 
