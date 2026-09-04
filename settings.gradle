@@ -9,4 +9,10 @@ pluginManagement {
 	}
 }
 
+// MC 26.2 needs JDK 25 and this machine only has 21. Foojay lets Gradle fetch
+// the toolchain into its own cache instead of installing a system-wide JDK.
+plugins {
+	id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'mclabs-addons'

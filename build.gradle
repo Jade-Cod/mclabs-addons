@@ -1,5 +1,7 @@
 plugins {
-	id 'fabric-loom' version '1.17.8'
+	// Non-remapping Loom. 26.x is deobfuscated, so there is no intermediary
+	// step and no remapJar task — the plain `jar` is the publishable artifact.
+	id 'net.fabricmc.fabric-loom' version '1.17.20'
 	id 'com.modrinth.minotaur' version '2.9.0'
 }
 
@@ -23,15 +25,17 @@ repositories {
 }
 
 dependencies {
+	// No `mappings` line: Loom builds against Mojang names directly on 26.x.
+	// Nothing needs remapping, so these are plain `implementation`, not
+	// `modImplementation`.
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
 	// Mod Menu provides the config screen entry; Cloth Config provides the widgets.
-	modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
-	modImplementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
+	implementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
 
 	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
 	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
@@ -55,14 +59,17 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 25
 }
 
 java {
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	// Only JDK 21 is installed locally; the foojay resolver in settings.gradle
+	// fetches 25 into Gradle's cache.
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
 }
 
 jar {
@@ -83,7 +90,7 @@ modrinth {
 	versionNumber = project.mod_version
 	versionName = "v${project.mod_version}"
 	versionType = 'release'
-	uploadFile = tasks.remapJar
+	uploadFile = tasks.jar // non-remapping Loom has no remapJar
 	gameVersions = [project.minecraft_version]
 	loaders = ['fabric']
 	// Reuses the GitHub release body so the two never drift apart.
