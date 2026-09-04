@@ -108,27 +108,60 @@ public class RaidMineHudObject extends HudObject {
 		return rows;
 	}
 
+	/** Above these, a figure is compacted rather than written out in full. */
+	private static final double THOUSAND = 1_000d;
+	private static final double MILLION = 1_000_000d;
+	private static final double BILLION = 1_000_000_000d;
+
 	/**
-	 * "1,234" for whole amounts, otherwise up to two decimals with trailing zeros
-	 * trimmed — "14.2", "6.25". Two are needed because the multiplier items go to
-	 * 1.25, which turns a base 5 into 6.25; one decimal would round that to 6.3 and
-	 * quietly drift as the session total adds up. Trimming keeps whole and one-decimal
-	 * totals from growing a pointless "0" on the end.
+	 * A figure short enough to read at a glance: "63.9k", "1.32m". The widget is
+	 * looked at mid-mine, where "1,315,894.6" is more digits than anyone reads and
+	 * pushes every column wider for no gain.
+	 *
+	 * <p>Only kicks in at a thousand. Below that the exact figure is short already,
+	 * and it matters: held items multiply drops by up to 1.25, so a total can
+	 * legitimately be 6.25 and rounding it away would drift as the session adds up.
 	 */
-	static String amount(double value) {
-		if (value == Math.rint(value)) {
-			return String.format(Locale.ROOT, "%,d", (long) value);
+	static String compact(double value) {
+		double magnitude = Math.abs(value);
+		if (magnitude >= BILLION) {
+			return trimZeros(String.format(Locale.ROOT, "%.2f", value / BILLION)) + "b";
 		}
-		String text = String.format(Locale.ROOT, "%,.2f", value);
-		return text.endsWith("0") ? text.substring(0, text.length() - 1) : text;
+		if (magnitude >= MILLION) {
+			return trimZeros(String.format(Locale.ROOT, "%.2f", value / MILLION)) + "m";
+		}
+		if (magnitude >= THOUSAND) {
+			return trimZeros(String.format(Locale.ROOT, "%.1f", value / THOUSAND)) + "k";
+		}
+		return exact(value);
+	}
+
+	/** Whole amounts plainly; otherwise up to two decimals, as multipliers produce. */
+	private static String exact(double value) {
+		return value == Math.rint(value)
+				? String.format(Locale.ROOT, "%d", (long) value)
+				: trimZeros(String.format(Locale.ROOT, "%.2f", value));
+	}
+
+	/** "64.0" -> "64", "1.30" -> "1.3"; a compacted figure shouldn't carry dead zeros. */
+	private static String trimZeros(String text) {
+		if (text.indexOf('.') < 0) {
+			return text;
+		}
+		String trimmed = text.replaceAll("0+$", "");
+		return trimmed.endsWith(".") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+	}
+
+	static String amount(double value) {
+		return compact(value);
 	}
 
 	/**
-	 * Rates are rounded to whole numbers: they are extrapolated from a short sample,
-	 * so decimal places on them read as precision that isn't there.
+	 * Rates are rounded before compacting: they are extrapolated from a short
+	 * sample, so decimals on them read as precision that isn't there.
 	 */
 	static String rate(double perHour) {
-		return perHour <= 0 ? "" : String.format(Locale.ROOT, "%,d", Math.round(perHour)) + "/h";
+		return perHour <= 0 ? "" : compact(Math.round(perHour)) + "/h";
 	}
 
 	/**

@@ -6,35 +6,52 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RaidMineFormatTest {
 	@Test
-	public void wholeAmountsGetNoDecimals() {
-		assertEquals("3,032", RaidMineHudObject.amount(3032));
+	public void smallAmountsAreShownExactly() {
+		assertEquals("966", RaidMineHudObject.amount(966));
 		assertEquals("0", RaidMineHudObject.amount(0));
+		assertEquals("999", RaidMineHudObject.amount(999));
 	}
 
 	@Test
-	public void oneDecimalStaysOneDecimal() {
+	public void multiplierTotalsKeepTheirSecondDecimal() {
+		// A 1.25x item turns a base 5 drop into 6.25. Below a thousand nothing is
+		// compacted, so the exact figure survives.
+		assertEquals("6.25", RaidMineHudObject.amount(6.25));
 		assertEquals("14.2", RaidMineHudObject.amount(14.2));
 		assertEquals("0.1", RaidMineHudObject.amount(0.1));
 	}
 
 	@Test
-	public void multiplierTotalsKeepTheirSecondDecimal() {
-		// A 1.25x item turns a base 5 drop into 6.25; rounding to one decimal would
-		// show 6.3 and drift further with every drop added.
-		assertEquals("6.25", RaidMineHudObject.amount(6.25));
-		assertEquals("7.75", RaidMineHudObject.amount(1.25 * 6.2));
+	public void thousandsBecomeK() {
+		assertEquals("63.9k", RaidMineHudObject.amount(63_900));
+		assertEquals("1k", RaidMineHudObject.amount(1_000));
+		assertEquals("12.3k", RaidMineHudObject.amount(12_345));
 	}
 
 	@Test
-	public void largeFractionalTotalsStayGrouped() {
-		assertEquals("12,345.75", RaidMineHudObject.amount(12345.75));
+	public void millionsBecomeM() {
+		assertEquals("1.32m", RaidMineHudObject.amount(1_315_894));
+		assertEquals("1m", RaidMineHudObject.amount(1_000_000));
 	}
 
 	@Test
-	public void ratesAreWholeNumbers() {
-		// Extrapolated from a short sample; decimals would imply precision we lack.
-		assertEquals("159,121/h", RaidMineHudObject.rate(159120.7));
-		assertEquals("22,619/h", RaidMineHudObject.rate(22619.1));
+	public void billionsBecomeB() {
+		assertEquals("2.5b", RaidMineHudObject.amount(2_500_000_000d));
+	}
+
+	@Test
+	public void compactedFiguresCarryNoDeadZeros() {
+		// 64.0k and 1.00m would both be noise on a widget read at a glance.
+		assertEquals("64k", RaidMineHudObject.amount(63_966));
+		assertEquals("2m", RaidMineHudObject.amount(2_000_000));
+		assertEquals("1.5k", RaidMineHudObject.amount(1_500));
+	}
+
+	@Test
+	public void ratesAreCompactedToo() {
+		assertEquals("1.32m/h", RaidMineHudObject.rate(1_315_894.6));
+		assertEquals("13.6k/h", RaidMineHudObject.rate(13_556.8));
+		assertEquals("123/h", RaidMineHudObject.rate(123.4));
 	}
 
 	@Test
