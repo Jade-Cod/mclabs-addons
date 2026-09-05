@@ -78,19 +78,20 @@ public abstract class HudObject {
 		return java.util.List.of();
 	}
 
-	private HudObjectSettings cachedSettings;
-
+	/**
+	 * Deliberately uncached. The map is swapped wholesale when the HUD profile changes,
+	 * so a per-widget cache would leave every widget drawing the previous profile's
+	 * layout. Fifteen map lookups a frame is not worth an invalidation protocol.
+	 */
 	public HudObjectSettings settings() {
-		if (cachedSettings == null) {
-			LabsAddonsConfig config = LabsAddonsConfig.get();
-			cachedSettings = config.hudObjects.get(id());
-			if (cachedSettings == null) {
-				cachedSettings = defaultSettings().copy();
-				config.hudObjects.put(id(), cachedSettings);
-				config.saveAsync();
-			}
+		LabsAddonsConfig config = LabsAddonsConfig.get();
+		HudObjectSettings settings = config.hudObjects.get(id());
+		if (settings == null) {
+			settings = defaultSettings().copy();
+			config.hudObjects.put(id(), settings);
+			config.saveAsync();
 		}
-		return cachedSettings;
+		return settings;
 	}
 
 	/**

@@ -134,6 +134,19 @@ public class MasteryCatchTrackerTest {
 		assertEquals(2, currentOf(CATCH_FISH));
 	}
 
+	/** Swapping a challenge in while already holding 13 of the item must credit none of them. */
+	@Test
+	public void aChallengeStartedMidSessionBaselinesWhatYouAlreadyHold() {
+		active(CATCH_COD);
+		MasteryCatchTracker.observe(Map.of(CATCH_COD, 0), FISHING);
+		active(CATCH_COD, CATCH_FISH);
+		assertFalse(MasteryCatchTracker.observe(Map.of(CATCH_COD, 0, CATCH_FISH, 13), FISHING));
+		assertEquals(0, currentOf(CATCH_FISH));
+		assertTrue(MasteryCatchTracker.observe(Map.of(CATCH_COD, 0, CATCH_FISH, 14), FISHING),
+				"the first real catch after that still counts");
+		assertEquals(1, currentOf(CATCH_FISH));
+	}
+
 	/** An unselected challenge earns nothing even if the item shows up. */
 	@Test
 	public void anInactiveChallengeIsNotCredited() {

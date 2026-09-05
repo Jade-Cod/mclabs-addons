@@ -19,6 +19,9 @@ import java.util.Map;
  * Edge-triggered so it fires once per dip rather than on every update while still low.
  */
 public final class RunnerAlarm {
+	/** Highest alert threshold the editor offers; more posted jobs than this is not "low". */
+	public static final int MAX_THRESHOLD = 30;
+
 	public static final List<String> SOUND_IDS = List.of(
 			"minecraft:block.note_block.bell",
 			"minecraft:block.note_block.pling",

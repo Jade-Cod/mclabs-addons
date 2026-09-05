@@ -29,7 +29,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | Lab Wars Boosters | Per-category revenue boosts (multiplier + time) | "Lab Wars …" chat + the `/lw rates` GUI (read only while you have it open) |
 | Rental Mount | Rental mount access time | "purchased temporary access" chat; or right-click a Mount Rental Coupon |
 | Personal Boosters | Chem-price + prestige boosts | redeem chat + `/checkboost` output |
-| **Bounty Chests** | Active Spawn Bounty Hunt — the bounty chemical + chests remaining (chest icon) | "Bounty »" start / found / ended chat |
+| **Bounties** | Active Spawn Bounty Hunt — the bounty chemical + chests remaining (chest icon) — and the Fishing Weekend's Sunken Treasure barrels remaining (barrel icon) | "Bounty »" start / found / ended chat; "Fishing Weekend »" sunken treasure chat + the `/fw` GUI (read while open) |
 | **Dailies** | Reminders to claim the daily spin (`/daily`) and Daily Investor Rewards (`/sm claim`) | claim-confirmation chat; resets 9 PM Pacific |
 | **Vote Reminder** | Daily vote progress toward 7/7 | "Vote registered!" chat; resets 9 PM Pacific |
 | **Chemtainer** | What's in your Chemtainer (chems by quantity + an "inventories" estimate) | the `/ch` GUI (read while open) **and** the Deposit/Withdraw keybinds, which diff your inventory and parse the "Withdrew N …" chat |
@@ -82,6 +82,11 @@ Everything updates **passively** from chat — you never have to run anything sp
   bounty chemical and how many chests remain, updating as players find them and
   hiding when the hunt ends. Use the server's **`/bounty track`** in Spawn to be led
   to a chest.
+- **Sunken Treasure** — during a Fishing Weekend the same widget gains a barrel row
+  counting the sunken barrels still hidden along Spawn's shorelines, updating as
+  players find them and going away when the last one is claimed. Each new wave
+  re-seeds the count on its own, and opening **`/fw`** re-syncs it if you joined
+  partway through and missed the announcement.
 - **Dailies** — reminds you to claim your **daily spin (`/daily`)** and **Daily
   Investor Rewards (`/sm claim`)**. Each line disappears once you claim it — the
   `/sm claim` reminder clears the moment you send the command — and returns after
@@ -133,7 +138,11 @@ Press **"Open HUD Editor"** (in *Controls* → category: **McLab Addons**; defau
 to **semicolon** `;`) to enter the editor:
 
 - **Layers rail** (left) — lists all widgets; click to select, eye icon to
-  toggle visibility even on hidden widgets.
+  toggle visibility even on hidden widgets. Click the **Widgets** header to roll
+  the list up to its title bar and free the corner behind it; it stays that way
+  until you roll it back down. While you drag, resize or arrow-nudge a widget both
+  the rail and the settings panel fade back so you can see the widget travelling
+  underneath them.
 - **Drag** the widget body to move it; **8 edge/corner handles** to resize
   (corners scale uniformly; edges scale one axis). Snaps to screen
   edges, center lines, and other widgets.
@@ -141,9 +150,28 @@ to **semicolon** `;`) to enter the editor:
 - **Inspector** (docks on the opposite side from the selected widget) —
   toggle visibility, pick text/background color, reset the widget, and any
   widget-specific options (e.g. the Chemtainer's **Using Satchel** toggle).
-- **Bottom toolbar** — Grid and Snap toggles, plus **Help** to reopen the guide.
+- **Bottom toolbar** — Grid and Snap toggles, **Profile** to manage HUD profiles,
+  plus **Help** to reopen the guide.
 - Widgets on the right half of the screen **anchor their right edge** and grow
   leftward, so growing text never runs off-screen.
+
+### HUD profiles
+
+A profile is a complete widget layout — position, size, colours, and which
+widgets are switched on — together with the display choices inside them (pinned
+progress rows, hidden ability cooldowns, shown Raid Mine resources, cooldown
+stacking). Everything else stays shared across profiles.
+
+Open **Profile** in the editor toolbar to switch, create, rename or delete one,
+and to bind a profile to a world. Type a name and press **Create** to copy the
+active layout into a new profile; **Rename** renames whichever profile is
+currently active (`default` is kept as the fallback and can't be renamed). Bound worlds
+load their profile automatically when you arrive — the mod reads the server's
+own join banner, so it costs nothing and needs no command.
+
+The bindable worlds are **Spawn**, the **Overworld**, the **Underworld**,
+**Events** and **The Pit**. A world you leave unbound keeps whichever profile is
+already loaded.
 
 ## Configuration
 
@@ -153,9 +181,20 @@ Open **Mods → MCLabs Addons → Config** (requires both
 settings button simply doesn't appear). The screen has two categories: **Bite
 Marker** (enable/size/colors, mute-others, catch sound) and **Item Uses**.
 Everything about widget *appearance* — position, size, colors, background —
-lives in the in-game HUD editor instead. Saved to `config/labsaddons.json`
-(settings from older versions in `config/fishbite.json` are migrated over
-automatically on first launch).
+lives in the in-game HUD editor instead.
+
+Saved under `config/labsaddons/`, split by how the data behaves:
+
+| File | Holds |
+| --- | --- |
+| `settings.json` | Your preferences, and which profile is active |
+| `state.json` | Server state the mod tracks (timers, boosters, scraped boards) |
+| `runners.json` | The runner leaderboard — the only file that grows |
+| `profiles/*.json` | One HUD layout each |
+
+Files are written atomically and only when their contents change. A config from
+an older version (`config/labsaddons.json`, or `config/fishbite.json` from
+before the rename) is migrated on first launch and left in place as a backup.
 
 ## Architecture
 

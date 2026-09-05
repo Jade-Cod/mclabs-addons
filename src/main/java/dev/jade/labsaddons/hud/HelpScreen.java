@@ -49,6 +49,7 @@ public class HelpScreen extends Screen {
 			{"Withdraw key (N)", "Pulls back whichever chem you have the most of."},
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
+			{"/fw", "Open it to re-sync the Sunken Treasure crates left."},
 			{"/mastery", "Open it to re-sync your active Mastery challenge bars."},
 			{"/prestige progress", "Run it to sync your chem prestige bars; sales then track live."},
 			{"Chat reactions", "Wins and runner-ups advance your Mastery bars live."},
@@ -140,6 +141,12 @@ public class HelpScreen extends Screen {
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 		add(Text.literal("Reopen this guide anytime with the Help button."),
 				EditorTheme.TEXT_DIM, 0, 1, innerW);
+
+		add(bold("PROFILES"), EditorTheme.TEXT_ACCENT, 0, SECTION_GAP, innerW);
+		add(Text.literal("Save different widget layouts and bind each one to an MCLabs world — "
+						+ "the HUD then swaps itself when you change worlds. "
+						+ "Set them up with the Profile button."),
+				EditorTheme.TEXT_DIM, 0, 2, innerW);
 	}
 
 	/** Wraps {@code text} to {@code wrapW} and appends each visual line; only the

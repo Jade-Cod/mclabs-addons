@@ -18,6 +18,8 @@ import dev.jade.labsaddons.booster.BoosterRatesReader;
 import dev.jade.labsaddons.booster.BoosterTracker;
 import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.bounty.BountyTracker;
+import dev.jade.labsaddons.bounty.SunkenTreasureReader;
+import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
 import dev.jade.labsaddons.daily.VoteReminderHudObject;
@@ -54,6 +56,7 @@ import dev.jade.labsaddons.hud.HudEditScreen;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
+import dev.jade.labsaddons.server.McLabsWorld;
 import dev.jade.labsaddons.update.ModrinthUpdateChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -162,7 +165,20 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// server spawns in their place is the only record of what was generated.
 		ClientEntityEvents.ENTITY_LOAD.register(RaidMineHologramReader::onEntityLoad);
 
-		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> McLabsSession.reset());
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+			McLabsSession.reset();
+			// Restore the saved boards on join rather than at startup. Building a quest
+			// icon needs item components bound, which happens later than both
+			// CLIENT_STARTED and the first client tick — both crashed with "Components
+			// not bound yet". Joining a world cannot happen before the client is fully
+			// loaded, and it is also the first moment the boards are of any use, since
+			// they exist so chat reactions count before the session's first /mastery.
+			if (!storesRestored) {
+				storesRestored = true;
+				MasteryStore.load();
+				PrestigeStore.load();
+			}
+		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			McLabsSession.reset();
 			// Entity ids are per-server; drop kill-tracking state so none leaks forward.
@@ -176,7 +192,14 @@ public class LabsAddonsClient implements ClientModInitializer {
 			PrestigeChat.reset();
 			// Entity ids are per-server; drop any hologram queued for reading.
 			RaidMineHologramReader.reset();
+			// The world we remember belongs to the server we just left.
+			McLabsWorld.reset();
+			// Saves are coalesced onto a background thread, so leaving a server is one
+			// of the points that has to wait for them to actually land.
+			LabsAddonsConfig.get().saveNow();
 		});
+
+		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LabsAddonsConfig.get().saveNow());
 
 		// Mark the SM daily claimed the moment the player sends "/sm claim",
 		// without waiting for the server confirmation line. Fires on the main
@@ -243,11 +266,6 @@ public class LabsAddonsClient implements ClientModInitializer {
 				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
 			KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey);
-			// Restore the saved board here rather than at init: resolving the quest
-			// icons needs the item registry, which is only populated once the client
-			// has finished starting.
-			MasteryStore.load();
-			PrestigeStore.load();
 		});
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (McLabsSession.tick(client)) {
@@ -296,6 +314,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// title to disagree to bail, and keeping it out avoids another
 					// nesting level in an already-deep fall-through.
 					SmugglerSatchel.tryRead(handledScreen);
+					// Likewise out of the chain: /fw is nobody else's screen, and the
+					// chain is already as deep as it should get.
+					SunkenTreasureReader.tryRead(handledScreen);
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
@@ -401,7 +422,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 		}
 	}
 
+	/** Guards the one-shot restore of the Mastery and prestige boards; see the tick handler. */
+	private static boolean storesRestored;
+
 	private static void dispatchChat(String text) {
+		// First: the join banner names the world, which may swap the whole HUD profile.
+		McLabsWorld.onMessage(text);
 		BoosterTracker.onMessage(text);
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
@@ -411,6 +437,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RentalMountTimer.onMessage(text);
 		PersonalBoosters.onMessage(text);
 		BountyTracker.onMessage(text);
+		SunkenTreasureTracker.onMessage(text);
 		DailyTracker.onMessage(text);
 		VoteTracker.onMessage(text);
 		ChemtainerTracker.onMessage(text);

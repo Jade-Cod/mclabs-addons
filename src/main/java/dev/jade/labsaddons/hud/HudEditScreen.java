@@ -3,6 +3,7 @@ package dev.jade.labsaddons.hud;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
+import dev.jade.labsaddons.hud.editor.Shutter;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import net.minecraft.client.MinecraftClient;
@@ -12,15 +13,16 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.function.IntConsumer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -53,6 +55,17 @@ public class HudEditScreen extends Screen {
 	private static final int RAIL_TEXT_INSET = 22;
 	/** Longest a name may render before it is elided, as a share of the screen. */
 	private static final int RAIL_MAX_SHARE = 3;
+	/** Rail roll-up timing, matched to the Runner Leaderboard's job-history shutter. */
+	private static final long RAIL_ROLL_MS = 400L;
+	/** How quickly the rail ghosts out once you start moving a widget. */
+	private static final long CHROME_FADE_MS = 150L;
+	/** What the rail fades to while a widget is being dragged, resized, or nudged. */
+	private static final float DRAG_ALPHA = 0.25f;
+	/** How long a keyboard nudge keeps the rail faded, since there's no key-up to watch. */
+	/** Extra toolbar height per wrapped row. */
+	private static final int WRAP_ROW_H = 24;
+	private static final int PROFILE_BTN_W = 92;
+	private static final long NUDGE_FADE_MS = 600L;
 	/** {@link #expandedGroups} key for the Runner Jobs widget's low-job alarm section. */
 	private static final String ALARM_GROUP_KEY = "runner_alarm";
 
@@ -71,6 +84,12 @@ public class HudEditScreen extends Screen {
 	private boolean groupDragging;
 	/** Lazily measured by {@link #railWidth()}; 0 means "not measured yet". */
 	private int railWidthCache;
+
+	/** Widgets rail roll-up, and the chrome's fade-out while a widget is being moved. */
+	private final Shutter railRoll = new Shutter(
+			LabsAddonsConfig.get().hudEditorRailCollapsed ? 0.0 : 1.0,
+			RAIL_ROLL_MS, System.currentTimeMillis());
+	private final Shutter chromeFade = new Shutter(1.0, CHROME_FADE_MS, System.currentTimeMillis());
 	private List<HudObject> dragWidgets;
 	private List<int[]> dragOrigins;
 	private int grabOriginX;
@@ -101,6 +120,9 @@ public class HudEditScreen extends Screen {
 	private int marqueeCurY;
 	private Set<HudObject> marqueeBase;
 
+	/** When the arrows last moved the selection — arrow keys have no release to watch. */
+	private long lastNudgeMs;
+
 	private Integer guideX;
 	private Integer guideY;
 	private boolean snapEnabled = true;
@@ -118,7 +140,9 @@ public class HudEditScreen extends Screen {
 	private int bgSwatchY;
 	private int groupsLabelY;
 	private Text groupsLabelText;
-	private int thresholdLabelY;
+
+	/** Inspector-owned widgets, faded with the panel; the toolbar's are deliberately not. */
+	private final List<ClickableWidget> inspectorWidgets = new ArrayList<>();
 
 	// Which toggle groups (by label) are expanded in the current inspector.
 	private final Set<String> expandedGroups = new LinkedHashSet<>();
@@ -140,9 +164,19 @@ public class HudEditScreen extends Screen {
 
 	// --- lifecycle ------------------------------------------------------------
 
+	/** Profile this screen's widgets were built against; see {@link #render}. */
+	private String builtForProfile = "";
+	/** Toolbar rows in use; 2 when the button groups will not fit side by side. */
+	private int toolbarRows = 1;
+	/** Right edge of the toolbar's left button group. */
+	private int leftGroupEnd;
+	/** Left edge of the toolbar's right button group, when it shares the bottom row. */
+	private int rightGroupStart;
+
 	@Override
 	protected void init() {
 		this.panel = null;
+		builtForProfile = LabsAddonsConfig.get().activeProfile;
 		buildToolbar();
 		HudObject one = singleSelected();
 		if (one != null) {
@@ -174,7 +208,19 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
+	/** Height of the toolbar, which grows by a row when its buttons cannot fit on one. */
+	private int toolbarH() {
+		return EditorTheme.TOOLBAR_H + (toolbarRows - 1) * WRAP_ROW_H;
+	}
+
 	private void buildToolbar() {
+		// The right-hand group (Profile/Grid/Snap) drops to its own row rather than
+		// running into the left group, which it does below roughly 570px of scaled
+		// width — GUI scale 4 on a 1080p screen, among others.
+		leftGroupEnd = EditorTheme.MARGIN + 48 + 4 + 96 + 4 + 78 + 4 + 48 + 4 + 48;
+		int rightW = PROFILE_BTN_W + 4 + 64 + 4 + 64 + EditorTheme.MARGIN;
+		toolbarRows = leftGroupEnd + EditorTheme.GAP + rightW <= this.width ? 1 : 2;
+
 		int y = this.height - EditorTheme.TOOLBAR_H + (EditorTheme.TOOLBAR_H - 20) / 2;
 		int x = EditorTheme.MARGIN;
 		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, b -> this.close())
@@ -199,18 +245,36 @@ public class HudEditScreen extends Screen {
 				.dimensions(x, y, 48, 20)
 				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.stats.tooltip"))).build());
 
+		int ry = toolbarRows == 1 ? y : y - WRAP_ROW_H;
 		int rx = this.width - EditorTheme.MARGIN - 64;
+		rightGroupStart = rx - 68 - PROFILE_BTN_W;
+		this.addDrawableChild(ButtonWidget.builder(profileLabel(), b -> openProfiles())
+				.dimensions(rx - 68 - PROFILE_BTN_W, ry, PROFILE_BTN_W, 20)
+				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.profiles.tooltip"))).build());
 		this.addDrawableChild(ButtonWidget.builder(snapLabel(), b -> {
 					snapEnabled = !snapEnabled;
 					b.setMessage(snapLabel());
-				}).dimensions(rx, y, 64, 20)
+				}).dimensions(rx, ry, 64, 20)
 				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.snap.tooltip"))).build());
 		rx -= 68;
 		this.addDrawableChild(ButtonWidget.builder(gridLabel(), b -> {
 					gridEnabled = !gridEnabled;
 					b.setMessage(gridLabel());
-				}).dimensions(rx, y, 64, 20)
+				}).dimensions(rx, ry, 64, 20)
 				.tooltip(Tooltip.of(Text.translatable("labsaddons.hud.editor.grid.tooltip"))).build());
+	}
+
+	/** "Profile: fishing", trimmed so a long id cannot push the button off the toolbar. */
+	private Text profileLabel() {
+		String id = LabsAddonsConfig.get().activeProfile;
+		String shown = id.length() > 9 ? id.substring(0, 8) + "\u2026" : id;
+		return Text.translatable("labsaddons.hud.editor.profiles", shown);
+	}
+
+	private void openProfiles() {
+		if (this.client != null) {
+			this.client.setScreen(new HudProfileScreen(this));
+		}
 	}
 
 	private Text snapLabel() {
@@ -222,6 +286,7 @@ public class HudEditScreen extends Screen {
 	}
 
 	private void buildInspector(HudObject widget) {
+		inspectorWidgets.clear();
 		HudObjectSettings s = widget.settings();
 		int innerW = EditorTheme.PANEL_W - 2 * EditorTheme.PAD;
 		boolean hasAction = widget.editorAction() != null;
@@ -249,7 +314,7 @@ public class HudEditScreen extends Screen {
 				+ (hasAction ? rowStep : 0)
 				+ rowStep
 				+ (isRunnerJobs ? rowStep : 0)
-				+ (alarmExpanded ? rowStep * 3 + EditorTheme.NAME_H : 0)
+				+ (alarmExpanded ? rowStep * 3 : 0)
 				+ (hasGroups ? GROUPS_HEADING_EXTRA + EditorTheme.NAME_H : 0)
 				+ rowStep * groupsRows;
 		int panelH = contentH + 2 * EditorTheme.PAD;
@@ -257,7 +322,7 @@ public class HudEditScreen extends Screen {
 		int panelX = dockLeft(widget)
 				? EditorTheme.MARGIN + railWidth() + EditorTheme.GAP
 				: this.width - EditorTheme.PANEL_W - EditorTheme.MARGIN;
-		int toolbarTop = this.height - EditorTheme.TOOLBAR_H - EditorTheme.GAP;
+		int toolbarTop = this.height - toolbarH() - EditorTheme.GAP;
 		int panelY = EditorTheme.TOP;
 		if (panelY + panelH > toolbarTop) {
 			panelY = Math.max(2, toolbarTop - panelH);
@@ -270,26 +335,26 @@ public class HudEditScreen extends Screen {
 		this.nameY = y;
 		y += EditorTheme.NAME_H;
 
-		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.enabled).build(
+		inspectorChild(CyclingButtonWidget.onOffBuilder(s.enabled).build(
 				innerX, y, innerW, EditorTheme.ROW,
 				Text.translatable("labsaddons.config.hud.enabled"),
 				(b, v) -> s.enabled = v));
 		y += rowStep;
 
-		this.addDrawableChild(ButtonWidget.builder(
+		inspectorChild(ButtonWidget.builder(
 						Text.translatable("labsaddons.config.hud.text_color"), b -> openPicker(widget, false))
 				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.textSwatchX = innerX + innerW - EditorTheme.SWATCH;
 		this.textSwatchY = y;
 		y += rowStep;
 
-		this.addDrawableChild(CyclingButtonWidget.onOffBuilder(s.backgroundEnabled).build(
+		inspectorChild(CyclingButtonWidget.onOffBuilder(s.backgroundEnabled).build(
 				innerX, y, innerW, EditorTheme.ROW,
 				Text.translatable("labsaddons.config.hud.background"),
 				(b, v) -> s.backgroundEnabled = v));
 		y += rowStep;
 
-		this.addDrawableChild(ButtonWidget.builder(
+		inspectorChild(ButtonWidget.builder(
 						Text.translatable("labsaddons.config.hud.background_color"), b -> openPicker(widget, true))
 				.dimensions(innerX, y, innerW - EditorTheme.SWATCH - EditorTheme.GAP, EditorTheme.ROW).build());
 		this.bgSwatchX = innerX + innerW - EditorTheme.SWATCH;
@@ -297,25 +362,25 @@ public class HudEditScreen extends Screen {
 		y += rowStep;
 
 		for (HudObject.ToggleOption toggle : toggles) {
-			this.addDrawableChild(CyclingButtonWidget.onOffBuilder(toggle.value().getAsBoolean()).build(
+			inspectorChild(CyclingButtonWidget.onOffBuilder(toggle.value().getAsBoolean()).build(
 					innerX, y, innerW, EditorTheme.ROW, toggle.label(),
 					(b, v) -> toggle.onChange().accept(v)));
 			y += rowStep;
 		}
 
 		if (switchOption != null) {
-			this.addDrawableChild(new DirectionSwitch(innerX, y, innerW, EditorTheme.ROW, switchOption));
+			inspectorChild(new DirectionSwitch(innerX, y, innerW, EditorTheme.ROW, switchOption));
 			y += rowStep;
 		}
 
 		HudObject.EditorAction action = widget.editorAction();
 		if (action != null) {
-			this.addDrawableChild(ButtonWidget.builder(action.label(), b -> action.action().run())
+			inspectorChild(ButtonWidget.builder(action.label(), b -> action.action().run())
 					.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
 			y += rowStep;
 		}
 
-		this.addDrawableChild(ButtonWidget.builder(
+		inspectorChild(ButtonWidget.builder(
 						Text.translatable("labsaddons.hud.editor.reset_widget"), b -> {
 							widget.settings().resetTo(widget.defaultSettings());
 							clearAndInit();
@@ -325,7 +390,7 @@ public class HudEditScreen extends Screen {
 
 		if (isRunnerJobs) {
 			LabsAddonsConfig config = LabsAddonsConfig.get();
-			this.addDrawableChild(ButtonWidget.builder(
+			inspectorChild(ButtonWidget.builder(
 							groupHeaderLabel(Text.translatable("labsaddons.hud.runner_jobs.alarm"), alarmExpanded),
 							b -> {
 								if (!expandedGroups.remove(ALARM_GROUP_KEY)) {
@@ -337,30 +402,17 @@ public class HudEditScreen extends Screen {
 			y += rowStep;
 
 			if (alarmExpanded) {
-				this.addDrawableChild(CyclingButtonWidget.onOffBuilder(config.runnerAlarmEnabled).build(
+				inspectorChild(CyclingButtonWidget.onOffBuilder(config.runnerAlarmEnabled).build(
 						innerX, y, innerW, EditorTheme.ROW,
 						Text.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
 						(b, v) -> config.runnerAlarmEnabled = v));
 				y += rowStep;
 
-				this.thresholdLabelY = y;
-				y += EditorTheme.NAME_H;
-
-				TextFieldWidget thresholdField = new TextFieldWidget(this.textRenderer,
-						innerX, y, innerW, EditorTheme.ROW,
-						Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
-				thresholdField.setMaxLength(4);
-				thresholdField.setPlaceholder(Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"));
-				thresholdField.setText(String.valueOf(config.runnerAlarmThreshold));
-				thresholdField.setChangedListener(text -> {
-					if (text.matches("\\d+")) {
-						config.runnerAlarmThreshold = Integer.parseInt(text);
-					}
-				});
-				this.addDrawableChild(thresholdField);
+				inspectorChild(new ThresholdSlider(innerX, y, innerW, EditorTheme.ROW,
+						config.runnerAlarmThreshold, v -> config.runnerAlarmThreshold = v));
 				y += rowStep;
 
-				this.addDrawableChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
+				inspectorChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
 						.values(RunnerAlarm.SOUND_IDS)
 						.build(innerX, y, innerW, EditorTheme.ROW,
 								Text.translatable("labsaddons.hud.runner_jobs.alarm.sound"),
@@ -378,7 +430,7 @@ public class HudEditScreen extends Screen {
 			for (HudObject.ToggleGroup group : groups) {
 				String groupKey = group.label().getString();
 				boolean expanded = expandedGroups.contains(groupKey);
-				this.addDrawableChild(ButtonWidget.builder(groupHeaderLabel(group.label(), expanded), b -> {
+				inspectorChild(ButtonWidget.builder(groupHeaderLabel(group.label(), expanded), b -> {
 							if (!expandedGroups.remove(groupKey)) {
 								expandedGroups.add(groupKey);
 							}
@@ -407,6 +459,59 @@ public class HudEditScreen extends Screen {
 	 * on the switch flips it; the thumb eases to its new side over
 	 * {@value #ANIM_MS}ms rather than jumping instantly.
 	 */
+	/**
+	 * The low-job alarm threshold: a whole number of jobs from 0 to
+	 * {@link RunnerAlarm#MAX_THRESHOLD}. A slider rather than a text box because the
+	 * range is small and closed — there is no invalid value to type, nothing to parse,
+	 * and, being drawn by hand like {@link DirectionSwitch}, it ghosts with the rest of
+	 * the panel instead of staying a stark white box over the game.
+	 */
+	private static final class ThresholdSlider extends SliderWidget {
+		private final IntConsumer onChange;
+
+		ThresholdSlider(int x, int y, int width, int height, int initial, IntConsumer onChange) {
+			super(x, y, width, height, Text.empty(),
+					Math.clamp(initial, 0, RunnerAlarm.MAX_THRESHOLD) / (double) RunnerAlarm.MAX_THRESHOLD);
+			this.onChange = onChange;
+			updateMessage();
+		}
+
+		private int jobs() {
+			return (int) Math.round(value * RunnerAlarm.MAX_THRESHOLD);
+		}
+
+		@Override
+		protected void updateMessage() {
+			setMessage(Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold", jobs()));
+		}
+
+		@Override
+		protected void applyValue() {
+			onChange.accept(jobs());
+		}
+
+		@Override
+		public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+			float a = this.alpha;
+			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(),
+					EditorTheme.withAlpha(EditorTheme.SWITCH_TRACK, a));
+
+			// Only once the filled part is at least as wide as it is tall: below that the
+			// pill's two semicircular caps would overlap and invert the middle rect.
+			int filled = (int) Math.round(value * getWidth());
+			if (filled >= getHeight()) {
+				EditorPainter.pill(context, getX(), getY(), filled, getHeight(),
+						EditorTheme.withAlpha(EditorTheme.ROW_SELECTED, a));
+			}
+
+			TextRenderer font = MinecraftClient.getInstance().textRenderer;
+			Text label = getMessage();
+			context.drawText(font, label, getX() + (getWidth() - font.getWidth(label)) / 2,
+					getY() + (getHeight() - font.fontHeight) / 2 + 1,
+					EditorTheme.withAlpha(EditorTheme.TEXT, a), true);
+		}
+	}
+
 	private static final class DirectionSwitch extends SliderWidget {
 		private static final long ANIM_MS = 150L;
 
@@ -459,18 +564,24 @@ public class HudEditScreen extends Screen {
 
 		@Override
 		public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(), EditorTheme.SWITCH_TRACK);
+			// Drawn by hand rather than from a texture, so setAlpha() does nothing for us
+			// on its own — the fade has to be applied to each colour.
+			float a = this.alpha;
+			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(),
+					EditorTheme.withAlpha(EditorTheme.SWITCH_TRACK, a));
 
 			float progress = progress();
 			int thumbW = getWidth() / 2;
 			int thumbX = getX() + Math.round(progress * (getWidth() - thumbW));
-			EditorPainter.pill(context, thumbX, getY(), thumbW, getHeight(), EditorTheme.ACCENT);
+			EditorPainter.pill(context, thumbX, getY(), thumbW, getHeight(),
+					EditorTheme.withAlpha(EditorTheme.ACCENT, a));
 
 			TextRenderer font = MinecraftClient.getInstance().textRenderer;
 			Text label = progress < 0.5f ? option.leftLabel() : option.rightLabel();
 			int textX = thumbX + (thumbW - font.getWidth(label)) / 2;
 			int textY = getY() + (getHeight() - font.fontHeight) / 2 + 1;
-			context.drawText(font, label, textX, textY, EditorTheme.SWITCH_THUMB_TEXT, false);
+			context.drawText(font, label, textX, textY,
+					EditorTheme.withAlpha(EditorTheme.SWITCH_THUMB_TEXT, a), false);
 		}
 	}
 
@@ -514,10 +625,23 @@ public class HudEditScreen extends Screen {
 				dev.jade.labsaddons.config.LabsAddonsConfigScreenFactory.create(this));
 	}
 
+	/**
+	 * Restores the active profile to factory state — every widget's placement and the
+	 * display choices that travel with a layout. Deliberately scoped to the profile you
+	 * are looking at: other profiles, tracked server state and your global settings are
+	 * untouched, which is the only reading that makes sense once layouts are named.
+	 */
 	private void resetAll() {
+		LabsAddonsConfig config = LabsAddonsConfig.get();
 		for (HudObject obj : HudObjects.all()) {
 			obj.settings().resetTo(obj.defaultSettings());
 		}
+		// These live in the profile too, so leaving them behind would make a "reset"
+		// still show hidden cooldowns and pinned rows from before.
+		config.pinnedProgressRows.clear();
+		config.hiddenCooldownKeys.clear();
+		config.hiddenRaidMineCodes.clear();
+		config.cooldownsStackVertical = false;
 		selection.clear();
 		clearAndInit();
 	}
@@ -545,6 +669,11 @@ public class HudEditScreen extends Screen {
 
 	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+		// A world change can auto-switch the profile while the editor is open, which
+		// swaps every widget's settings object out from under the inspector.
+		if (!LabsAddonsConfig.get().activeProfile.equals(builtForProfile)) {
+			refreshForProfileChange();
+		}
 		context.fill(0, 0, this.width, this.height, EditorTheme.DIM);
 		if (gridEnabled) {
 			EditorPainter.gridOverlay(context, this.width, this.height, EditorTheme.GRID_STEP, EditorTheme.GRID);
@@ -590,19 +719,37 @@ public class HudEditScreen extends Screen {
 			EditorPainter.outline(context, r[0], r[1], r[2], r[3], EditorTheme.GUIDE);
 		}
 
+		long now = System.currentTimeMillis();
+		chromeFade.retarget(isMovingWidget(now) ? DRAG_ALPHA : 1.0, now);
+		// Vanilla widgets draw themselves in super.render(), so they are faded by their
+		// own alpha rather than by our colours. The toolbar keeps its full opacity: it is
+		// the editor's frame, not a panel in the way, and its nudge hint is worth reading
+		// precisely while you are nudging.
+		float chromeAlpha = chromeFade.progress();
+		for (ClickableWidget child : inspectorWidgets) {
+			child.setAlpha(chromeAlpha);
+		}
 		drawRail(context, mouseX, mouseY);
 		if (one != null && panel != null) {
 			drawInspector(context, one, mouseX, mouseY);
 		} else if (selection.size() > 1) {
 			context.drawCenteredTextWithShadow(this.textRenderer,
 					Text.translatable("labsaddons.hud.editor.multi_hint", selection.size()),
-					this.width / 2, this.height - EditorTheme.TOOLBAR_H - 12, EditorTheme.TEXT_ACCENT);
+					this.width / 2, this.height - toolbarH() - 12, EditorTheme.TEXT_ACCENT);
 		}
 
-		context.fill(0, this.height - EditorTheme.TOOLBAR_H, this.width, this.height, EditorTheme.TOOLBAR_BG);
-		context.drawCenteredTextWithShadow(this.textRenderer,
-				Text.translatable("labsaddons.hud.editor.nudge_hint"),
-				this.width / 2, this.height - EditorTheme.TOOLBAR_H / 2 - 4, EditorTheme.TEXT_DIM);
+		context.fill(0, this.height - toolbarH(), this.width, this.height, EditorTheme.TOOLBAR_BG);
+		// Centred in the gap the buttons actually leave, not the whole width — at a large
+		// GUI scale the screen's midpoint sits underneath the left button group. If the
+		// gap cannot hold the hint, drop it: unreadable text over the buttons is worse
+		// than no hint, and the arrow keys work whether or not it is on screen.
+		int gapStart = leftGroupEnd + EditorTheme.GAP;
+		int gapEnd = (toolbarRows == 1 ? rightGroupStart : this.width) - EditorTheme.GAP;
+		Text hint = Text.translatable("labsaddons.hud.editor.nudge_hint");
+		if (gapEnd - gapStart >= this.textRenderer.getWidth(hint)) {
+			context.drawCenteredTextWithShadow(this.textRenderer, hint, (gapStart + gapEnd) / 2,
+					this.height - EditorTheme.TOOLBAR_H / 2 - 4, EditorTheme.TEXT_DIM);
+		}
 
 		super.render(context, mouseX, mouseY, delta);
 	}
@@ -628,20 +775,32 @@ public class HudEditScreen extends Screen {
 		EditorPainter.nameChip(context, this.textRenderer, label, chipX, chipY, color);
 	}
 
+	/**
+	 * The rail. Rows are always laid out where they'd sit fully rolled down; a scissor
+	 * narrowed to the animated height does the rolling, the same trick the Runner
+	 * Leaderboard's job-history shutter uses.
+	 */
 	private void drawRail(DrawContext context, int mouseX, int mouseY) {
 		int[] r = railRect();
-		EditorPainter.panel(context, r, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
-		context.drawText(this.textRenderer, Text.translatable("labsaddons.hud.editor.layers"),
-				r[0] + 5, r[1] + 3, EditorTheme.TEXT_ACCENT, false);
+		EditorPainter.panel(context, r, fade(EditorTheme.PANEL_BG), fade(EditorTheme.PANEL_BORDER));
 
+		boolean open = railRoll.target() != 0.0;
+		context.drawText(this.textRenderer,
+				groupHeaderLabel(Text.translatable("labsaddons.hud.editor.layers"), open),
+				r[0] + 5, r[1] + 3, fade(EditorTheme.TEXT_ACCENT), false);
+		if (r[3] <= EditorTheme.RAIL_HEADER_H) {
+			return;
+		}
+
+		context.enableScissor(r[0], r[1] + EditorTheme.RAIL_HEADER_H, r[0] + r[2], r[1] + r[3]);
 		List<HudObject> objects = HudObjects.all();
 		for (int i = 0; i < objects.size(); i++) {
 			HudObject obj = objects.get(i);
 			int[] row = layerRowRect(i);
 			if (selection.contains(obj)) {
-				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], EditorTheme.ROW_SELECTED);
-			} else if (contains(row, mouseX, mouseY)) {
-				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], EditorTheme.ROW_HOVER);
+				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], fade(EditorTheme.ROW_SELECTED));
+			} else if (contains(row, mouseX, mouseY) && contains(r, mouseX, mouseY)) {
+				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], fade(EditorTheme.ROW_HOVER));
 			}
 
 			boolean enabled = obj.settings().enabled;
@@ -649,36 +808,47 @@ public class HudEditScreen extends Screen {
 			String name = elide(obj.displayName().getString(), textMaxW);
 			context.drawText(this.textRenderer, Text.literal(name), row[0] + 4,
 					row[1] + (row[3] - this.textRenderer.fontHeight) / 2 + 1,
-					enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
+					fade(enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN), false);
 
 			int[] tb = toggleRect(row);
 			if (enabled) {
-				context.fill(tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], EditorTheme.TOGGLE_ON);
+				context.fill(tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], fade(EditorTheme.TOGGLE_ON));
 			} else {
-				EditorPainter.outline(context, tb[0], tb[1], tb[2], tb[3], EditorTheme.TOGGLE_OFF);
+				EditorPainter.outline(context, tb[0], tb[1], tb[2], tb[3], fade(EditorTheme.TOGGLE_OFF));
 			}
 		}
+		context.disableScissor();
+	}
+
+	/**
+	 * Scales a colour's alpha by the chrome fade, so the rail ghosts out of the way while
+	 * you are actually moving a widget and you can watch it travel underneath.
+	 */
+	private int fade(int argb) {
+		return EditorTheme.withAlpha(argb, chromeFade.progress());
+	}
+
+	/** True while the selection is being dragged, resized, or was just nudged with the arrows. */
+	private boolean isMovingWidget(long now) {
+		return groupDragging || resizing || now - lastNudgeMs < NUDGE_FADE_MS;
 	}
 
 	private void drawInspector(DrawContext context, HudObject widget, int mouseX, int mouseY) {
 		HudObjectSettings s = widget.settings();
-		EditorPainter.panel(context, panel, EditorTheme.PANEL_BG, EditorTheme.PANEL_BORDER);
+		EditorPainter.panel(context, panel, fade(EditorTheme.PANEL_BG), fade(EditorTheme.PANEL_BORDER));
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
 
 		String name = elide(widget.displayName().getString(), innerW);
-		context.drawText(this.textRenderer, Text.literal(name), innerX, nameY, EditorTheme.TEXT, false);
+		context.drawText(this.textRenderer, Text.literal(name), innerX, nameY, fade(EditorTheme.TEXT), false);
 
-		EditorPainter.swatch(context, textSwatchX, textSwatchY, EditorTheme.SWATCH, s.textColor | 0xFF000000);
-		EditorPainter.swatch(context, bgSwatchX, bgSwatchY, EditorTheme.SWATCH, s.backgroundColor);
+		float alpha = chromeFade.progress();
+		EditorPainter.swatch(context, textSwatchX, textSwatchY, EditorTheme.SWATCH,
+				s.textColor | 0xFF000000, alpha);
+		EditorPainter.swatch(context, bgSwatchX, bgSwatchY, EditorTheme.SWATCH, s.backgroundColor, alpha);
 
 		if (groupsLabelText != null) {
 			drawGroupsHeading(context);
-		}
-		if (widget instanceof RunnerHudObject && expandedGroups.contains(ALARM_GROUP_KEY)) {
-			context.drawText(this.textRenderer,
-					Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold"),
-					innerX, thresholdLabelY, EditorTheme.TEXT_DIM, false);
 		}
 		drawAbilityRows(context, mouseX, mouseY);
 	}
@@ -688,7 +858,7 @@ public class HudEditScreen extends Screen {
 		int innerX = panel[0] + EditorTheme.PAD;
 		int innerW = panel[2] - 2 * EditorTheme.PAD;
 		String name = elide(groupsLabelText.getString(), innerW);
-		context.drawText(this.textRenderer, Text.literal(name), innerX, groupsLabelY, EditorTheme.TEXT, false);
+		context.drawText(this.textRenderer, Text.literal(name), innerX, groupsLabelY, fade(EditorTheme.TEXT), false);
 	}
 
 	/** Ability toggle rows, styled like the Widgets rail: filled/hollow tick + normal/italic-red label. */
@@ -696,15 +866,15 @@ public class HudEditScreen extends Screen {
 		for (AbilityRow row : abilityRows) {
 			int[] r = row.rect();
 			if (contains(r, mouseX, mouseY)) {
-				context.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], EditorTheme.ROW_HOVER);
+				context.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], fade(EditorTheme.ROW_HOVER));
 			}
 
 			boolean on = row.option().value().getAsBoolean();
 			int[] tb = toggleRect(r);
 			if (on) {
-				context.fill(tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], EditorTheme.TOGGLE_ON);
+				context.fill(tb[0], tb[1], tb[0] + tb[2], tb[1] + tb[3], fade(EditorTheme.TOGGLE_ON));
 			} else {
-				EditorPainter.outline(context, tb[0], tb[1], tb[2], tb[3], EditorTheme.TOGGLE_OFF);
+				EditorPainter.outline(context, tb[0], tb[1], tb[2], tb[3], fade(EditorTheme.TOGGLE_OFF));
 			}
 
 			int textMaxW = r[2] - EditorTheme.RAIL_TOGGLE - 10;
@@ -712,7 +882,7 @@ public class HudEditScreen extends Screen {
 			Text label = Text.literal(name).styled(style -> style.withItalic(!on));
 			context.drawText(this.textRenderer, label, r[0] + 4,
 					r[1] + (r[3] - this.textRenderer.fontHeight) / 2 + 1,
-					on ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN, false);
+					fade(on ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN), false);
 		}
 	}
 
@@ -758,15 +928,43 @@ public class HudEditScreen extends Screen {
 				: this.textRenderer.trimToWidth(text, budget) + ellipsis;
 	}
 
+	/** Height of the rows block below the header when the rail is fully rolled down. */
+	private int railRowsHeight() {
+		return HudObjects.all().size() * EditorTheme.RAIL_ROW_H + EditorTheme.PAD;
+	}
+
+	/**
+	 * The rail as it currently stands — header plus however much of the rows block has
+	 * rolled down. Everything (panel, hit tests, {@link #overUi}) reads this, so a rolled-up
+	 * rail stops eating clicks in the same motion that it stops covering the screen.
+	 */
 	private int[] railRect() {
-		int count = HudObjects.all().size();
-		int h = EditorTheme.RAIL_HEADER_H + count * EditorTheme.RAIL_ROW_H + EditorTheme.PAD;
+		int h = EditorTheme.RAIL_HEADER_H + Math.round(railRoll.progress() * railRowsHeight());
 		int y = EditorTheme.TOP;
-		int toolbarTop = this.height - EditorTheme.TOOLBAR_H - EditorTheme.GAP;
+		int toolbarTop = this.height - toolbarH() - EditorTheme.GAP;
 		if (y + h > toolbarTop) {
 			y = Math.max(2, toolbarTop - h);
 		}
 		return new int[]{EditorTheme.MARGIN, y, railWidth(), h};
+	}
+
+	/** The clickable "Widgets" caption that rolls the rail up and down. */
+	private int[] railHeaderRect() {
+		int[] r = railRect();
+		return new int[]{r[0], r[1], r[2], EditorTheme.RAIL_HEADER_H};
+	}
+
+	/** Adds an inspector widget, remembering it so {@link #render} can ghost it with the panel. */
+	private <T extends ClickableWidget> T inspectorChild(T widget) {
+		inspectorWidgets.add(widget);
+		return this.addDrawableChild(widget);
+	}
+
+	private void toggleRail() {
+		boolean collapse = railRoll.target() != 0.0;
+		railRoll.retarget(collapse ? 0.0 : 1.0, System.currentTimeMillis());
+		LabsAddonsConfig.get().hudEditorRailCollapsed = collapse;
+		LabsAddonsConfig.get().save();
 	}
 
 	private int[] layerRowRect(int index) {
@@ -805,7 +1003,7 @@ public class HudEditScreen extends Screen {
 	private boolean overUi(double mx, double my) {
 		return contains(railRect(), mx, my)
 				|| (panel != null && contains(panel, mx, my))
-				|| my >= this.height - EditorTheme.TOOLBAR_H;
+				|| my >= this.height - toolbarH();
 	}
 
 	private static boolean contains(int[] rect, double x, double y) {
@@ -894,7 +1092,9 @@ public class HudEditScreen extends Screen {
 		// grabbed and dragged out (e.g. a left-edge widget whose default position
 		// sits beneath the Widgets rail). The open-area body pass below is
 		// unchanged; this only adds the under-chrome case for selected widgets.
-		if (!shift && overUi(mx, my)) {
+		// The rail header is never rescued out from under: it is the only way back to an
+		// expanded rail, so a selected widget parked there must not swallow the click.
+		if (!shift && overUi(mx, my) && !contains(railHeaderRect(), mx, my)) {
 			for (HudObject sel : selection) {
 				if (contains(sel.screenBounds(this.width, this.height, true), mx, my)) {
 					startGroupDrag(sel, mx, my);
@@ -904,26 +1104,32 @@ public class HudEditScreen extends Screen {
 		}
 
 		List<HudObject> objects = HudObjects.all();
-		for (int i = 0; i < objects.size(); i++) {
-			int[] row = layerRowRect(i);
-			if (contains(row, mx, my)) {
-				HudObject obj = objects.get(i);
-				int[] tb = toggleRect(row);
-				if (contains(tb, mx, my)) {
-					HudObjectSettings settings = obj.settings();
-					settings.enabled = !settings.enabled;
-					if (selection.contains(obj)) {
-						clearAndInit();
-					}
-				} else if (shift) {
-					toggleSelection(obj);
-				} else {
-					selectOnly(obj);
-				}
+		// Rail clicks, gated on the rail as it currently stands: rolled up (or still
+		// rolling), the rows below the visible edge belong to the canvas, not the rail.
+		if (contains(railRect(), mx, my)) {
+			if (contains(railHeaderRect(), mx, my)) {
+				toggleRail();
 				return true;
 			}
-		}
-		if (contains(railRect(), mx, my)) {
+			for (int i = 0; i < objects.size(); i++) {
+				int[] row = layerRowRect(i);
+				if (contains(row, mx, my)) {
+					HudObject obj = objects.get(i);
+					int[] tb = toggleRect(row);
+					if (contains(tb, mx, my)) {
+						HudObjectSettings settings = obj.settings();
+						settings.enabled = !settings.enabled;
+						if (selection.contains(obj)) {
+							clearAndInit();
+						}
+					} else if (shift) {
+						toggleSelection(obj);
+					} else {
+						selectOnly(obj);
+					}
+					return true;
+				}
+			}
 			return true;
 		}
 
@@ -1110,6 +1316,7 @@ public class HudEditScreen extends Screen {
 			}
 			if (dx != 0 || dy != 0) {
 				nudgeSelection(dx, dy);
+				lastNudgeMs = System.currentTimeMillis();
 				return true;
 			}
 		}
@@ -1154,9 +1361,19 @@ public class HudEditScreen extends Screen {
 		return super.mouseReleased(click);
 	}
 
+	/**
+	 * Rebuilds the rail and inspector after the HUD profile changed underneath us —
+	 * every widget's settings object is a different instance now.
+	 */
+	public void refreshForProfileChange() {
+		builtForProfile = LabsAddonsConfig.get().activeProfile;
+		this.clearAndInit();
+	}
+
 	@Override
 	public void close() {
-		LabsAddonsConfig.get().save();
+		// saveNow, not save: leaving the editor is when a layout edit must be on disk.
+		LabsAddonsConfig.get().saveNow();
 		if (this.client != null) {
 			this.client.setScreen(this.parent);
 		}

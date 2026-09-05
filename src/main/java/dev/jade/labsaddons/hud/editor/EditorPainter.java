@@ -108,17 +108,20 @@ public final class EditorPainter {
 		return hits / (float) (PILL_AA_SAMPLES * PILL_AA_SAMPLES);
 	}
 
-	/** Colour swatch over a checkerboard so transparency reads clearly. */
-	public static void swatch(DrawContext ctx, int x, int y, int size, int color) {
+	/**
+	 * Colour swatch over a checkerboard so transparency reads clearly. {@code alpha}
+	 * scales the whole thing, checkerboard included, so a ghosted panel ghosts evenly.
+	 */
+	public static void swatch(DrawContext ctx, int x, int y, int size, int color, float alpha) {
 		for (int i = 0; i * 5 < size; i++) {
 			for (int j = 0; j * 5 < size; j++) {
 				int check = (i + j) % 2 == 0 ? EditorTheme.CHECK_A : EditorTheme.CHECK_B;
 				int x2 = Math.min(x + i * 5 + 5, x + size);
 				int y2 = Math.min(y + j * 5 + 5, y + size);
-				ctx.fill(x + i * 5, y + j * 5, x2, y2, check);
+				ctx.fill(x + i * 5, y + j * 5, x2, y2, EditorTheme.withAlpha(check, alpha));
 			}
 		}
-		ctx.fill(x, y, x + size, y + size, color);
-		outline(ctx, x, y, size, size, EditorTheme.TOGGLE_OFF);
+		ctx.fill(x, y, x + size, y + size, EditorTheme.withAlpha(color, alpha));
+		outline(ctx, x, y, size, size, EditorTheme.withAlpha(EditorTheme.TOGGLE_OFF, alpha));
 	}
 }

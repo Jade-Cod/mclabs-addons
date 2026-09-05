@@ -78,7 +78,14 @@ public final class MasteryCatchTracker {
 		}
 		boolean advanced = false;
 		for (Map.Entry<String, Integer> held : counts.entrySet()) {
-			int gained = held.getValue() - previous.getOrDefault(held.getKey(), 0);
+			Integer before = previous.get(held.getKey());
+			if (before == null) {
+				// The challenge only just became active — what's already in the bag is
+				// its baseline, not a haul. count() seeds every active target at zero,
+				// so a missing key can only mean "wasn't active last tick".
+				continue;
+			}
+			int gained = held.getValue() - before;
 			if (gained > 0) {
 				advanced |= MasteryTracker.advance(held.getKey(), gained);
 			}

@@ -23,6 +23,9 @@ import java.util.List;
  * from the client, so no callback plumbing is needed.
  */
 public final class MasteryStore {
+	private static final org.slf4j.Logger LOGGER =
+			org.slf4j.LoggerFactory.getLogger("labsaddons");
+
 	/**
 	 * A restored board older than this is discarded. Challenges get re-rolled, and
 	 * crediting a chat reaction to one the player no longer has selected is worse
@@ -87,6 +90,17 @@ public final class MasteryStore {
 		}
 		Identifier parsed = Identifier.tryParse(id);
 		Item item = parsed == null ? null : Registries.ITEM.getOptionalValue(parsed).orElse(null);
-		return item == null ? ItemStack.EMPTY : new ItemStack(item);
+		if (item == null) {
+			return ItemStack.EMPTY;
+		}
+		try {
+			return new ItemStack(item);
+		} catch (RuntimeException e) {
+			// Constructing a stack reads the item's components, which are bound late in
+			// startup. Restoring happens on world join so this should be unreachable —
+			// but a missing icon is cosmetic and must never take the client down with it.
+			LOGGER.warn("[labsaddons] Could not build the icon for {}; showing the row without one.", id, e);
+			return ItemStack.EMPTY;
+		}
 	}
 }
