@@ -1,8 +1,11 @@
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
+
 plugins {
 	// Non-remapping Loom. 26.x is deobfuscated, so there is no intermediary
 	// step and no remapJar task — the plain `jar` is the publishable artifact.
 	id 'net.fabricmc.fabric-loom' version '1.17.20'
 	id 'com.modrinth.minotaur' version '2.9.0'
+	id 'net.darkhax.curseforgegradle' version '1.1.28'
 }
 
 version = project.mod_version
@@ -102,4 +105,30 @@ modrinth {
 		optional.project 'modmenu'
 		optional.project 'cloth-config'
 	}
+}
+
+// Publishing to CurseForge. Mirrors the Modrinth block above — same jar, same
+// changelog file, same dependency shape:
+//   CURSEFORGE_TOKEN="$(cat ~/.config/mclabs-addons/curseforge-token)" \
+//     ./gradlew curseforge -PchangelogFile=<same notes file as the GitHub release>
+tasks.register('curseforge', TaskPublishCurseForge) {
+	apiToken = System.getenv('CURSEFORGE_TOKEN')
+	// -PcurseforgeDebug validates the request without uploading anything.
+	debugMode = project.hasProperty('curseforgeDebug')
+
+	def mainFile = upload(project.curseforge_project_id, tasks.jar)
+	mainFile.displayName = "v${project.mod_version}"
+	mainFile.releaseType = 'release'
+	mainFile.addModLoader('Fabric')
+	mainFile.addGameVersion(project.minecraft_version)
+	mainFile.addJavaVersion('Java 21')
+	mainFile.changelogType = 'markdown'
+	mainFile.changelog = project.hasProperty('changelogFile') ? file(project.changelogFile).getText('UTF-8') : ''
+	mainFile.addRequirement('fabric-api')
+	mainFile.addOptional('modmenu', 'cloth-config')
+}
+
+// One command for both stores, so a release can't ship to only one of them.
+tasks.register('publishRelease') {
+	dependsOn 'modrinth', 'curseforge'
 }

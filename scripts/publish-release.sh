@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Publishes one mod version to Modrinth for every Minecraft line we support.
+# Publishes one mod version to Modrinth and CurseForge for every Minecraft line
+# we support.
 #
 # Each line lives on its own branch — they can't share a build, because 26.x
 # uses Mojang names and 1.21.11 uses Yarn — but they publish under the same
@@ -9,9 +10,14 @@
 # if the version numbers stay in lockstep, so this refuses to publish when they
 # drift.
 #
+# Both stores go out together, so a release can never end up on one and not the
+# other — a half-published version is worse than an unpublished one, because the
+# in-game update checker starts offering a jar half the players cannot get.
+#
 # Usage:
 #   MODRINTH_TOKEN="$(cat ~/.config/mclabs-addons/modrinth-token)" \
-#     scripts/publish-modrinth.sh <changelog-file> [--dry-run]
+#   CURSEFORGE_TOKEN="$(cat ~/.config/mclabs-addons/curseforge-token)" \
+#     scripts/publish-release.sh <changelog-file> [--dry-run]
 #
 # Builds happen in throwaway worktrees, so whatever is uncommitted in your
 # working copy is neither published nor disturbed.
@@ -35,14 +41,21 @@ changelog=$(cd "$(dirname "$changelog")" && pwd)/$(basename "$changelog")
 
 gradle_flags=()
 if [[ $dry_run == "--dry-run" ]]; then
-	gradle_flags+=(-PmodrinthDebug)
-	# debugMode never uploads, but Minotaur still reads the token property, so
-	# stand one in rather than making a dry run need real credentials.
+	gradle_flags+=(-PmodrinthDebug -PcurseforgeDebug)
+	# debugMode never uploads, but both plugins still read their token, so stand
+	# ones in rather than making a dry run need real credentials.
 	export MODRINTH_TOKEN=${MODRINTH_TOKEN:-dry-run-no-upload}
+	export CURSEFORGE_TOKEN=${CURSEFORGE_TOKEN:-dry-run-no-upload}
 	echo "== dry run: validating only, nothing will be uploaded =="
-elif [[ -z ${MODRINTH_TOKEN:-} ]]; then
-	echo "error: MODRINTH_TOKEN is not set (use --dry-run to validate without it)" >&2
-	exit 78
+else
+	# Check both up front. Finding out CurseForge is unauthenticated *after*
+	# Modrinth has published is exactly the split this script exists to prevent.
+	for var in MODRINTH_TOKEN CURSEFORGE_TOKEN; do
+		if [[ -z ${!var:-} ]]; then
+			echo "error: $var is not set (use --dry-run to validate without it)" >&2
+			exit 78
+		fi
+	done
 fi
 
 repo=$(git rev-parse --show-toplevel)
@@ -88,7 +101,7 @@ for i in "${!dirs[@]}"; do
 	# The ${a[@]+"${a[@]}"} form is deliberate: under `set -u`, bash 3.2 (what macOS
 	# ships) treats an empty array expansion as an unbound variable. A dry run puts a
 	# flag in the array and so never hits it — only a real publish does.
-	(cd "${dirs[$i]}" && ./gradlew modrinth -PchangelogFile="$changelog" ${gradle_flags[@]+"${gradle_flags[@]}"})
+	(cd "${dirs[$i]}" && ./gradlew publishRelease -PchangelogFile="$changelog" ${gradle_flags[@]+"${gradle_flags[@]}"})
 done
 
-echo "== done: v${versions[0]} published for ${#BRANCHES[@]} Minecraft versions =="
+echo "== done: v${versions[0]} published to Modrinth and CurseForge for ${#BRANCHES[@]} Minecraft versions =="
