@@ -122,6 +122,10 @@ tasks.register('curseforge', TaskPublishCurseForge) {
 	mainFile.addModLoader('Fabric')
 	mainFile.addGameVersion(project.minecraft_version)
 	mainFile.addJavaVersion('Java 21')
+	// CurseForge rejects an upload with no environment tag (error 1021). This mod
+	// is client-side only — it reads chat and draws a HUD, and does nothing on a
+	// server — so Client is the whole of it.
+	mainFile.addEnvironment('Client')
 	mainFile.changelogType = 'markdown'
 	mainFile.changelog = project.hasProperty('changelogFile') ? file(project.changelogFile).getText('UTF-8') : ''
 	mainFile.addRequirement('fabric-api')
