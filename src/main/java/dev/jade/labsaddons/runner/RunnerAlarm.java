@@ -34,6 +34,8 @@ public final class RunnerAlarm {
 			"minecraft:entity.wither.spawn", "Wither");
 
 	public static final String DEFAULT_SOUND = SOUND_IDS.get(0);
+	/** Highest alert threshold the editor offers; more posted jobs than this is not "low". */
+	public static final int MAX_THRESHOLD = 30;
 
 	/** Ticks between the two alarm beeps, so they're audibly distinct rather than
 	 *  stacking into one louder sound when played in the same frame. */

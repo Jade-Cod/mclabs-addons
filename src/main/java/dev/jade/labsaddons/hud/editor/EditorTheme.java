@@ -9,6 +9,15 @@ public final class EditorTheme {
 	private EditorTheme() {
 	}
 
+	/** {@code argb} with its alpha scaled by {@code factor} — how the editor ghosts chrome. */
+	public static int withAlpha(int argb, float factor) {
+		if (factor >= 0.999f) {
+			return argb;
+		}
+		int alpha = Math.round(((argb >>> 24) & 0xFF) * Math.clamp(factor, 0f, 1f));
+		return (alpha << 24) | (argb & 0x00FFFFFF);
+	}
+
 	// --- accent ---------------------------------------------------------------
 	public static final int ACCENT = 0xFF4FE3E3;
 	/** RGB-only accent, for compositing a pulsing alpha at draw time. */

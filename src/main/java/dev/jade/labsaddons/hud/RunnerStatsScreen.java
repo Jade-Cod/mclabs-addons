@@ -2,6 +2,7 @@ package dev.jade.labsaddons.hud;
 
 import com.mojang.authlib.GameProfile;
 import dev.jade.labsaddons.config.RunnerJob;
+import dev.jade.labsaddons.hud.editor.Shutter;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.runner.RunnerHudObject;
@@ -112,6 +113,8 @@ public class RunnerStatsScreen extends Screen {
 	private int scrollOffset = 0;
 	private int lastMaxScroll = 0;
 	private long lastLimbTickMs = 0L;
+	/** Ids for the display-only runner models; see {@link #renderRunnerModel}. */
+	private int nextDisplayEntityId = -1;
 
 	// Geometry + entries cached each frame for row hit-testing / hover.
 	private List<RunnerLeaderboard.Entry> lastEntries = List.of();
@@ -132,33 +135,22 @@ public class RunnerStatsScreen extends Screen {
 	/** One row's shutter animation state, keyed by runner name so it survives re-ranking. */
 	private static final class Accordion {
 		final String runner;
-		double animFrom;
-		long animStartMs;
-		double target;
+		final Shutter anim;
 		int pageIndex;
 
 		Accordion(String runner, long now) {
 			this.runner = runner;
-			this.animFrom = 0.0;
-			this.animStartMs = now;
-			this.target = 1.0;
+			this.anim = new Shutter(0.0, ACCORDION_ANIM_MS, now);
+			this.anim.retarget(1.0, now);
 			this.pageIndex = 0;
 		}
 
 		float progress() {
-			float t = Math.min(1f, (System.currentTimeMillis() - animStartMs) / (float) ACCORDION_ANIM_MS);
-			float eased = 1f - (1f - t) * (1f - t);
-			return (float) (animFrom + (target - animFrom) * eased);
+			return anim.progress();
 		}
 
-		/** Captures the current instantaneous progress before flipping direction, so a
-		 *  reversed animation eases from wherever it actually was instead of snapping. */
 		void retarget(double newTarget, long now) {
-			if (target != newTarget) {
-				animFrom = progress();
-				animStartMs = now;
-				target = newTarget;
-			}
+			anim.retarget(newTarget, now);
 		}
 	}
 
@@ -369,7 +361,7 @@ public class RunnerStatsScreen extends Screen {
 
 	private void pruneClosingAccordions() {
 		long now = System.currentTimeMillis();
-		closingAccordions.removeIf(a -> a.target == 0.0 && now - a.animStartMs >= ACCORDION_ANIM_MS);
+		closingAccordions.removeIf(a -> a.anim.target() == 0.0 && a.anim.isSettled(now));
 	}
 
 	/**
@@ -523,8 +515,15 @@ public class RunnerStatsScreen extends Screen {
 		if (profile == null) {
 			return; // not resolved yet — nothing to render this frame
 		}
-		RemotePlayer entity = entityCache.computeIfAbsent(runner,
-				n -> new RemotePlayer(minecraft.level, profile));
+		RemotePlayer entity = entityCache.computeIfAbsent(runner, n -> {
+			RemotePlayer created = new RemotePlayer(minecraft.level, profile);
+			// The GUI renderer asks for an entity id, and an entity that was never added
+			// to a level has never been assigned one — which now throws rather than
+			// returning a default. These are display-only, so any distinct id will do;
+			// negatives keep them clear of ids the server hands out.
+			created.setId(nextDisplayEntityId--);
+			return created;
+		});
 
 		// Advance the run cycle once per game tick, same as LivingEntity.tick() would —
 		// not once per render call, which played it back at frame rate instead of real time.

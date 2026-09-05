@@ -115,6 +115,10 @@ public final class RunnerTracker {
 	 * drops the runner we just touched.
 	 */
 	private static RunnerStats statsFor(LabsAddonsConfig config, String runner) {
+		// Every mutation of the leaderboard routes through here, so this is the one
+		// place that has to flag it — runners.json is written by flag rather than by
+		// content comparison, which would mean serialising megabytes to find nothing.
+		LabsAddonsConfig.markRunnersDirty();
 		Map<String, RunnerStats> map = config.runnerStats;
 		RunnerStats stats = map.computeIfAbsent(runner, k -> new RunnerStats());
 		while (map.size() > RunnerStats.MAX_RUNNERS) {
@@ -143,6 +147,7 @@ public final class RunnerTracker {
 	public static synchronized void resetLeaderboard() {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		config.runnerStats.clear();
+		LabsAddonsConfig.markRunnersDirty();
 		config.saveAsync();
 	}
 

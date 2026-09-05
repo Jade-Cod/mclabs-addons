@@ -141,9 +141,28 @@ to **semicolon** `;`) to enter the editor:
 - **Inspector** (docks on the opposite side from the selected widget) —
   toggle visibility, pick text/background color, reset the widget, and any
   widget-specific options (e.g. the Chemtainer's **Using Satchel** toggle).
-- **Bottom toolbar** — Grid and Snap toggles, plus **Help** to reopen the guide.
+- **Bottom toolbar** — Grid and Snap toggles, **Profile** to manage HUD profiles,
+  plus **Help** to reopen the guide.
 - Widgets on the right half of the screen **anchor their right edge** and grow
   leftward, so growing text never runs off-screen.
+
+### HUD profiles
+
+A profile is a complete widget layout — position, size, colours, and which
+widgets are switched on — together with the display choices inside them (pinned
+progress rows, hidden ability cooldowns, shown Raid Mine resources, cooldown
+stacking). Everything else stays shared across profiles.
+
+Open **Profile** in the editor toolbar to switch, create, rename or delete one,
+and to bind a profile to a world. Type a name and press **Create** to copy the
+active layout into a new profile; **Rename** renames whichever profile is
+currently active (`default` is kept as the fallback and can't be renamed). Bound worlds
+load their profile automatically when you arrive — the mod reads the server's
+own join banner, so it costs nothing and needs no command.
+
+The bindable worlds are **Spawn**, the **Overworld**, the **Underworld**,
+**Events** and **The Pit**. A world you leave unbound keeps whichever profile is
+already loaded.
 
 ## Configuration
 
@@ -153,9 +172,20 @@ Open **Mods → MCLabs Addons → Config** (requires both
 settings button simply doesn't appear). The screen has two categories: **Bite
 Marker** (enable/size/colors, mute-others, catch sound) and **Item Uses**.
 Everything about widget *appearance* — position, size, colors, background —
-lives in the in-game HUD editor instead. Saved to `config/labsaddons.json`
-(settings from older versions in `config/fishbite.json` are migrated over
-automatically on first launch).
+lives in the in-game HUD editor instead.
+
+Saved under `config/labsaddons/`, split by how the data behaves:
+
+| File | Holds |
+| --- | --- |
+| `settings.json` | Your preferences, and which profile is active |
+| `state.json` | Server state the mod tracks (timers, boosters, scraped boards) |
+| `runners.json` | The runner leaderboard — the only file that grows |
+| `profiles/*.json` | One HUD layout each |
+
+Files are written atomically and only when their contents change. A config from
+an older version (`config/labsaddons.json`, or `config/fishbite.json` from
+before the rename) is migrated on first launch and left in place as a backup.
 
 ## Architecture
 
