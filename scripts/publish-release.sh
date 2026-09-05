@@ -42,10 +42,16 @@ changelog=$(cd "$(dirname "$changelog")" && pwd)/$(basename "$changelog")
 gradle_flags=()
 if [[ $dry_run == "--dry-run" ]]; then
 	gradle_flags+=(-PmodrinthDebug -PcurseforgeDebug)
-	# debugMode never uploads, but both plugins still read their token, so stand
-	# ones in rather than making a dry run need real credentials.
+	# Minotaur's debugMode never touches the network, so a stand-in token is enough.
 	export MODRINTH_TOKEN=${MODRINTH_TOKEN:-dry-run-no-upload}
-	export CURSEFORGE_TOKEN=${CURSEFORGE_TOKEN:-dry-run-no-upload}
+	# CurseForgeGradle is different: even in debugMode it fetches the game-version
+	# list from the API first, which 400s without real credentials. So a dry run
+	# needs the real CurseForge token — it still uploads nothing.
+	if [[ -z ${CURSEFORGE_TOKEN:-} ]]; then
+		echo "error: CURSEFORGE_TOKEN is required even for --dry-run: the CurseForge" >&2
+		echo "       plugin fetches game versions before it checks debug mode." >&2
+		exit 78
+	fi
 	echo "== dry run: validating only, nothing will be uploaded =="
 else
 	# Check both up front. Finding out CurseForge is unauthenticated *after*
