@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.bounty;
 
 import java.util.Locale;
+import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,17 +24,42 @@ public final class SunkenTreasureTracker {
 	private static final Pattern LEFT = Pattern.compile(
 			"has found a sunken treasure!\\s+(one|\\d+)\\s+left", Pattern.CASE_INSENSITIVE);
 
+	/**
+	 * "Yeomans506 has found the final treasure! All sunken treasures have been found!"
+	 * The last claim of a wave says this instead of "0 left", so without it the row sat
+	 * at "1 left" forever.
+	 */
+	private static final Pattern FINAL = Pattern.compile(
+			"all sunken treasures have been found", Pattern.CASE_INSENSITIVE);
+
+	/**
+	 * A wave nobody finished (the weekend ended with barrels still out, or we missed the
+	 * final line) would otherwise stay up until restart. Waves re-seed every 20-50 minutes
+	 * while the event runs, so an hour without any treasure news means it's over.
+	 */
+	// ponytail: fixed timeout, raise it if MCLabs ever spaces waves further apart.
+	static final long STALE_MS = 60 * 60 * 1000L;
+
 	private static volatile boolean active;
 	private static volatile int remaining;
+	private static volatile long lastSeenMs;
+
+	// Swappable so tests can age a wave without sleeping.
+	static LongSupplier clock = System::currentTimeMillis;
 
 	private SunkenTreasureTracker() {
 	}
 
 	public static synchronized void onMessage(String text) {
+		if (FINAL.matcher(text).find()) {
+			clear();
+			return;
+		}
 		Matcher start = START.matcher(text);
 		if (start.find()) {
 			remaining = parseInt(start.group(1));
 			active = remaining > 0;
+			lastSeenMs = clock.getAsLong();
 			return;
 		}
 		// "Sunken treasure found for 50 score!" (your own find) carries no count, and the
@@ -42,6 +68,7 @@ public final class SunkenTreasureTracker {
 		if (left.find()) {
 			remaining = parseCount(left.group(1));
 			active = remaining > 0;
+			lastSeenMs = clock.getAsLong();
 		}
 	}
 
@@ -61,10 +88,11 @@ public final class SunkenTreasureTracker {
 	public static synchronized void reconcile(int crates) {
 		remaining = Math.max(0, crates);
 		active = remaining > 0;
+		lastSeenMs = clock.getAsLong();
 	}
 
 	public static synchronized boolean isActive() {
-		return active && remaining > 0;
+		return active && remaining > 0 && clock.getAsLong() - lastSeenMs < STALE_MS;
 	}
 
 	public static synchronized int remaining() {
