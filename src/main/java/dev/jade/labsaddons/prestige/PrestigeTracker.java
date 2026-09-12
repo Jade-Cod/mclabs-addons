@@ -108,6 +108,11 @@ public final class PrestigeTracker {
 		return !chems.isEmpty();
 	}
 
+	/** Whether any tracked chem can still gain, which is when a sale is worth watching. */
+	public static boolean hasOpenTrack() {
+		return chems.values().stream().anyMatch(chem -> !chem.isComplete());
+	}
+
 	public static void clear() {
 		chems = Map.of();
 	}

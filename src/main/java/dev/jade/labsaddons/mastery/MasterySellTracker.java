@@ -2,6 +2,9 @@ package dev.jade.labsaddons.mastery;
 
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.SmugglerSatchel;
+import dev.jade.labsaddons.prestige.PrestigeChat;
+import dev.jade.labsaddons.prestige.PrestigeStore;
+import dev.jade.labsaddons.prestige.PrestigeTracker;
 import net.minecraft.entity.player.PlayerInventory;
 
 import java.util.ArrayDeque;
@@ -65,7 +68,6 @@ public final class MasterySellTracker {
 
 	/** Deliberately not anchored on "You've" — the apostrophe's encoding is not worth trusting. */
 	private static final Pattern SOLD = Pattern.compile("\\bsold ([\\d,]+) chems\\b");
-	private static final String PRESTIGE = "earned prestige progress";
 	private static final Pattern RATE = Pattern.compile("\\(([0-9]+(?:\\.[0-9]+)?)x rate\\)");
 	/** The rate a prestige line means when it doesn't print one — plain, unboosted. */
 	static final double BASE_RATE = 1.0;
@@ -161,7 +163,8 @@ public final class MasterySellTracker {
 	 * the first version credit nothing at all.
 	 */
 	static double rateFrom(String text) {
-		if (text == null || !text.toLowerCase(Locale.ROOT).contains(PRESTIGE)) {
+		// Shared with PrestigeChat so a change to the line's wording is fixed in one place.
+		if (!PrestigeChat.isSaleLine(text)) {
 			return -1;
 		}
 		Matcher matched = RATE.matcher(text);
@@ -173,7 +176,9 @@ public final class MasterySellTracker {
 		if (dealerTtl > 0 && --dealerTtl == 0) {
 			dealer = null;
 		}
-		if (inventory == null || !hasSellQuest()) {
+		// An open prestige track needs the diff too: it's what splits a sale's single
+		// total across several raw chems.
+		if (inventory == null || !(hasSellQuest() || PrestigeTracker.hasOpenTrack())) {
 			// Nothing to track for: drop the history rather than keep snapshotting.
 			history.clear();
 			reference = null;
@@ -205,6 +210,9 @@ public final class MasterySellTracker {
 
 	private static boolean flush() {
 		Map<ChemItems.ChemKey, Long> sold = drops();
+		if (PrestigeChat.settleSplit(rawCounts(sold))) {
+			PrestigeStore.save();
+		}
 		long total = reportedTotal;
 		double soldRate = rate;
 		String soldTo = dealer;
@@ -340,6 +348,17 @@ public final class MasterySellTracker {
 		Map<ChemItems.ChemKey, Long> result = new HashMap<>(pending);
 		result.values().removeIf(count -> count <= 0);
 		return result;
+	}
+
+	/** Units sold per plain chem (no purity), which is what raw chems are. */
+	private static Map<String, Long> rawCounts(Map<ChemItems.ChemKey, Long> sold) {
+		Map<String, Long> counts = new HashMap<>();
+		sold.forEach((key, count) -> {
+			if (key.purity().isEmpty()) {
+				counts.merge(key.chem(), count, Long::sum);
+			}
+		});
+		return counts;
 	}
 
 	private static long parseCount(String grouped) {

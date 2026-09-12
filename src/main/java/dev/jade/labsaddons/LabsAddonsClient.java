@@ -116,6 +116,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		LabsAddonsConfig.get();
+		// Prestige tracks need no item registry, so they restore here rather than on
+		// join. Fabric swallows exceptions thrown from JOIN handlers, so a failed Mastery
+		// restore there would silently leave every sale uncounted until /prestige progress.
+		PrestigeStore.load();
 		// One-time (v1.14.0): stash pre-rename rebinds from options.txt before
 		// the boot-time options save drops them; applied at CLIENT_STARTED below.
 		KeybindMigration.capture();
@@ -176,7 +180,6 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (!storesRestored) {
 				storesRestored = true;
 				MasteryStore.load();
-				PrestigeStore.load();
 			}
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
