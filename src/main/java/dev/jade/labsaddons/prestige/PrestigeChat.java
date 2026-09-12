@@ -44,10 +44,13 @@ public final class PrestigeChat {
 	/** Closes it: "Hover over a chem to see full progress amount." */
 	private static final String LIST_FOOTER = "hover over a chem";
 	/**
-	 * The sell confirmation's prestige line, in both shapes MCLabs has used: the original
-	 * "Earned prestige progress for Cactium and Potatium." (amounts only in the hover), and
-	 * since Sept 2026 "Earned 307 prestige progress for Betronium." (a total in the line).
-	 * The inserted number is what broke a plain "earned prestige progress" match.
+	 * The sell confirmation's prestige line, in both shapes it comes in. A sale earning
+	 * progress for several chems (compound, or more than one raw chem) prints "Earned
+	 * prestige progress for Cactium and Potatium." with each amount in the hover. A single
+	 * raw chem prints "Earned 104 prestige progress for Cactium." with the amount in the
+	 * line and nothing useful in the hover. Logs back to June 2026 show both, so this was
+	 * never a server change: a plain "earned prestige progress" match just missed the
+	 * second shape.
 	 */
 	private static final Pattern SALE = Pattern.compile(
 			"earned\\s+(?:([\\d,]+(?:\\.\\d+)?)([km])?\\s+)?prestige progress(?:\\s+for\\s+([^.]+)\\.)?",
