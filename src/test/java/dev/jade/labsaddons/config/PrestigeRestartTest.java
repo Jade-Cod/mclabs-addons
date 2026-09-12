@@ -13,13 +13,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Sale lines end to end: both server formats, a restart in between, and split totals. */
+/** Sale lines end to end, in both server formats, with a restart in between. */
 public class PrestigeRestartTest {
 	@TempDir
 	Path configDir;
@@ -54,15 +53,15 @@ public class PrestigeRestartTest {
 		LabsAddonsConfig.useStore(new ConfigStore(configDir));
 		PrestigeStore.load();
 
-		// Compound chem sale: the line names the chems, the hover carries the amounts.
+		// Several chems (compound, or more than one raw chem): no number, amounts in the hover.
 		assertTrue(PrestigeChat.onMessage(hovered("» Earned prestige progress for Cactium and Potatium.",
 				"Cactium x8,273\nPotatium x5,516")));
 		assertEquals(412_880 + 8_273, current(0));
 	}
 
-	/** Raw chem sale, verbatim from MCLabs: the amount is in the line and the hover has none. */
+	/** One raw chem, verbatim from MCLabs: the amount is in the line and the hover has none. */
 	@Test
-	public void aRawSaleLineAdvancesItsChem() {
+	public void aSingleRawChemSaleAdvancesFromTheLine() {
 		PrestigeTracker.merge(List.of(new PrestigeChem("Betronium", 150_000, 806_400)));
 		String line = "» Earned 307 prestige progress for Betronium. (1.6x rate)";
 
@@ -71,37 +70,12 @@ public class PrestigeRestartTest {
 		assertEquals(150_307, current(0));
 	}
 
+	/** A single total for several chems has never been seen; if it turns up, nothing is guessed. */
 	@Test
-	public void aTotalForSeveralRawChemsSplitsBySoldCount() {
-		PrestigeTracker.merge(List.of(new PrestigeChem("Cactium", 1_000, 1_382_400),
-				new PrestigeChem("Potatium", 2_000, 806_400)));
+	public void aTotalForSeveralChemsIsNotGuessedAt() {
+		PrestigeTracker.merge(List.of(new PrestigeChem("Cactium", 1_000, 1_382_400)));
 
 		assertFalse(PrestigeChat.onMessage(Component.literal("» Earned 1,000 prestige progress for Cactium and Potatium.")));
-		assertEquals(1_000, current(0)); // nothing moves until the sale settles
-
-		assertTrue(PrestigeChat.settleSplit(Map.of("cactium", 300L, "potatium", 100L)));
-		assertEquals(1_750, current(0));
-		assertEquals(2_250, current(1));
-	}
-
-	@Test
-	public void aSplitIsSkippedWhenAChemWasNotSeenLeaving() {
-		PrestigeTracker.merge(List.of(new PrestigeChem("Cactium", 1_000, 1_382_400),
-				new PrestigeChem("Potatium", 2_000, 806_400)));
-
-		PrestigeChat.onMessage(Component.literal("» Earned 1,000 prestige progress for Cactium and Potatium."));
-		assertFalse(PrestigeChat.settleSplit(Map.of("cactium", 300L)));
 		assertEquals(1_000, current(0));
-	}
-
-	@Test
-	public void aHeldSplitDoesNotCarryIntoTheNextSale() {
-		PrestigeTracker.merge(List.of(new PrestigeChem("Cactium", 1_000, 1_382_400),
-				new PrestigeChem("Potatium", 2_000, 806_400)));
-
-		PrestigeChat.onMessage(Component.literal("» Earned 1,000 prestige progress for Cactium and Potatium."));
-		PrestigeChat.onMessage(Component.literal("» Earned 50 prestige progress for Cactium."));
-		assertFalse(PrestigeChat.settleSplit(Map.of("cactium", 300L, "potatium", 100L)));
-		assertEquals(1_050, current(0));
 	}
 }
