@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -79,8 +78,6 @@ public final class PrestigeChat {
 	private static int remaining;
 	/** Whether a row has merged since the window opened and still needs persisting. */
 	private static boolean pending;
-	/** A multi-chem total waiting for the sale's inventory diff; see {@link #settleSplit}. */
-	private static Stated pendingSplit;
 
 	private PrestigeChat() {
 	}
@@ -109,27 +106,21 @@ public final class PrestigeChat {
 		String text = message.getString();
 		Matcher sale = SALE.matcher(text);
 		if (sale.find()) {
-			// A held split belongs to the sale before this one; it doesn't carry over.
-			pendingSplit = null;
 			List<String> tooltips = TextHovers.tooltips(message);
 			List<Gain> gains = parseEarned(tooltips);
 			if (!gains.isEmpty()) {
 				return applyEarned(gains);
 			}
 			Stated stated = stated(sale);
-			if (stated == null) {
+			// The server only prints a number when a single chem earned; a sale of several
+			// names no figure and puts each chem's amount in the hover instead.
+			if (stated == null || stated.chems().size() != 1) {
 				// Only a line we can't read at all is logged. A finished chem moving
 				// nothing is normal and would otherwise log on every sale.
 				LOGGER.info("[labsaddons] Couldn't read a prestige sale: line=\"{}\" hovers={}", text, tooltips);
 				return false;
 			}
-			if (stated.chems().size() == 1) {
-				return applyEarned(List.of(new Gain(stated.chems().get(0), stated.total())));
-			}
-			// One total across several raw chems. The server credits each as count x rate,
-			// so the sell tracker's inventory diff splits it once the sale settles.
-			pendingSplit = stated;
-			return false;
+			return applyEarned(List.of(new Gain(stated.chems().get(0), stated.total())));
 		}
 		if (remaining <= 0) {
 			return false;
@@ -209,37 +200,6 @@ public final class PrestigeChat {
 		return total > 0 ? new Stated(chems, total) : null;
 	}
 
-	/**
-	 * Splits a held multi-chem total by how many of each raw chem left the inventory,
-	 * keyed the way {@code ChemBaseItems} names them ("cactium").
-	 *
-	 * <p>Skipped unless every named chem was seen leaving. Handing one chem another's
-	 * share would overstate it, and the next /prestige progress fixes an undercount.
-	 *
-	 * @return true if a track moved
-	 */
-	public static boolean settleSplit(Map<String, Long> soldByChem) {
-		Stated split = pendingSplit;
-		pendingSplit = null;
-		if (split == null) {
-			return false;
-		}
-		long counted = 0;
-		for (String chem : split.chems()) {
-			long sold = soldByChem.getOrDefault(chem.toLowerCase(Locale.ROOT), 0L);
-			if (sold <= 0) {
-				LOGGER.info("[labsaddons] Couldn't split a prestige sale: {} wasn't seen leaving the inventory {}",
-						chem, soldByChem);
-				return false;
-			}
-			counted += sold;
-		}
-		List<Gain> gains = new ArrayList<>();
-		for (String chem : split.chems()) {
-			gains.add(new Gain(chem, split.total() * soldByChem.get(chem.toLowerCase(Locale.ROOT)) / counted));
-		}
-		return applyEarned(gains);
-	}
 
 	/** One base chem's share of a sale. */
 	record Gain(String chem, double amount) {
@@ -266,6 +226,5 @@ public final class PrestigeChat {
 	public static void reset() {
 		remaining = 0;
 		pending = false;
-		pendingSplit = null;
 	}
 }

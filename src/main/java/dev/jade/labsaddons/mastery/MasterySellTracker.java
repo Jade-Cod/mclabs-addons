@@ -3,8 +3,6 @@ package dev.jade.labsaddons.mastery;
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.SmugglerSatchel;
 import dev.jade.labsaddons.prestige.PrestigeChat;
-import dev.jade.labsaddons.prestige.PrestigeStore;
-import dev.jade.labsaddons.prestige.PrestigeTracker;
 import net.minecraft.entity.player.PlayerInventory;
 
 import java.util.ArrayDeque;
@@ -176,9 +174,7 @@ public final class MasterySellTracker {
 		if (dealerTtl > 0 && --dealerTtl == 0) {
 			dealer = null;
 		}
-		// An open prestige track needs the diff too: it's what splits a sale's single
-		// total across several raw chems.
-		if (inventory == null || !(hasSellQuest() || PrestigeTracker.hasOpenTrack())) {
+		if (inventory == null || !hasSellQuest()) {
 			// Nothing to track for: drop the history rather than keep snapshotting.
 			history.clear();
 			reference = null;
@@ -210,9 +206,6 @@ public final class MasterySellTracker {
 
 	private static boolean flush() {
 		Map<ChemItems.ChemKey, Long> sold = drops();
-		if (PrestigeChat.settleSplit(rawCounts(sold))) {
-			PrestigeStore.save();
-		}
 		long total = reportedTotal;
 		double soldRate = rate;
 		String soldTo = dealer;
@@ -348,17 +341,6 @@ public final class MasterySellTracker {
 		Map<ChemItems.ChemKey, Long> result = new HashMap<>(pending);
 		result.values().removeIf(count -> count <= 0);
 		return result;
-	}
-
-	/** Units sold per plain chem (no purity), which is what raw chems are. */
-	private static Map<String, Long> rawCounts(Map<ChemItems.ChemKey, Long> sold) {
-		Map<String, Long> counts = new HashMap<>();
-		sold.forEach((key, count) -> {
-			if (key.purity().isEmpty()) {
-				counts.merge(key.chem(), count, Long::sum);
-			}
-		});
-		return counts;
 	}
 
 	private static long parseCount(String grouped) {

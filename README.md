@@ -89,7 +89,9 @@ Everything updates **passively** from chat — you never have to run anything sp
   counting the sunken barrels still hidden along Spawn's shorelines, updating as
   players find them and going away when the last one is claimed. Each new wave
   re-seeds the count on its own, and opening **`/fw`** re-syncs it if you joined
-  partway through and missed the announcement.
+  partway through and missed the announcement. A wave nobody finishes disappears
+  after an hour with no treasure news, and opening `/fw` during any other weekend
+  event clears a leftover row.
 - **Dailies** — reminds you to claim your **daily spin (`/daily`)** and **Daily
   Investor Rewards (`/sm claim`)**. Each line disappears once you claim it — the
   `/sm claim` reminder clears the moment you send the command — and returns after
@@ -118,11 +120,11 @@ Everything updates **passively** from chat — you never have to run anything sp
   the amount just earned beside the bar. By default a row only appears while it is
   gaining and then fades, so the widget stays out of the way — **pin** any row in
   the HUD editor (under *Keep On Screen*) to keep it up permanently. Prestige
-  figures come from the server rather than being calculated. A raw chem sale
-  prints its amount in chat (`Earned 307 prestige progress for Betronium.`), and a
-  compound chem sale carries each chem's share in its hover. When one raw sale
-  earns progress for several chems, that single total is split by how many of each
-  left your inventory. Finished chem tracks are marked complete and stop counting.
+  figures come from the server rather than being calculated. Selling a single raw
+  chem prints its amount in chat (`Earned 104 prestige progress for Cactium.`); a
+  sale that earns progress for several chems, raw or compound, carries each chem's
+  share in its hover instead. Finished chem tracks are marked complete and stop
+  counting.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 - **Raid Mine** — counts down the double mine drops buff (procs stack, so a fresh
@@ -233,9 +235,8 @@ before the rename) is migrated on first launch and left in place as a backup.
 - `mastery/` and `prestige/`: the two sources behind the progress widget.
   `MasteryReader` scrapes `/mastery`, and the kill, catch, sell and chat trackers
   advance challenges live. `PrestigeChat` reads `/prestige progress` and both
-  sale-line formats (hover figures via `TextHovers`), and `MasterySellTracker`'s
-  inventory diff splits a multi-chem raw sale. `MasteryStore` and `PrestigeStore`
-  persist both boards.
+  sale-line formats (hover figures via `TextHovers`). `MasteryStore` and
+  `PrestigeStore` persist both boards.
 - `config/`: `LabsAddonsConfig` (one object, each field tagged with the file it
   belongs to via `@Section`), `ConfigStore` (atomic, coalesced per-file writes
   under `config/labsaddons/`) and the migrations from older config files.
