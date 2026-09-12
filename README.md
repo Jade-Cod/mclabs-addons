@@ -1,6 +1,6 @@
 # MCLabs Addons
 
-A **client-side** Fabric mod for **Minecraft 1.21.11**, built for the MCLabs
+A **client-side** Fabric mod for **Minecraft 1.21.11** and **26.2**, built for the MCLabs
 server. It started as a fishing bite indicator and grew into a suite of
 on-screen HUD timers that track server boosters and events by reading chat and
 GUIs **passively**. Tracking never automates anything on its own; the only
@@ -34,7 +34,7 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | **Vote Reminder** | Daily vote progress toward 7/7 | "Vote registered!" chat; resets 9 PM Pacific |
 | **Chemtainer** | What's in your Chemtainer (chems by quantity + an "inventories" estimate) | the `/ch` GUI (read while open) **and** the Deposit/Withdraw keybinds, which diff your inventory and parse the "Withdrew N …" chat |
 | **Runner Jobs** | Your posted/completed/failed jobs and money earned this session, with an optional low-jobs alarm and a per-runner leaderboard | "Runner »" / "MCLabs »" chat; the **`/supplier` GUI re-syncs your open job count** |
-| **Mastery & Prestige** | Progress bars for your 5 active Mastery challenges and your 14 chem prestige tracks, with the amount just earned | the `/mastery` GUI (read while open) + chat; **`/prestige progress`** and the exact figures in each sale's hover |
+| **Mastery & Prestige** | Progress bars for your 5 active Mastery challenges and your 14 chem prestige tracks, with the amount just earned | the `/mastery` GUI (read while open) + chat; **`/prestige progress`**, then each sale's prestige line (the amount printed in chat, or each chem's share in its hover) |
 
 Timers persist across relogs (absolute expiry in config) and display as `M:SS`,
 `H:MM:SS`, or `Xd Yh` for long durations. The **Dailies** and **Vote Reminder**
@@ -47,11 +47,14 @@ booster shows an end crystal labelled "All").
 
 ### Install
 
-1. Install **Fabric Loader** for Minecraft **1.21.11**, then drop **Fabric API**
+1. Install **Fabric Loader** for Minecraft **1.21.11** or **26.2**, then drop **Fabric API**
    into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
-2. Put `mclabs-addons-1.16.1.jar` in `mods` and launch. The mod is **client-side**,
-   so it works on the MCLabs server with nothing installed server-side.
+2. Download the build for your Minecraft version and put it in `mods`. Modrinth and
+   CurseForge pick the right file for you; on GitHub the jars are named
+   `mclabs-addons-1.16.1-mc1.21.11.jar` and `mclabs-addons-1.16.1-mc26.2.jar`. The
+   mod is **client-side**, so it works on the MCLabs server with nothing installed
+   server-side.
 
 ### First launch
 
@@ -115,9 +118,11 @@ Everything updates **passively** from chat — you never have to run anything sp
   the amount just earned beside the bar. By default a row only appears while it is
   gaining and then fades, so the widget stays out of the way — **pin** any row in
   the HUD editor (under *Keep On Screen*) to keep it up permanently. Prestige
-  figures are taken from the server's own hover tooltips rather than calculated, so
-  they match the game exactly; finished chem tracks are marked complete and stop
-  counting.
+  figures come from the server rather than being calculated. A raw chem sale
+  prints its amount in chat (`Earned 307 prestige progress for Betronium.`), and a
+  compound chem sale carries each chem's share in its hover. When one raw sale
+  earns progress for several chems, that single total is split by how many of each
+  left your inventory. Finished chem tracks are marked complete and stop counting.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 - **Raid Mine** — counts down the double mine drops buff (procs stack, so a fresh
@@ -204,7 +209,8 @@ before the rename) is migrated on first launch and left in place as a backup.
   used to clear the `/sm claim` reminder and to arm the Chemtainer deposit diff),
   item-use detection (`UseItemCallback`), the keybinds (HUD editor + Chemtainer
   deposit/withdraw, under a custom **McLab Addons** controls category), and the
-  once-per-open `/lw rates`, `/chems`, and `/ch` GUI scrapes.
+  once-per-open GUI scrapes (`/lw rates`, `/chems`, `/ch`, `/supplier`, `/mastery`,
+  `/fw`).
 - `hud/` — the reusable widget framework: `HudObject` base (background, scale,
   auto side-anchoring, screen bounds), `HudObjectSettings`, `HudEditScreen`,
   `ColorPickerScreen`, `HelpScreen` (the welcome/Help guide), `TimeFormat`,
@@ -224,6 +230,17 @@ before the rename) is migrated on first launch and left in place as a backup.
   `cooldown/` ring widget from mcMMO super-ability and Pit-item chat.
   `item/` draws the remaining-uses count on charge items; `server/McLabsSession`
   detects whether the player is actually on MCLabs.
+- `mastery/` and `prestige/`: the two sources behind the progress widget.
+  `MasteryReader` scrapes `/mastery`, and the kill, catch, sell and chat trackers
+  advance challenges live. `PrestigeChat` reads `/prestige progress` and both
+  sale-line formats (hover figures via `TextHovers`), and `MasterySellTracker`'s
+  inventory diff splits a multi-chem raw sale. `MasteryStore` and `PrestigeStore`
+  persist both boards.
+- `config/`: `LabsAddonsConfig` (one object, each field tagged with the file it
+  belongs to via `@Section`), `ConfigStore` (atomic, coalesced per-file writes
+  under `config/labsaddons/`) and the migrations from older config files.
+  `server/McLabsWorld` reads the join banner that loads a bound HUD profile, and
+  `hud/HudProfileScreen` manages profiles.
 - `update/` — a once-per-join Modrinth check (`ModrinthUpdateChecker`,
   `ModVersion`, `ModrinthLink`) that posts a local-only chat line when a newer
   release exists; clicking it opens that release's Modrinth page.
