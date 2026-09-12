@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1] - 2026-09-12
+
+### Fixed
+- **Selling chems moves your prestige bars again.** MCLabs changed the message it prints after a sale. Selling raw chems now says `Earned 307 prestige progress for Betronium.`, with the amount in the line itself, while compound chems still say `Earned prestige progress for Cactium and Potatium.` and keep the amounts in the hover. The mod only recognised the old wording, so raw chem sales were ignored and the bars only caught up when you ran `/prestige progress`. Both wordings are read now.
+- **A raw sale that earns progress for several chems is split between them.** That message gives one total for the whole sale, so the mod divides it by how many of each chem left your inventory. If it can't see every one of them leave (a sale straight out of the Smuggler Satchel, say), it credits nothing rather than guess, and the next `/prestige progress` catches the bars up.
+- **Saved prestige bars no longer depend on the Mastery board loading.** 1.16.0 started restoring both together when you join a world, so if the Mastery board failed to load, your prestige bars quietly stayed empty and sales went uncounted until `/prestige progress`. They load on their own at startup again.
+
 ## [1.16.0] - 2026-09-05
 
 > **Downgrading to 1.15.x:** your old `config/labsaddons.json` is left in place

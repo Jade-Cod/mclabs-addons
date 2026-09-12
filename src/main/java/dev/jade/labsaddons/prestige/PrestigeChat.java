@@ -1,10 +1,13 @@
 package dev.jade.labsaddons.prestige;
 
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,12 +38,21 @@ import java.util.regex.Pattern;
  * to hover a chem's figures for a sync.
  */
 public final class PrestigeChat {
+	private static final Logger LOGGER = LoggerFactory.getLogger("labsaddons");
+
 	/** Opens the {@code /prestige progress} listing. */
 	private static final String LIST_HEADER = "your prestige progress";
 	/** Closes it: "Hover over a chem to see full progress amount." */
 	private static final String LIST_FOOTER = "hover over a chem";
-	/** Present on the sell confirmation's prestige line. */
-	private static final String SALE_MARKER = "earned prestige progress";
+	/**
+	 * The sell confirmation's prestige line, in both shapes MCLabs has used: the original
+	 * "Earned prestige progress for Cactium and Potatium." (amounts only in the hover), and
+	 * since Sept 2026 "Earned 307 prestige progress for Betronium." (a total in the line).
+	 * The inserted number is what broke a plain "earned prestige progress" match.
+	 */
+	private static final Pattern SALE = Pattern.compile(
+			"earned\\s+(?:([\\d,]+(?:\\.\\d+)?)([km])?\\s+)?prestige progress(?:\\s+for\\s+([^.]+)\\.)?",
+			Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * Upper bound on the window, in case the footer never arrives. Fourteen chems today,
@@ -67,6 +79,8 @@ public final class PrestigeChat {
 	private static int remaining;
 	/** Whether a row has merged since the window opened and still needs persisting. */
 	private static boolean pending;
+	/** A multi-chem total waiting for the sale's inventory diff; see {@link #settleSplit}. */
+	private static Stated pendingSplit;
 
 	private PrestigeChat() {
 	}
@@ -92,8 +106,30 @@ public final class PrestigeChat {
 		}
 		// Checked ahead of the window so a sale is never swallowed by a listing that
 		// somehow failed to close.
-		if (lower.contains(SALE_MARKER)) {
-			return applyEarned(parseEarned(TextHovers.tooltips(message)));
+		String text = message.getString();
+		Matcher sale = SALE.matcher(text);
+		if (sale.find()) {
+			// A held split belongs to the sale before this one; it doesn't carry over.
+			pendingSplit = null;
+			List<String> tooltips = TextHovers.tooltips(message);
+			List<Gain> gains = parseEarned(tooltips);
+			if (!gains.isEmpty()) {
+				return applyEarned(gains);
+			}
+			Stated stated = stated(sale);
+			if (stated == null) {
+				// Only a line we can't read at all is logged. A finished chem moving
+				// nothing is normal and would otherwise log on every sale.
+				LOGGER.info("[labsaddons] Couldn't read a prestige sale: line=\"{}\" hovers={}", text, tooltips);
+				return false;
+			}
+			if (stated.chems().size() == 1) {
+				return applyEarned(List.of(new Gain(stated.chems().get(0), stated.total())));
+			}
+			// One total across several raw chems. The server credits each as count x rate,
+			// so the sell tracker's inventory diff splits it once the sale settles.
+			pendingSplit = stated;
+			return false;
 		}
 		if (remaining <= 0) {
 			return false;
@@ -152,6 +188,59 @@ public final class PrestigeChat {
 		return found;
 	}
 
+	/** Whether {@code text} is a sale's prestige line, in either shape. */
+	public static boolean isSaleLine(String text) {
+		return text != null && SALE.matcher(text).find();
+	}
+
+	/** The chems a new-style line names and the total it states. */
+	record Stated(List<String> chems, double total) {
+	}
+
+	/** What a new-style line states, or null for an old-style line with no figure. */
+	private static Stated stated(Matcher sale) {
+		if (sale.group(1) == null || sale.group(3) == null) {
+			return null;
+		}
+		String suffix = sale.group(2);
+		double scale = suffix == null ? 1 : suffix.equalsIgnoreCase("k") ? 1_000 : 1_000_000;
+		double total = parseNumber(sale.group(1)) * scale;
+		List<String> chems = List.of(sale.group(3).trim().split(",\\s*|\\s+and\\s+"));
+		return total > 0 ? new Stated(chems, total) : null;
+	}
+
+	/**
+	 * Splits a held multi-chem total by how many of each raw chem left the inventory,
+	 * keyed the way {@code ChemBaseItems} names them ("cactium").
+	 *
+	 * <p>Skipped unless every named chem was seen leaving. Handing one chem another's
+	 * share would overstate it, and the next /prestige progress fixes an undercount.
+	 *
+	 * @return true if a track moved
+	 */
+	public static boolean settleSplit(Map<String, Long> soldByChem) {
+		Stated split = pendingSplit;
+		pendingSplit = null;
+		if (split == null) {
+			return false;
+		}
+		long counted = 0;
+		for (String chem : split.chems()) {
+			long sold = soldByChem.getOrDefault(chem.toLowerCase(Locale.ROOT), 0L);
+			if (sold <= 0) {
+				LOGGER.info("[labsaddons] Couldn't split a prestige sale: {} wasn't seen leaving the inventory {}",
+						chem, soldByChem);
+				return false;
+			}
+			counted += sold;
+		}
+		List<Gain> gains = new ArrayList<>();
+		for (String chem : split.chems()) {
+			gains.add(new Gain(chem, split.total() * soldByChem.get(chem.toLowerCase(Locale.ROOT)) / counted));
+		}
+		return applyEarned(gains);
+	}
+
 	/** One base chem's share of a sale. */
 	record Gain(String chem, double amount) {
 	}
@@ -177,5 +266,6 @@ public final class PrestigeChat {
 	public static void reset() {
 		remaining = 0;
 		pending = false;
+		pendingSplit = null;
 	}
 }
