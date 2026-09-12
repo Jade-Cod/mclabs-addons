@@ -17,6 +17,7 @@ public class SunkenTreasureTrackerTest {
 
 	@BeforeEach
 	public void reset() {
+		SunkenTreasureTracker.clock = System::currentTimeMillis;
 		SunkenTreasureTracker.clear();
 	}
 
@@ -49,12 +50,36 @@ public class SunkenTreasureTrackerTest {
 		assertEquals(6, SunkenTreasureTracker.remaining());
 	}
 
-	/** No end-of-event line exists, so the last barrel is what takes the row away. */
+	/** A "0 left" line takes the row away too, should the server ever send one. */
 	@Test
 	public void theLastBarrelEndsIt() {
 		SunkenTreasureTracker.onMessage(ANNOUNCE);
 		SunkenTreasureTracker.onMessage("Fishing Weekend » Ophiliah has found a sunken treasure! 0 left "
 				+ "in the Spawn waters.");
+		assertFalse(SunkenTreasureTracker.isActive());
+	}
+
+	/** Verbatim from MCLabs: the last claim of a wave announces itself instead of saying "0 left". */
+	@Test
+	public void theFinalTreasureLineEndsIt() {
+		SunkenTreasureTracker.onMessage(ANNOUNCE);
+		SunkenTreasureTracker.onMessage("Fishing Weekend » AtomicBomb has found a sunken treasure! 1 left "
+				+ "in the Spawn waters. Look for bubbles and listen for creaking sounds!");
+		SunkenTreasureTracker.onMessage("Fishing Weekend » Yeomans506 has found the final treasure! "
+				+ "All sunken treasures have been found!");
+		assertFalse(SunkenTreasureTracker.isActive());
+		assertEquals(0, SunkenTreasureTracker.remaining());
+	}
+
+	/** The weekend can end with barrels still out, so an hour of silence retires the row. */
+	@Test
+	public void anUnfinishedWaveExpires() {
+		long[] now = {1_000_000L};
+		SunkenTreasureTracker.clock = () -> now[0];
+		SunkenTreasureTracker.onMessage(FOUND);
+		now[0] += SunkenTreasureTracker.STALE_MS - 1;
+		assertTrue(SunkenTreasureTracker.isActive());
+		now[0] += 1;
 		assertFalse(SunkenTreasureTracker.isActive());
 	}
 

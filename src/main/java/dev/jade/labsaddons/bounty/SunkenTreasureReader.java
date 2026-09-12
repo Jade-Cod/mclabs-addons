@@ -24,7 +24,12 @@ import java.util.regex.Pattern;
  * its "Fishing Weekend Countdown" clock, so no other GUI can clear us by accident.
  */
 public final class SunkenTreasureReader {
-	private static final String SCREEN_MARKER = "fishing weekend countdown";
+	/**
+	 * Matches both "Fishing Weekend Countdown" and "Farm Weekend Countdown". /fw opens
+	 * whichever weekend is running, and a farm weekend has no treasure head, so reading
+	 * it clears a wave left over from the last fishing weekend.
+	 */
+	private static final String SCREEN_MARKER = "weekend countdown";
 	private static final String TREASURE_MARKER = "sunken treasure";
 	private static final Pattern CRATES_LEFT = Pattern.compile(
 			"(\\d+)\\s+crates?\\s+left", Pattern.CASE_INSENSITIVE);
