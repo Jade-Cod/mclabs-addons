@@ -129,3 +129,22 @@ tasks.register('curseforge', TaskPublishCurseForge) {
 tasks.register('publishRelease') {
 	dependsOn 'modrinth', 'curseforge'
 }
+
+// Uploads refuse to run on a stale README. 1.16.0 shipped still telling people to
+// install 1.15.1, so the version pins get checked here instead of remembered. The
+// feature sections still need a human read before tagging.
+tasks.register('checkReadme') {
+	def readme = file('README.md')
+	def version = project.mod_version
+	doLast {
+		def text = readme.getText('UTF-8')
+		def missing = ["Current mod version: **${version}**", "mclabs-addons-${version}"]
+				.collect { it.toString() }
+				.findAll { !text.contains(it) }
+		if (missing) {
+			throw new GradleException("README.md is out of date for ${version}. Missing: ${missing.join(', ')}")
+		}
+	}
+}
+tasks.named('modrinth') { dependsOn 'checkReadme' }
+tasks.named('curseforge') { dependsOn 'checkReadme' }
