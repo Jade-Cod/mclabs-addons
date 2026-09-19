@@ -96,7 +96,7 @@ class D2ReaderTest {
 		assertEquals(100_000L, state.potTotal());
 		assertEquals(0L, state.pot().get(Lab.CQL));
 		assertEquals(100_000L, state.pot().get(Lab.EOL));
-		assertEquals(Lab.ADL, state.pointerLab());
+		assertEquals(Lab.ADL, state.pointerLab(), "slot 49 names the pointer directly");
 		assertNull(state.settledLab());
 	}
 
@@ -138,8 +138,8 @@ class D2ReaderTest {
 		List<SlotView> slots = betting();
 		set(slots, 49, "Mystery Lab", "0.0x Profit");
 		D2State state = D2Reader.read(slots);
-		assertEquals(-1, state.ringOffset());
-		assertNull(state.pointerLab());
+		assertNull(state.window().get(D2Ring.POINTER),
+				"an unreadable pane comes through as a hole in the strip");
 		// Everything else still reads, so the board degrades rather than disappearing.
 		assertEquals(100_000L, state.stake());
 	}

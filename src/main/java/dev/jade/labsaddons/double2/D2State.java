@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.double2;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -7,12 +8,12 @@ import java.util.Map;
  * server sent; nothing is remembered or inferred, so a stale value cannot survive into
  * the next round.
  *
- * @param ringOffset where the visible window sits on the ring, or -1 if it could not
- *                   be located — the overlay then draws no wheel rather than a wrong one.
+ * @param window the nine panes of the strip, slot 45 first; any may be null if the
+ *               server has not filled that slot yet
  */
 public record D2State(Phase phase, int secondsLeft, Lab selected, long stake,
 		Lab betLab, long betAmount, Map<Lab, Long> pot, int investors,
-		int ringOffset, Lab settledLab, int eolDrought) {
+		List<Lab> window, Lab settledLab, int eolDrought) {
 
 	public enum Phase {
 		/** Investing open, the clock running down. */
@@ -23,9 +24,12 @@ public record D2State(Phase phase, int secondsLeft, Lab selected, long stake,
 		SETTLED
 	}
 
-	/** The lab currently under the pointer, or null when the ring isn't located. */
+	/**
+	 * The lab under the pointer. Read straight off slot 49 — the wheel's order is
+	 * learned and may not be known yet, but the segment at the pointer always is.
+	 */
 	public Lab pointerLab() {
-		return ringOffset < 0 ? null : D2Ring.pointerLab(ringOffset);
+		return window.size() > D2Ring.POINTER ? window.get(D2Ring.POINTER) : null;
 	}
 
 	public long potTotal() {

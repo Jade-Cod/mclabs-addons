@@ -157,6 +157,7 @@ public final class D2Screen {
 			lastSeconds = -1;
 			lastState = null;
 			staleSinceMs = 0L;
+			D2Ring.reset();
 		}
 		if (!LabsAddonsConfig.get().double2Overlay || !McLabsSession.isActive()) {
 			return false;
@@ -189,24 +190,25 @@ public final class D2Screen {
 
 		header(context, font, state, accent);
 
-		// Hold the last known position for a frame that cannot be placed, so a momentary
-		// misread stalls the wheel instead of blanking it.
-		int offset = state.ringOffset() >= 0 ? state.ringOffset() : lastGoodOffset;
-		if (state.ringOffset() >= 0) {
-			lastGoodOffset = state.ringOffset();
+		// The wheel places itself against what it has learned; a frame it cannot place
+		// holds the last position rather than blanking.
+		int placed = D2Ring.observe(state.window());
+		int offset = placed >= 0 ? placed : lastGoodOffset;
+		if (placed >= 0) {
+			lastGoodOffset = placed;
 		}
 		int wheelCx = PAD + LEFT_W / 2;
 		int wheelCy = CONTENT_Y + OUTER_R;
 		if (offset >= 0) {
 			D2Wheel.draw(context, font, wheelCx, wheelCy, OUTER_R, INNER_R,
-					tween(offset), accent, hubText(state, offset, font),
+					D2Ring.segments(), tween(offset), accent, hubText(state, font),
 					client.getWindow().getScaleFactor() * panelScale);
-		} else {
-			// Every pane is a lab or the board would not be up, so this means the ring
-			// itself has changed under us. Drawing no wheel beats drawing a wrong one.
-			String note = "wheel changed";
-			context.drawText(font, note, wheelCx - font.getWidth(note) / 2, wheelCy,
-					TEXT_DIM, false);
+			if (!D2Ring.isComplete()) {
+				// Say why part of it is grey, so it does not read as a fault.
+				String note = "learning the wheel";
+				context.drawText(font, note, wheelCx - font.getWidth(note) / 2,
+						wheelCy + OUTER_R + 5, TEXT_DIM, false);
+			}
 		}
 
 		panel(context, font, state, PAD + LEFT_W + 6, CONTENT_Y,
@@ -315,8 +317,11 @@ public final class D2Screen {
 		return drawOffset;
 	}
 
-	private static String[] hubText(D2State state, int offset, TextRenderer font) {
-		Lab pointer = D2Ring.pointerLab(offset);
+	private static String[] hubText(D2State state, TextRenderer font) {
+		Lab pointer = state.pointerLab();
+		if (pointer == null) {
+			return null;
+		}
 		String note = switch (state.phase()) {
 			case BETTING -> state.secondsLeft() >= 0 ? state.secondsLeft() + "s left" : null;
 			case SPINNING -> "simulating";

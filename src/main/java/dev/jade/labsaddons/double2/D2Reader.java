@@ -107,7 +107,7 @@ public final class D2Reader {
 
 		return new D2State(phase, seconds(slots), selected(slots), stake(slots),
 				betLab(slots, phase), betAmount(slots, phase), pot(slots), investors(slots),
-				ringOffset(slots), settled, drought(slots));
+				window(slots), settled, drought(slots));
 	}
 
 	/**
@@ -260,14 +260,14 @@ public final class D2Reader {
 		return 0;
 	}
 
-	/** Where the visible nine sit on the ring, or -1 if they can't be placed. */
-	private static int ringOffset(List<SlotView> slots) {
+	/** The nine panes of the strip, slot 45 first. */
+	private static List<Lab> window(List<SlotView> slots) {
 		List<Lab> window = new ArrayList<>(D2Ring.WINDOW);
 		for (int i = 0; i < D2Ring.WINDOW; i++) {
 			SlotView slot = at(slots, WHEEL_FIRST + i);
 			window.add(slot == null ? null : Lab.fromText(slot.name()));
 		}
-		return D2Ring.lockOn(window);
+		return window;
 	}
 
 	/**
