@@ -20,6 +20,7 @@ import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.bounty.BountyTracker;
 import dev.jade.labsaddons.bounty.SunkenTreasureReader;
 import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
+import dev.jade.labsaddons.double2.D2Chat;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
 import dev.jade.labsaddons.daily.VoteReminderHudObject;
@@ -193,6 +194,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			MasterySellTracker.reset();
 			SmugglerSatchel.reset();
 			PrestigeChat.reset();
+			// Last round's payout belongs to the server we just left.
+			D2Chat.reset();
 			// Entity ids are per-server; drop any hologram queued for reading.
 			RaidMineHologramReader.reset();
 			// The world we remember belongs to the server we just left.
@@ -451,6 +454,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
+		// The Double² board shows the server's own payout figure rather than computing one.
+		D2Chat.onMessage(text);
 		if (MasteryChatTracker.onMessage(text)) {
 			// A chat reaction moved an active challenge; keep it across a restart.
 			MasteryStore.save();

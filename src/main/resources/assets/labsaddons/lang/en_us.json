@@ -22,6 +22,8 @@
 	"labsaddons.config.hud.text_color": "Text Color",
 	"labsaddons.config.hud.background": "Background",
 	"labsaddons.config.hud.background_color": "Background Color",
+	"labsaddons.config.double2": "Double² Board",
+	"labsaddons.config.double2.tooltip": "Draw the mod’s own wheel over the /double menu. Off gives back the server’s chest menu.",
 	"labsaddons.config.category.item_uses": "Item Uses",
 	"labsaddons.config.item_uses.enabled": "Show Remaining Uses",
 	"labsaddons.config.item_uses.enabled.tooltip": "Show a remaining-charges count on items like Whetstones in your inventory.",

@@ -90,6 +90,12 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.double2"), config.double2Overlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.double2.tooltip"))
+				.setSaveConsumer(value -> config.double2Overlay = value)
+				.build());
 
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);

@@ -237,6 +237,10 @@ public class LabsAddonsConfig {
 	public int runnerAlarmThreshold = 1;
 	public String runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
 
+	// --- Double² board (drawn over the /double chest menu) ---
+	/** Off gives back the server's own chest menu, untouched. */
+	public boolean double2Overlay = true;
+
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;
 	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();

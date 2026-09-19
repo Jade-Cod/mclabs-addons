@@ -6,6 +6,8 @@
 		"CameraAccessor",
 		"DrawContextMixin",
 		"FishingBobberEntityAccessor",
+		"GenericContainerScreenMixin",
+		"HandledScreenMixin",
 		"InGameHudMixin",
 		"KeyBindingCategoryAccessor",
 		"SoundSystemMixin"
