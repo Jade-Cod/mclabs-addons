@@ -58,6 +58,12 @@ public final class D2Screen {
 	private static final double WRAP_AT = 100_000.0;
 	/** How long a click's local prediction may mask the slot it emptied. */
 	private static final long PREDICTION_MS = 600L;
+	/**
+	 * How long the board will hold its last reading of a container that has stopped
+	 * parsing. Long enough to ride out the re-send that follows a click, short enough
+	 * that a menu swapped in place behind the same syncId hands the screen back.
+	 */
+	private static final long STALE_MS = 1_000L;
 	/** The full betting window, for scaling the countdown bar. */
 	private static final float ROUND_SECONDS = 60f;
 
@@ -90,6 +96,8 @@ public final class D2Screen {
 	private static int predictedSlot = -1;
 	private static D2Reader.SlotView predictedBefore;
 	private static long predictedAtMs;
+	private static D2State lastState;
+	private static long staleSinceMs;
 	private static int lastSeconds = -1;
 	private static long secondsChangedMs;
 	private static float hoverX;
@@ -147,17 +155,17 @@ public final class D2Screen {
 			lastFrameMs = 0L;
 			lastGoodOffset = -1;
 			lastSeconds = -1;
+			lastState = null;
+			staleSinceMs = 0L;
 		}
 		if (!LabsAddonsConfig.get().double2Overlay || !McLabsSession.isActive()) {
 			return false;
 		}
 		List<D2Reader.SlotView> slots = slotViews(screen.getScreenHandler());
-		if (!D2Reader.isDouble2(slots)) {
+		D2State state = hold(slots, syncId);
+		if (state == null) {
 			return false;
 		}
-		lastSlots = slots;
-		activeSyncId = syncId;
-		D2State state = D2Reader.read(slots);
 		MinecraftClient client = MinecraftClient.getInstance();
 		TextRenderer font = client.textRenderer;
 		int w = context.getScaledWindowWidth();
@@ -206,6 +214,41 @@ public final class D2Screen {
 
 		context.getMatrices().popMatrix();
 		return true;
+	}
+
+	/**
+	 * This frame's reading, or the last good one when the container is mid-update.
+	 *
+	 * <p>Recognition gates only the first frame. After that the container is ours until
+	 * the screen closes: the server re-sends the whole menu after a click, and for a frame
+	 * or two its panes are simply not there. Dropping the board on those frames let the
+	 * real chest through, which is what flickered on every click. The prediction mask
+	 * covers the one slot clicked; this covers the re-send behind it.
+	 *
+	 * @return the state to draw, or null when this is not our menu
+	 */
+	private static D2State hold(List<D2Reader.SlotView> slots, int syncId) {
+		if (D2Reader.isDouble2(slots)) {
+			lastSlots = slots;
+			activeSyncId = syncId;
+			staleSinceMs = 0L;
+			lastState = D2Reader.read(slots);
+			return lastState;
+		}
+		if (activeSyncId != syncId || lastState == null) {
+			return null;
+		}
+		long now = Util.getMeasuringTimeMs();
+		if (staleSinceMs == 0L) {
+			staleSinceMs = now;
+		}
+		if (now - staleSinceMs > STALE_MS) {
+			// Not a re-send — something else is behind this syncId now. Hand it back.
+			activeSyncId = -1;
+			lastState = null;
+			return null;
+		}
+		return lastState;
 	}
 
 	/** Title, phase and the closing countdown, across the top of the panel. */
