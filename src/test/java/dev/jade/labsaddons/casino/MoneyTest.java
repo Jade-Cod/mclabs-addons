@@ -36,8 +36,16 @@ class MoneyTest {
 
 	@Test
 	void shortensFiguresThatWouldNotFit() {
-		assertEquals("$3,828.25", Money.compact(382_825L));
 		assertEquals("$17.0k", Money.compact(1_702_846L));
 		assertEquals("$1.5m", Money.compact(Money.fromDollars(1_500_000L)));
+	}
+
+	@Test
+	void aShortenedColumnKeepsOneFormatThroughout() {
+		// The ladder showed "$4,711.54" next to "$19.7k", which reads as two different
+		// columns. Below the shortening threshold it now rounds rather than keeping cents.
+		assertEquals("$3,828", Money.compact(382_825L));
+		assertEquals("$9,423", Money.compact(942_308L));
+		assertEquals("$6,125", Money.compact(612_500L));
 	}
 }

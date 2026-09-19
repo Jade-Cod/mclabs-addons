@@ -7,6 +7,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.SlotActionType;
 
 import java.util.List;
 import java.util.Locale;
@@ -171,16 +172,21 @@ public final class BetBoard extends CasinoPanel {
 	}
 
 	/**
-	 * Real buttons for what the server hides behind shift-clicking a chip. Only offered on
-	 * BondJoules, which is the only menu that advertises it — Mines may well support the
-	 * same thing, but it does not say so and this board does not guess.
+	 * Real buttons for what the server hides behind shift-clicking a chip.
+	 *
+	 * <p>These send {@code QUICK_MOVE}, which is what the client sends for a shift-click —
+	 * an ordinary click on those two slots is just another ten thousand either way, so a
+	 * plain forward here would have made both buttons lie about what they do.
+	 *
+	 * <p>Only offered on BondJoules, which is the only menu that advertises it. Mines may
+	 * well support the same thing, but it does not say so and this board does not guess.
 	 */
 	private void minMax(DrawContext context, TextRenderer font, int y, int accent) {
 		int half = (LEFT_W - CHIP_GAP) / 2;
-		button(context, font, PAD, y, half, CHIP_H, "MIN", BetReader.MINUS_10K_SLOT, accent);
+		button(context, font, PAD, y, half, CHIP_H, "MIN", BetReader.MINUS_10K_SLOT, accent,
+				SlotActionType.QUICK_MOVE);
 		button(context, font, PAD + half + CHIP_GAP, y, LEFT_W - half - CHIP_GAP, CHIP_H,
-				"MAX", BetReader.PLUS_10K_SLOT, accent);
-		caption(context, font, PAD, y + CHIP_H + 2, "min/max need shift-click");
+				"MAX", BetReader.PLUS_10K_SLOT, accent, SlotActionType.QUICK_MOVE);
 	}
 
 	/**

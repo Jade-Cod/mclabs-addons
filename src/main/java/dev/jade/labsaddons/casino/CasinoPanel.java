@@ -76,9 +76,19 @@ public abstract class CasinoPanel {
 	 * swapped in place behind the same syncId hands the screen back.
 	 */
 	private static final long STALE_MS = 1_000L;
+	/**
+	 * How long a board holds across a <em>new</em> container id. Shorter, because holding
+	 * one menu's board over a different menu is the failure that costs, and a menu the
+	 * server has already opened is only empty for a tick or two.
+	 */
+	private static final long REOPEN_MS = 400L;
 
-	/** A clickable rectangle in panel coordinates, and the container slot behind it. */
-	private record Hit(int x, int y, int w, int h, int slot) {
+	/**
+	 * A clickable rectangle in panel coordinates, the container slot behind it, and how to
+	 * click it — {@code QUICK_MOVE} is what the client sends for a shift-click, which is
+	 * the only way to reach the min and max stake the betting screen hides there.
+	 */
+	private record Hit(int x, int y, int w, int h, int slot, SlotActionType action) {
 		boolean contains(double mx, double my) {
 			return mx >= x && mx < x + w && my >= y && my < y + h;
 		}
@@ -91,6 +101,8 @@ public abstract class CasinoPanel {
 	 */
 	private int activeSyncId = -1;
 	private List<SlotView> heldSlots;
+	/** The title of the menu those slots came from, for recognising its reopen. */
+	private String heldKey = "";
 	private long staleSinceMs;
 	private int predictedSlot = -1;
 	private SlotView predictedBefore;
@@ -129,6 +141,16 @@ public abstract class CasinoPanel {
 	protected void onContainerChange() {
 	}
 
+	/**
+	 * What makes two menus "the same menu" across a reopen. The title by default, since
+	 * these games reopen the chest constantly and it is the one thing that arrives with
+	 * the container rather than after it. A board whose title carries live data overrides
+	 * this to drop that part.
+	 */
+	protected String holdKey(String title) {
+		return title == null ? "" : title;
+	}
+
 	// --- the lifecycle the mixins drive --------------------------------------
 
 	/**
@@ -163,20 +185,20 @@ public abstract class CasinoPanel {
 		hits.clear();
 		ScreenHandler handler = screen.getScreenHandler();
 		int syncId = handler.syncId;
-		if (activeSyncId != syncId) {
-			release();
-		}
 		if (!enabled() || !McLabsSession.isActive()) {
-			release();
+			if (heldSlots != null) {
+				release();
+			}
 			return false;
 		}
 		// Flattening fifty-four slots is not free, and this runs for every board against
 		// every container screen. A menu we do not already hold has to pass the cheap test
-		// first; one we do hold skips it, because mid-re-send it would fail.
-		if (!owns(screen) && !mayBe(handler)) {
+		// first; one we are holding skips it, because mid-re-send it would fail.
+		if (heldSlots == null && !mayBe(handler)) {
 			return false;
 		}
-		List<SlotView> slots = hold(slotViews(handler), syncId);
+		String title = screen.getTitle().getString();
+		List<SlotView> slots = hold(slotViews(handler), syncId, holdKey(title));
 		if (slots == null) {
 			return false;
 		}
@@ -201,7 +223,7 @@ public abstract class CasinoPanel {
 		HudObject.drawRoundedRect(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BG);
 		EditorPainter.outline(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BORDER);
 
-		draw(context, font, slots, screen.getTitle().getString(),
+		draw(context, font, slots, title,
 				(float) client.getWindow().getScaleFactor() * panelScale);
 
 		context.getMatrices().popMatrix();
@@ -217,7 +239,7 @@ public abstract class CasinoPanel {
 		double localY = (mouseY - panelY) / panelScale;
 		for (Hit hit : hits) {
 			if (hit.contains(localX, localY)) {
-				sendClick(screen, hit.slot());
+				sendClick(screen, hit.slot(), hit.action());
 				return true;
 			}
 		}
@@ -230,6 +252,7 @@ public abstract class CasinoPanel {
 	public final void release() {
 		activeSyncId = -1;
 		heldSlots = null;
+		heldKey = "";
 		staleSinceMs = 0L;
 		onContainerChange();
 	}
@@ -242,29 +265,55 @@ public abstract class CasinoPanel {
 	 *
 	 * @return the slots to draw from, or null when this is not our menu
 	 */
-	private List<SlotView> hold(List<SlotView> slots, int syncId) {
+	private List<SlotView> hold(List<SlotView> slots, int syncId, String key) {
 		if (parses(slots)) {
+			if (activeSyncId != syncId) {
+				onContainerChange();
+			}
 			heldSlots = slots;
+			heldKey = key;
 			activeSyncId = syncId;
 			staleSinceMs = 0L;
 			return slots;
 		}
-		if (activeSyncId != syncId || heldSlots == null) {
+		if (heldSlots == null) {
+			return null;
+		}
+		boolean reopened = activeSyncId != syncId;
+		// A new container id is not by itself a different menu. Mines and BondJoules close
+		// and reopen the chest on every click, and for a tick or two the new one is empty
+		// — which is the flash you get from clicking the stake buttons quickly. But a
+		// genuinely different menu must be handed over at once, so this only holds while
+		// the new container is both empty and still calling itself what it did before.
+		if (reopened && !(isUnfilled(slots) && heldKey.equals(key))) {
+			release();
 			return null;
 		}
 		long now = Util.getMeasuringTimeMs();
 		if (staleSinceMs == 0L) {
 			staleSinceMs = now;
 		}
-		if (now - staleSinceMs > STALE_MS) {
-			// Not a re-send — something else is behind this syncId now. Hand it back.
+		if (now - staleSinceMs > (reopened ? REOPEN_MS : STALE_MS)) {
+			// Not a re-send — something else is behind this now. Hand it back.
 			release();
 			return null;
 		}
+		// Stay pinned to the screen actually in front of us, so a click still lands.
+		activeSyncId = syncId;
 		return heldSlots;
 	}
 
-	private void sendClick(HandledScreen<?> screen, int slot) {
+	/** Whether the server has put anything in this container yet. */
+	private static boolean isUnfilled(List<SlotView> slots) {
+		for (SlotView slot : slots) {
+			if (!slot.isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void sendClick(HandledScreen<?> screen, int slot, SlotActionType action) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client.interactionManager == null || client.player == null) {
 			return;
@@ -276,7 +325,7 @@ public abstract class CasinoPanel {
 			predictedAtMs = Util.getMeasuringTimeMs();
 		}
 		client.interactionManager.clickSlot(screen.getScreenHandler().syncId, slot, 0,
-				SlotActionType.PICKUP, client.player);
+				action, client.player);
 	}
 
 	private List<SlotView> slotViews(ScreenHandler handler) {
@@ -326,9 +375,15 @@ public abstract class CasinoPanel {
 		return hoverX >= x && hoverX < x + w && hoverY >= y && hoverY < y + h;
 	}
 
-	/** Registers a clickable rectangle that forwards to {@code slot}. */
+	/** Registers a clickable rectangle that forwards an ordinary click to {@code slot}. */
 	protected final void clickable(int x, int y, int w, int h, int slot) {
-		hits.add(new Hit(x, y, w, h, slot));
+		hits.add(new Hit(x, y, w, h, slot, SlotActionType.PICKUP));
+	}
+
+	/** The same, but sending whatever the server expects for that control. */
+	protected final void clickable(int x, int y, int w, int h, int slot,
+			SlotActionType action) {
+		hits.add(new Hit(x, y, w, h, slot, action));
 	}
 
 	/** The panel title bar: name on the left, a status line on the right. */
@@ -350,6 +405,12 @@ public abstract class CasinoPanel {
 	 */
 	protected final void button(DrawContext context, TextRenderer font, int x, int y,
 			int w, int h, String label, int slot, int accent) {
+		button(context, font, x, y, w, h, label, slot, accent, SlotActionType.PICKUP);
+	}
+
+	/** The same, for a control the server only answers to a shift-click on. */
+	protected final void button(DrawContext context, TextRenderer font, int x, int y,
+			int w, int h, String label, int slot, int accent, SlotActionType action) {
 		boolean live = slot >= 0;
 		boolean hot = live && hovered(x, y, w, h);
 		context.fill(x, y, x + w, y + h, hot ? ROW_HOVER : PANEL);
@@ -360,7 +421,7 @@ public abstract class CasinoPanel {
 				y + (h - font.fontHeight) / 2 + 1,
 				hot ? 0xFFFFFFFF : live ? TEXT : TEXT_FAINT, false);
 		if (live) {
-			clickable(x, y, w, h, slot);
+			clickable(x, y, w, h, slot, action);
 		}
 	}
 

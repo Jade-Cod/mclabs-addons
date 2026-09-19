@@ -9,6 +9,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 
+import net.minecraft.util.Util;
+
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -33,6 +36,58 @@ public final class BjBoard extends CasinoPanel {
 	private static final int BUTTON_GAP = 4;
 	private static final int RESULT_Y = 154;
 	private static final int TOTAL_SCALE = 2;
+	/** How long a card takes to reach its place, or to turn over. */
+	private static final long DEAL_MS = 220L;
+	/** Nobody reaches 21 in more than ten cards, and the array costs nothing. */
+	private static final int MAX_CARDS = 12;
+
+	private final Seat you = new Seat();
+	private final Seat lab = new Seat();
+
+	/**
+	 * One seat's cards and when each of them arrived.
+	 *
+	 * <p>Keyed to the cards themselves rather than to the container, because BondJoules
+	 * reopens the chest under a new id for every single action — four times over just to
+	 * deal a hand. Anything tied to the container would restart the deal each time.
+	 */
+	private static final class Seat {
+		private List<Card> cards = List.of();
+		private final long[] arrivedAt = new long[MAX_CARDS];
+		/** True for a card that turned over where it lay, rather than being dealt. */
+		private final boolean[] turnedOver = new boolean[MAX_CARDS];
+
+		void track(List<Card> now) {
+			long clock = Util.getMeasuringTimeMs();
+			if (now.size() < cards.size()) {
+				// A shorter hand than last time can only be a new one.
+				Arrays.fill(arrivedAt, 0L);
+				Arrays.fill(turnedOver, false);
+			} else {
+				for (int i = cards.size(); i < Math.min(now.size(), MAX_CARDS); i++) {
+					arrivedAt[i] = clock;
+					turnedOver[i] = false;
+				}
+				// The hole card coming up is a reveal, not a deal, so it turns in place.
+				int shared = Math.min(Math.min(cards.size(), now.size()), MAX_CARDS);
+				for (int i = 0; i < shared; i++) {
+					if (cards.get(i).isHidden() && !now.get(i).isHidden()) {
+						arrivedAt[i] = clock;
+						turnedOver[i] = true;
+					}
+				}
+			}
+			cards = now;
+		}
+
+		long arrivedAt(int index) {
+			return index < MAX_CARDS ? arrivedAt[index] : 0L;
+		}
+
+		boolean turnedOver(int index) {
+			return index < MAX_CARDS && turnedOver[index];
+		}
+	}
 
 	private BjBoard() {
 	}
@@ -58,19 +113,30 @@ public final class BjBoard extends CasinoPanel {
 		return BjReader.isBlackjack(slots);
 	}
 
+	/**
+	 * "BondJoules ($3,100)", without the "[16 - 10]" the server appends — that changes
+	 * with every card, and a hand that is still the same hand has to read as one.
+	 */
+	@Override
+	protected String holdKey(String title) {
+		return BjReader.menuKey(title);
+	}
+
 	@Override
 	protected void draw(DrawContext context, TextRenderer font, List<SlotView> slots,
 			String title, float deviceScale) {
 		BjState state = BjReader.read(slots, title);
 		int accent = accent();
 		int width = PANEL_W - PAD * 2;
+		you.track(state.yourHand());
+		lab.track(state.labHand());
 
 		header(context, font, "BONDJOULES", stakeLine(state), TEXT_DIM);
 
 		// The lab's total is only ever what it is showing: its hole card is face down and
 		// the title counts only the cards on the table.
 		caption(context, font, PAD, LAB_CAPTION_Y, "COMPETING LAB");
-		CardPainter.hand(context, font, PAD, LAB_CARDS_Y, state.labHand());
+		hand(context, font, PAD, LAB_CARDS_Y, lab);
 		total(context, font, state.labTotal(), LAB_CARDS_Y + 6, TEXT,
 				state.labHand().size() > 1 && state.labHand().get(1).isHidden()
 						? "showing" : null);
@@ -78,7 +144,7 @@ public final class BjBoard extends CasinoPanel {
 		context.fill(PAD, DIVIDER_Y, PANEL_W - PAD, DIVIDER_Y + 1, DIVIDER);
 
 		caption(context, font, PAD, YOUR_CAPTION_Y, "YOU");
-		CardPainter.hand(context, font, PAD, YOUR_CARDS_Y, state.yourHand());
+		hand(context, font, PAD, YOUR_CARDS_Y, you);
 		total(context, font, state.yourTotal(), YOUR_CARDS_Y + 6,
 				state.yourTotal() > 21 ? LOSS : accent, state.soft() ? "soft" : "hard");
 
@@ -90,6 +156,47 @@ public final class BjBoard extends CasinoPanel {
 			controls(context, font, state, width, accent);
 		}
 		result(context, font, state, width);
+	}
+
+	/**
+	 * Draws a seat's cards, each overlapping the last.
+	 *
+	 * <p>A newly dealt card slides in from the far side of the panel; a hole card turning
+	 * over squeezes edge-on and comes back as itself. Neither invents anything — the cards
+	 * are the server's, only the moment they appear to move is ours.
+	 */
+	private void hand(DrawContext context, TextRenderer font, int x, int y, Seat seat) {
+		long now = Util.getMeasuringTimeMs();
+		for (int i = 0; i < seat.cards.size(); i++) {
+			Card card = seat.cards.get(i);
+			int home = x + i * CardPainter.STEP;
+			long arrived = seat.arrivedAt(i);
+			float t = arrived == 0L ? 1f
+					: Math.clamp((now - arrived) / (float) DEAL_MS, 0f, 1f);
+			if (t >= 1f) {
+				CardPainter.draw(context, font, home, y, card);
+			} else if (seat.turnedOver(i)) {
+				turnOver(context, font, home, y, card, t);
+			} else {
+				// Never starts outside the panel: there is no clip here, and a card drawn
+				// past the edge would be drawn over the world.
+				int from = PANEL_W - PAD - CardPainter.CARD_W;
+				float ease = 1f - (1f - t) * (1f - t) * (1f - t);
+				CardPainter.draw(context, font,
+						Math.round(from + (home - from) * ease), y, card);
+			}
+		}
+	}
+
+	private void turnOver(DrawContext context, TextRenderer font, int x, int y, Card card,
+			float t) {
+		float squeeze = Math.max(0.02f, Math.abs(t * 2f - 1f));
+		context.getMatrices().pushMatrix();
+		context.getMatrices().translate(x + CardPainter.CARD_W / 2f, 0f);
+		context.getMatrices().scale(squeeze, 1f);
+		context.getMatrices().translate(-(x + CardPainter.CARD_W / 2f), 0f);
+		CardPainter.draw(context, font, x, y, t >= 0.5f ? card : Card.HIDDEN);
+		context.getMatrices().popMatrix();
 	}
 
 	/** The stake, or the raised one once a double down has been confirmed in chat. */

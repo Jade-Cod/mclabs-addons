@@ -62,11 +62,14 @@ public final class Money {
 		return part == 0 ? text : text + String.format(Locale.ROOT, ".%02d", part);
 	}
 
-	/** "$10.1k", for the places a full figure will not fit. */
+	/**
+	 * "$10.1k", for a column of figures where a full one will not fit. Whole dollars
+	 * throughout: cents on some rows and not others reads as two different formats.
+	 */
 	public static String compact(long amountCents) {
 		long dollars = amountCents / CENTS;
 		if (dollars < 10_000) {
-			return format(amountCents);
+			return format(Math.round(amountCents / (double) CENTS) * CENTS);
 		}
 		if (dollars < 1_000_000) {
 			return "$" + String.format(Locale.ROOT, "%.1fk", dollars / 1_000.0);

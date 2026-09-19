@@ -71,6 +71,17 @@ public final class BjReader {
 				&& !SlotView.nameAt(slots, BANNER_SLOT).isEmpty();
 	}
 
+	/**
+	 * The menu's title without the live totals the server appends — "BondJoules ($3,100)"
+	 * out of "BondJoules ($3,100) [16 - 10]". Used to tell a reopen of the same hand from
+	 * a different menu opening, which the bracket would otherwise hide.
+	 */
+	public static String menuKey(String title) {
+		String text = title == null ? "" : title;
+		int bracket = text.indexOf(" [");
+		return bracket < 0 ? text : text.substring(0, bracket);
+	}
+
 	public static BjState read(List<SlotView> slots, String title) {
 		String banner = SlotView.nameAt(slots, BANNER_SLOT);
 		List<Card> yourHand = hand(SlotView.at(slots, YOUR_HAND_SLOT));

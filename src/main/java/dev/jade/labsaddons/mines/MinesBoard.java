@@ -11,6 +11,9 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 
+import net.minecraft.util.Util;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -45,6 +48,23 @@ public final class MinesBoard extends CasinoPanel {
 	private static final int CASH_BG = 0xFF17342F;
 	private static final int CASH_BORDER = 0xFF45C08A;
 
+	/** How long a tile takes to turn over. */
+	private static final long FLIP_MS = 180L;
+	/** Per ring of distance from the mine that ended it, when the whole grid comes up. */
+	private static final long CASCADE_STEP_MS = 45L;
+
+	/** What the grid looked like last frame, so a turn can be spotted as it happens. */
+	private final MinesState.Tile[] seen = new MinesState.Tile[MinesOdds.TILES];
+	/** When each tile should start turning; 0 for one that was already face up. */
+	private final long[] turnsAt = new long[MinesOdds.TILES];
+	/** The mine that ended the game, which the losing cascade radiates from. */
+	private int hitTile = -1;
+	/**
+	 * Stars the player actually turned. Once you lose, the server reveals the whole grid,
+	 * and counting those would put the ladder somewhere nobody climbed to.
+	 */
+	private int playedStars;
+
 	private MinesBoard() {
 	}
 
@@ -69,11 +89,21 @@ public final class MinesBoard extends CasinoPanel {
 		return MinesReader.isMines(slots);
 	}
 
+	/** A new game: nothing is turned over, and nothing was. */
+	@Override
+	protected void onContainerChange() {
+		Arrays.fill(seen, null);
+		Arrays.fill(turnsAt, 0L);
+		hitTile = -1;
+		playedStars = 0;
+	}
+
 	@Override
 	protected void draw(DrawContext context, TextRenderer font, List<SlotView> slots,
 			String title, float deviceScale) {
 		MinesState state = MinesReader.read(slots);
 		int accent = accent();
+		track(state);
 
 		header(context, font, "MINES",
 				state.mines() + (state.mines() == 1 ? " mine · " : " mines · ")
@@ -87,36 +117,103 @@ public final class MinesBoard extends CasinoPanel {
 		rail(context, font, state, accent);
 	}
 
+	/**
+	 * Notices what the server turned over since the last frame, and decides when each one
+	 * starts moving.
+	 *
+	 * <p>Keyed to the grid's contents rather than to the clock, so a container re-send
+	 * replays nothing: a tile that has not changed is not turned again.
+	 */
+	private void track(MinesState state) {
+		long now = Util.getMeasuringTimeMs();
+		for (int i = 0; i < MinesOdds.TILES; i++) {
+			MinesState.Tile tile = state.tiles().get(i);
+			if (seen[i] == tile) {
+				continue;
+			}
+			boolean wasDown = seen[i] == null || seen[i] == MinesState.Tile.HIDDEN;
+			if (wasDown && tile != MinesState.Tile.HIDDEN) {
+				// The mine that ends the game turns two seconds before the rest, so the
+				// first one seen is the one that was stepped on.
+				if (hitTile < 0 && tile == MinesState.Tile.MINE) {
+					hitTile = i;
+				}
+				turnsAt[i] = now + cascadeDelay(i);
+			}
+			seen[i] = tile;
+		}
+		if (!state.blown()) {
+			playedStars = state.stars();
+		}
+	}
+
+	/**
+	 * The losing reveal arrives all at once. Staggering it outward from the mine that
+	 * caused it reads as the grid coming up rather than as a jump cut — the data is the
+	 * server's either way, only the moment each tile moves is ours.
+	 */
+	private long cascadeDelay(int tile) {
+		if (hitTile < 0 || tile == hitTile) {
+			return 0L;
+		}
+		int rings = Math.max(Math.abs(tile / 5 - hitTile / 5), Math.abs(tile % 5 - hitTile % 5));
+		return rings * CASCADE_STEP_MS;
+	}
+
 	private void grid(DrawContext context, MinesState state, int accent) {
+		long now = Util.getMeasuringTimeMs();
 		for (int row = 0; row < 5; row++) {
 			for (int column = 0; column < 5; column++) {
+				int index = row * 5 + column;
 				int x = GRID_X + column * (TILE + TILE_GAP);
 				int y = GRID_Y + row * (TILE + TILE_GAP);
-				MinesState.Tile tile = state.tiles().get(row * 5 + column);
+				MinesState.Tile tile = state.tiles().get(index);
 				// Only a face-down tile on a live game is worth a click; once a mine is
 				// showing the server ignores the grid anyway.
 				boolean live = tile == MinesState.Tile.HIDDEN && !state.blown();
 				boolean hot = live && hovered(x, y, TILE, TILE);
 
-				context.fill(x, y, x + TILE, y + TILE, switch (tile) {
-					case HIDDEN -> hot ? ROW_HOVER : TILE_BG;
-					case SAFE -> SAFE_BG;
-					case MINE -> MINE_BG;
-				});
-				EditorPainter.outline(context, x, y, TILE, TILE, switch (tile) {
-					case HIDDEN -> hot ? accent : TILE_BORDER;
-					case SAFE -> WARN;
-					case MINE -> LOSS;
-				});
-				if (tile == MinesState.Tile.SAFE) {
-					Glyphs.centred(context, Glyphs.STAR, x, y, TILE, TILE, 2, WARN);
-				} else if (tile == MinesState.Tile.MINE) {
-					Glyphs.centred(context, Glyphs.MINE, x, y, TILE, TILE, 2, LOSS);
+				float turn = turnsAt[index] == 0L ? 1f
+						: Math.clamp((now - turnsAt[index]) / (float) FLIP_MS, 0f, 1f);
+				// Under half way the tile still shows its back, and it is squeezed to
+				// nothing at the moment it passes edge-on.
+				boolean shown = turn >= 0.5f;
+				float squeeze = turn >= 1f ? 1f : Math.abs(turn * 2f - 1f);
+
+				if (squeeze < 1f) {
+					context.getMatrices().pushMatrix();
+					context.getMatrices().translate(x + TILE / 2f, 0f);
+					context.getMatrices().scale(Math.max(0.02f, squeeze), 1f);
+					context.getMatrices().translate(-(x + TILE / 2f), 0f);
 				}
+				face(context, shown ? tile : MinesState.Tile.HIDDEN, x, y, hot, accent);
+				if (squeeze < 1f) {
+					context.getMatrices().popMatrix();
+				}
+
 				if (live) {
 					clickable(x, y, TILE, TILE, MinesReader.tileSlot(row, column));
 				}
 			}
+		}
+	}
+
+	private void face(DrawContext context, MinesState.Tile tile, int x, int y, boolean hot,
+			int accent) {
+		context.fill(x, y, x + TILE, y + TILE, switch (tile) {
+			case HIDDEN -> hot ? ROW_HOVER : TILE_BG;
+			case SAFE -> SAFE_BG;
+			case MINE -> MINE_BG;
+		});
+		EditorPainter.outline(context, x, y, TILE, TILE, switch (tile) {
+			case HIDDEN -> hot ? accent : TILE_BORDER;
+			case SAFE -> WARN;
+			case MINE -> LOSS;
+		});
+		if (tile == MinesState.Tile.SAFE) {
+			Glyphs.centred(context, Glyphs.STAR, x, y, TILE, TILE, 2, WARN);
+		} else if (tile == MinesState.Tile.MINE) {
+			Glyphs.centred(context, Glyphs.MINE, x, y, TILE, TILE, 2, LOSS);
 		}
 	}
 
@@ -162,7 +259,7 @@ public final class MinesBoard extends CasinoPanel {
 	 */
 	private void ladder(DrawContext context, TextRenderer font, MinesState state, int top,
 			int accent) {
-		int here = state.stars();
+		int here = playedStars;
 		int last = MinesOdds.safeTiles(state.mines());
 		int first = Math.clamp(here - 1, 1, Math.max(1, last - LADDER_ROWS + 1));
 
@@ -248,7 +345,7 @@ public final class MinesBoard extends CasinoPanel {
 		if (next > MinesOdds.safeTiles(state.mines())) {
 			return;
 		}
-		String amount = Money.compact(state.rungCents(next));
+		String amount = Money.format(state.rungCents(next));
 		row(context, font, RAIL_X, y, RAIL_W, "one more", amount, TEXT_DIM,
 				state.rungIsDerived(next) ? TEXT_DIM : TEXT);
 	}

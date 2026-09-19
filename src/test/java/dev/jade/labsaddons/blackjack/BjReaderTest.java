@@ -144,6 +144,19 @@ class BjReaderTest {
 	}
 
 	@Test
+	void treatsEveryStateOfOneHandAsTheSameMenu() {
+		// The board holds its place across a reopen only while the menu is still calling
+		// itself what it did, and this title gains a new bracket on every single card.
+		String key = BjReader.menuKey("BondJoules ($3,100)");
+		assertEquals(key, BjReader.menuKey("BondJoules ($3,100) [0 - 10]"));
+		assertEquals(key, BjReader.menuKey("BondJoules ($3,100) [16 - 21]"));
+		// A different stake is a different hand, and the Mines menu is neither.
+		assertFalse(key.equals(BjReader.menuKey("BondJoules ($6,200) [18 - 7]")));
+		assertFalse(key.equals(BjReader.menuKey("Select Investment")));
+		assertEquals("", BjReader.menuKey(null));
+	}
+
+	@Test
 	void spotsTheSoftAceFromTheCapturedWin() {
 		List<SlotView> slots = table(YOUR_TURN);
 		hand(slots, BjReader.YOUR_HAND_SLOT, "Your Experiment", 11, ACE + ALEMBIC);

@@ -6,8 +6,6 @@ import dev.jade.labsaddons.hud.editor.EditorPainter;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
-import java.util.List;
-
 /**
  * Draws playing cards.
  *
@@ -31,19 +29,6 @@ public final class CardPainter {
 	private static final int PIP_PIXEL = 2;
 
 	private CardPainter() {
-	}
-
-	/** The width a hand of {@code cards} takes, so the caller can right-align a total. */
-	public static int handWidth(int cards) {
-		return cards <= 0 ? 0 : CARD_W + (cards - 1) * STEP;
-	}
-
-	/** Draws a hand left to right, each card overlapping the one before it. */
-	public static void hand(DrawContext context, TextRenderer font, int x, int y,
-			List<Card> cards) {
-		for (int i = 0; i < cards.size(); i++) {
-			draw(context, font, x + i * STEP, y, cards.get(i));
-		}
 	}
 
 	public static void draw(DrawContext context, TextRenderer font, int x, int y, Card card) {
