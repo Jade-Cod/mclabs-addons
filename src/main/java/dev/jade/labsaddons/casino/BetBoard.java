@@ -35,8 +35,13 @@ public final class BetBoard extends CasinoPanel {
 	private static final int START_Y = PANEL_H - PAD - START_H;
 	private static final int LADDER_ROWS = 5;
 	private static final int LADDER_ROW_H = 9;
-	/** Measured: a dealt 21 returned two and a half times the stake, twice. */
+	/** Measured twice: a dealt 21 returns two and a half times the stake — 3:2. */
 	private static final double DEALT_21_RETURN = 2.5;
+	/**
+	 * Measured: any other win returns twice the stake — even money. $25,100 staked
+	 * returned exactly $50,200 against a lab that drew to 24.
+	 */
+	private static final double ORDINARY_RETURN = 2.0;
 	/** Mines hands back a tenth of a percent as Investor Points; BondJoules a full one. */
 	private static final String MINES_POINTS = "0.1% back in points";
 	private static final String BJ_POINTS = "1% back in points";
@@ -229,10 +234,7 @@ public final class BetBoard extends CasinoPanel {
 		}
 	}
 
-	/**
-	 * What each outcome returns. Three of the four are measured; the ordinary win is not,
-	 * and is marked rather than guessed.
-	 */
+	/** What each outcome returns. All four measured off the server's own payouts. */
 	private void payouts(DrawContext context, TextRenderer font, BetReader.BetState state) {
 		int y = CONTENT_Y;
 		caption(context, font, RAIL_X, y, "IF YOU WIN");
@@ -242,20 +244,21 @@ public final class BetBoard extends CasinoPanel {
 		row(context, font, RAIL_X, y, RAIL_W, "21 dealt",
 				Money.compact(Math.round(stake * DEALT_21_RETURN)), TEXT, WIN);
 		y += font.fontHeight + 1;
-		// The one figure nobody has ever seen the server pay.
-		row(context, font, RAIL_X, y, RAIL_W, "beat the lab", "?", TEXT, TEXT_FAINT);
+		row(context, font, RAIL_X, y, RAIL_W, "beat the lab",
+				Money.compact(Math.round(stake * ORDINARY_RETURN)), TEXT, WIN);
 		y += font.fontHeight + 1;
 		row(context, font, RAIL_X, y, RAIL_W, "neutralized", Money.compact(stake),
 				TEXT, TEXT_DIM);
 		y += font.fontHeight + 1;
 		row(context, font, RAIL_X, y, RAIL_W, "lab wins", "$0", TEXT, LOSS);
-		y += font.fontHeight + 5;
+		y += font.fontHeight + 6;
 
-		context.fill(RAIL_X, y, RAIL_X + 1, y + font.fontHeight * 3 + 2, WARN);
-		context.drawText(font, "both wins seen were", RAIL_X + 4, y, WARN, false);
-		context.drawText(font, "dealt 21 at 2.5x — an", RAIL_X + 4, y + font.fontHeight,
-				WARN, false);
-		context.drawText(font, "ordinary win is untested", RAIL_X + 4,
-				y + font.fontHeight * 2, WARN, false);
+		caption(context, font, RAIL_X, y, "HOW IT PAYS");
+		y += font.fontHeight + 1;
+		context.drawText(font, "21 dealt pays 3:2", RAIL_X, y, TEXT_DIM, false);
+		y += font.fontHeight;
+		context.drawText(font, "other wins pay 1:1", RAIL_X, y, TEXT_DIM, false);
+		y += font.fontHeight;
+		context.drawText(font, "lab draws to 17", RAIL_X, y, TEXT_DIM, false);
 	}
 }

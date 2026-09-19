@@ -111,8 +111,8 @@ public final class BjReader {
 		if (text.contains("neutralized")) {
 			return BjState.Phase.PUSH;
 		}
-		// "Perfect Reaction! You win $7,750!" is the only win seen; match on either half
-		// so a reworded prefix does not lose the result.
+		// A dealt 21 says "Perfect Reaction! You win $7,750!" and any other win just
+		// "You win $50,200!", so match on either half.
 		if (text.contains("you win") || text.contains("perfect reaction")) {
 			return BjState.Phase.WON;
 		}

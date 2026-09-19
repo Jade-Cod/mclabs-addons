@@ -12,8 +12,9 @@ import java.util.regex.Pattern;
  * Reaction! You win $7,750!" — and says nothing about the money on a loss or a push. Chat
  * states all three.
  *
- * <p>Both wins captured were dealt 21 and returned 2.5x the stake. An ordinary win has
- * never been observed, so the board never predicts a payout; it reports this one.
+ * <p>A dealt 21 returns 2.5x the stake, any other win 2x, and a push the stake itself.
+ * All three are measured, so the betting board can state what each outcome is worth —
+ * but what actually happened still comes from here, not from a calculation.
  */
 public final class BjChat {
 	/** What the last finished hand did to your money. */

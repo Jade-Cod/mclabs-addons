@@ -130,7 +130,9 @@ class BjReaderTest {
 		assertEquals(BjState.Phase.YOUR_TURN, BjReader.phase(YOUR_TURN));
 		assertEquals(BjState.Phase.LAB_TURN,
 				BjReader.phase("Competing lab is experimenting..."));
+		// A dealt 21 carries the "Perfect Reaction!" prefix; any other win does not.
 		assertEquals(BjState.Phase.WON, BjReader.phase("Perfect Reaction! You win $7,750!"));
+		assertEquals(BjState.Phase.WON, BjReader.phase("You win $50,200!"));
 		assertEquals(BjState.Phase.PUSH, BjReader.phase("Neutralized!"));
 		assertEquals(BjState.Phase.LOST, BjReader.phase("Your experiment lost!"));
 		assertEquals(BjState.Phase.DEALING, BjReader.phase(""));
