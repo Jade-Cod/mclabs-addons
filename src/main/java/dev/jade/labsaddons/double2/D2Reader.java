@@ -1,5 +1,7 @@
 package dev.jade.labsaddons.double2;
 
+import dev.jade.labsaddons.casino.SlotView;
+
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -20,26 +22,6 @@ import java.util.regex.Pattern;
  * static snapshot; here the lore changing is the entire point.
  */
 public final class D2Reader {
-	/** One container slot, flattened. */
-	public record SlotView(int index, String name, List<String> lore, int count) {
-		public String loreLine(int i) {
-			return lore != null && i < lore.size() ? lore.get(i) : "";
-		}
-
-		public boolean loreContains(String needle) {
-			if (lore == null) {
-				return false;
-			}
-			String lower = needle.toLowerCase(Locale.ROOT);
-			for (String line : lore) {
-				if (line != null && line.toLowerCase(Locale.ROOT).contains(lower)) {
-					return true;
-				}
-			}
-			return false;
-		}
-	}
-
 	public static final int CONTAINER_SLOTS = 54;
 	/** Clicking any pane of the banner row invests; 27 is the left-most. */
 	public static final int INVEST_SLOT = 27;
@@ -116,8 +98,8 @@ public final class D2Reader {
 	 * "Simulating market..." for the two seconds the result is up.
 	 */
 	private static Lab settledLab(List<SlotView> slots) {
-		SlotView first = at(slots, BANNER_FIRST);
-		SlotView last = at(slots, BANNER_LAST);
+		SlotView first = SlotView.at(slots, BANNER_FIRST);
+		SlotView last = SlotView.at(slots, BANNER_LAST);
 		if (first == null || last == null) {
 			return null;
 		}
@@ -129,14 +111,14 @@ public final class D2Reader {
 		if (settled != null) {
 			return D2State.Phase.SETTLED;
 		}
-		SlotView clock = at(slots, CLOCK_SLOT);
+		SlotView clock = SlotView.at(slots, CLOCK_SLOT);
 		String name = clock == null || clock.name() == null
 				? "" : clock.name().toLowerCase(Locale.ROOT);
 		return name.contains("simulating") ? D2State.Phase.SPINNING : D2State.Phase.BETTING;
 	}
 
 	private static int seconds(List<SlotView> slots) {
-		SlotView clock = at(slots, CLOCK_SLOT);
+		SlotView clock = SlotView.at(slots, CLOCK_SLOT);
 		if (clock == null || clock.lore() == null) {
 			return -1;
 		}
@@ -152,7 +134,7 @@ public final class D2Reader {
 	/** The lab you have picked: its lore flips from "Select CQL." to "Investing in CQL.". */
 	private static Lab selected(List<SlotView> slots) {
 		for (int i = PICK_FIRST; i <= PICK_LAST; i++) {
-			SlotView slot = at(slots, i);
+			SlotView slot = SlotView.at(slots, i);
 			if (slot != null && slot.loreContains("investing in")) {
 				return Lab.fromText(slot.name());
 			}
@@ -163,7 +145,7 @@ public final class D2Reader {
 	/** The staked figure, which the server repeats on all five chips. */
 	private static long stake(List<SlotView> slots) {
 		for (int i = CHIP_FIRST; i <= CHIP_LAST; i++) {
-			SlotView slot = at(slots, i);
+			SlotView slot = SlotView.at(slots, i);
 			if (slot == null || slot.lore() == null) {
 				continue;
 			}
@@ -196,7 +178,7 @@ public final class D2Reader {
 		if (phase != D2State.Phase.BETTING) {
 			return null;
 		}
-		SlotView slot = at(slots, YOUR_BET_SLOT);
+		SlotView slot = SlotView.at(slots, YOUR_BET_SLOT);
 		if (slot == null || slot.lore() == null) {
 			return null;
 		}
@@ -216,7 +198,7 @@ public final class D2Reader {
 	private static Map<Lab, Long> pot(List<SlotView> slots) {
 		Map<Lab, Long> pot = new EnumMap<>(Lab.class);
 		for (int i = BANNER_FIRST; i <= BANNER_LAST; i++) {
-			SlotView slot = at(slots, i);
+			SlotView slot = SlotView.at(slots, i);
 			if (slot == null || slot.lore() == null) {
 				continue;
 			}
@@ -240,7 +222,7 @@ public final class D2Reader {
 
 	private static int investors(List<SlotView> slots) {
 		for (int i = BANNER_FIRST; i <= BANNER_LAST; i++) {
-			SlotView slot = at(slots, i);
+			SlotView slot = SlotView.at(slots, i);
 			if (slot == null) {
 				continue;
 			}
@@ -264,7 +246,7 @@ public final class D2Reader {
 	private static List<Lab> window(List<SlotView> slots) {
 		List<Lab> window = new ArrayList<>(D2Ring.WINDOW);
 		for (int i = 0; i < D2Ring.WINDOW; i++) {
-			SlotView slot = at(slots, WHEEL_FIRST + i);
+			SlotView slot = SlotView.at(slots, WHEEL_FIRST + i);
 			window.add(slot == null ? null : Lab.fromText(slot.name()));
 		}
 		return window;
@@ -276,7 +258,7 @@ public final class D2Reader {
 	 * clamped.
 	 */
 	private static int drought(List<SlotView> slots) {
-		SlotView slot = at(slots, DROUGHT_SLOT);
+		SlotView slot = SlotView.at(slots, DROUGHT_SLOT);
 		if (slot == null) {
 			return -1;
 		}
@@ -297,10 +279,6 @@ public final class D2Reader {
 		}
 		Matcher matcher = pattern.matcher(text);
 		return matcher.find() ? parseInt(matcher.group(1)) : -1;
-	}
-
-	private static SlotView at(List<SlotView> slots, int index) {
-		return index < slots.size() ? slots.get(index) : null;
 	}
 
 	static long parseMoney(String digits) {

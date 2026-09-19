@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.double2;
 
-import dev.jade.labsaddons.double2.D2Reader.SlotView;
+import dev.jade.labsaddons.casino.SlotView;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

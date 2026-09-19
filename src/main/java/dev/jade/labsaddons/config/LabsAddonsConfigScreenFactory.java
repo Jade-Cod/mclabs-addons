@@ -97,6 +97,21 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.double2Overlay = value)
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.mines"), config.minesOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.mines.tooltip"))
+				.setSaveConsumer(value -> config.minesOverlay = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.blackjack"),
+						config.blackjackOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.blackjack.tooltip"))
+				.setSaveConsumer(value -> config.blackjackOverlay = value)
+				.build());
+
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);
 

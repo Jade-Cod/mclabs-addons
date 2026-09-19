@@ -9,6 +9,7 @@ import dev.jade.labsaddons.labwars.LabWarsHudObject;
 import dev.jade.labsaddons.labwars.LabWarsRatesReader;
 import dev.jade.labsaddons.labwars.LabWarsTracker;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import dev.jade.labsaddons.mines.MinesChat;
 import dev.jade.labsaddons.mount.RentalMountHudObject;
 import dev.jade.labsaddons.mount.RentalMountTimer;
 import dev.jade.labsaddons.personal.PersonalBoosterHudObject;
@@ -20,6 +21,7 @@ import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.bounty.BountyTracker;
 import dev.jade.labsaddons.bounty.SunkenTreasureReader;
 import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
+import dev.jade.labsaddons.blackjack.BjChat;
 import dev.jade.labsaddons.double2.D2Chat;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
@@ -196,6 +198,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			PrestigeChat.reset();
 			// Last round's payout belongs to the server we just left.
 			D2Chat.reset();
+			MinesChat.reset();
+			BjChat.reset();
 			// Entity ids are per-server; drop any hologram queued for reading.
 			RaidMineHologramReader.reset();
 			// The world we remember belongs to the server we just left.
@@ -454,8 +458,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
-		// The Double² board shows the server's own payout figure rather than computing one.
+		// The casino boards show the server's own payout figures rather than computing
+		// one: the menus stop stating a result the moment a game ends.
 		D2Chat.onMessage(text);
+		MinesChat.onMessage(text);
+		BjChat.onMessage(text);
 		if (MasteryChatTracker.onMessage(text)) {
 			// A chat reaction moved an active challenge; keep it across a restart.
 			MasteryStore.save();

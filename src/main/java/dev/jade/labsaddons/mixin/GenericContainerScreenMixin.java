@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.mixin;
 
-import dev.jade.labsaddons.double2.D2Screen;
+import dev.jade.labsaddons.casino.CasinoBoards;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Skips the chest texture when the Double² board is standing in for the menu.
+ * Skips the chest texture when a casino board is standing in for the menu.
  *
  * <p>{@code drawBackground} is reached from {@code renderBackground}, which runs
  * <em>before</em> {@code render} — so cancelling the render alone left the container's
@@ -27,7 +27,7 @@ public abstract class GenericContainerScreenMixin {
 	)
 	private void labsaddons$hideChestTexture(DrawContext context, float deltaTicks,
 			int mouseX, int mouseY, CallbackInfo ci) {
-		if (D2Screen.recognises((HandledScreen<?>) (Object) this)) {
+		if (CasinoBoards.recognises((HandledScreen<?>) (Object) this)) {
 			ci.cancel();
 		}
 	}

@@ -240,6 +240,8 @@ public class LabsAddonsConfig {
 	// --- Double² board (drawn over the /double chest menu) ---
 	/** Off gives back the server's own chest menu, untouched. */
 	public boolean double2Overlay = true;
+	public boolean minesOverlay = true;
+	public boolean blackjackOverlay = true;
 
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.mixin;
 
-import dev.jade.labsaddons.double2.D2Screen;
+import dev.jade.labsaddons.casino.CasinoBoards;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
@@ -11,15 +11,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Hooks for the Double² board, which stands in for the server's chest menu.
+ * Hooks for the casino boards, which stand in for the server's chest menus.
  *
  * <p>Fabric's screen API would be the tidier home, but in this version its render events
  * hand out a {@code GuiGraphicsExtractor} rather than the {@link DrawContext} every other
  * bit of drawing in this mod speaks. Injecting into the screen's own methods needs no
  * translation layer, and is the same trade {@link InGameHudMixin} already makes.
  *
- * <p>Both hooks no-op unless {@link D2Screen} recognises the open container, so every
- * other menu in the game behaves exactly as it did.
+ * <p>Every hook no-ops unless some board in {@link CasinoBoards} recognises the open
+ * container, so every other menu in the game behaves exactly as it did.
  */
 @Mixin(HandledScreen.class)
 public abstract class HandledScreenMixin {
@@ -36,9 +36,9 @@ public abstract class HandledScreenMixin {
 			at = @At("HEAD"),
 			cancellable = true
 	)
-	private void labsaddons$drawDouble2(DrawContext context, int mouseX, int mouseY,
+	private void labsaddons$drawCasinoBoard(DrawContext context, int mouseX, int mouseY,
 			float deltaTicks, CallbackInfo ci) {
-		if (D2Screen.render((HandledScreen<?>) (Object) this, context, mouseX, mouseY)) {
+		if (CasinoBoards.render((HandledScreen<?>) (Object) this, context, mouseX, mouseY)) {
 			ci.cancel();
 		}
 	}
@@ -57,7 +57,7 @@ public abstract class HandledScreenMixin {
 	)
 	private void labsaddons$hideSlotTooltip(DrawContext context, int mouseX, int mouseY,
 			CallbackInfo ci) {
-		if (D2Screen.recognises((HandledScreen<?>) (Object) this)) {
+		if (CasinoBoards.recognises((HandledScreen<?>) (Object) this)) {
 			ci.cancel();
 		}
 	}
@@ -72,9 +72,9 @@ public abstract class HandledScreenMixin {
 			at = @At("HEAD"),
 			cancellable = true
 	)
-	private void labsaddons$clickDouble2(Click click, boolean doubled,
+	private void labsaddons$clickCasinoBoard(Click click, boolean doubled,
 			CallbackInfoReturnable<Boolean> cir) {
-		if (D2Screen.mouseClicked((HandledScreen<?>) (Object) this, click.x(), click.y())) {
+		if (CasinoBoards.mouseClicked((HandledScreen<?>) (Object) this, click.x(), click.y())) {
 			cir.setReturnValue(true);
 		}
 	}

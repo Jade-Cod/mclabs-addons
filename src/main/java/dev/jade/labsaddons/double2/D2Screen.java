@@ -1,69 +1,41 @@
 package dev.jade.labsaddons.double2;
 
+import dev.jade.labsaddons.casino.CasinoPanel;
+import dev.jade.labsaddons.casino.SlotView;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
-import dev.jade.labsaddons.hud.editor.EditorTheme;
-import dev.jade.labsaddons.server.McLabsSession;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
  * The Double² board: drawn in place of the server's chest menu, clicking through to it.
  *
- * <p>The screen is never replaced. The board cancels the menu's own render and paints a
- * fixed panel on the ordinary Minecraft screen dim, and our controls call
- * {@code clickSlot} with the slot a player would have clicked — so the server sees an
- * ordinary click and the mod never has to know what a bet means.
+ * <p>{@link CasinoPanel} owns the parts every casino board shares — standing in for the
+ * menu, surviving its re-sends, and forwarding clicks. What is left here is the wheel and
+ * the lab panel.
  *
  * <p>Everything on screen is read from the container every frame, plus the payout line
  * from chat. The wheel is the server's own position, tweened only between its updates.
  */
-public final class D2Screen {
-	/** Base panel size in GUI pixels. Fixed, like the chest menu it stands in for. */
-	private static final int PANEL_W = 288;
-	private static final int PANEL_H = 176;
-	private static final int PAD = 6;
+public final class D2Screen extends CasinoPanel {
+	public static final D2Screen INSTANCE = new D2Screen();
+
 	private static final int BAR_Y = 16;
-	private static final int CONTENT_Y = 28;
+	/** The wheel and the lab panel start below the countdown bar, not at the base's y. */
+	private static final int WHEEL_TOP = 28;
 	private static final int OUTER_R = 64;
 	private static final int INNER_R = 34;
 	private static final int LEFT_W = 136;
-	private static final int ROW_H = 12;
-	private static final int PANEL = 0xFF1A1D24;
-	private static final int PANEL_BORDER = 0xFF23262E;
-	private static final int BUTTON_BORDER = 0xFF454C5A;
-	private static final int ROW_HOVER = 0xFF262A33;
-	private static final int TRACK = 0xFF23262E;
-	private static final int TEXT = 0xFFEAEEF3;
-	private static final int TEXT_DIM = 0xFF9AA3AD;
-	private static final int WIN = 0xFF96E03F;
-	private static final int LOSS = 0xFFFF8080;
 	/** Tween time constant: short enough to keep up with a one-tick step, long enough to smooth it. */
 	private static final double TWEEN_TAU_MS = 40.0;
 	/** Keep the monotonic wheel position small enough that float precision never bites. */
 	private static final double WRAP_AT = 100_000.0;
-	/** How long a click's local prediction may mask the slot it emptied. */
-	private static final long PREDICTION_MS = 600L;
-	/**
-	 * How long the board will hold its last reading of a container that has stopped
-	 * parsing. Long enough to ride out the re-send that follows a click, short enough
-	 * that a menu swapped in place behind the same syncId hands the screen back.
-	 */
-	private static final long STALE_MS = 1_000L;
 	/** The full betting window, for scaling the countdown bar. */
 	private static final float ROUND_SECONDS = 60f;
 
@@ -77,58 +49,25 @@ public final class D2Screen {
 			{"MAX"}
 	};
 
-	private record Hit(int x, int y, int w, int h, int slot) {
-		boolean contains(double mx, double my) {
-			return mx >= x && mx < x + w && my >= y && my < y + h;
-		}
-	}
-
-	private static final List<Hit> HITS = new ArrayList<>();
-	/** The syncId the board is up for, or -1. Not a bare flag: it has to stop applying
-	 *  the moment a different container opens, or that menu's first click is eaten. */
-	private static int activeSyncId = -1;
-	private static double turned;
-	private static int lastOffset = -1;
-	private static float drawOffset;
-	private static long lastFrameMs;
-	private static int lastGoodOffset = -1;
-	private static List<D2Reader.SlotView> lastSlots;
-	private static int predictedSlot = -1;
-	private static D2Reader.SlotView predictedBefore;
-	private static long predictedAtMs;
-	private static D2State lastState;
-	private static long staleSinceMs;
-	private static int lastSeconds = -1;
-	private static long secondsChangedMs;
-	private static float hoverX;
-	private static float hoverY;
-	private static int panelX;
-	private static int panelY;
-	private static float panelScale = 1f;
+	private double turned;
+	private int lastOffset = -1;
+	private float drawOffset;
+	private long lastFrameMs;
+	private int lastGoodOffset = -1;
+	private int lastSeconds = -1;
+	private long secondsChangedMs;
 
 	private D2Screen() {
 	}
 
-	/**
-	 * Whether the board is standing in for this menu — asked by the hooks that run before
-	 * it draws, so they can suppress the chest texture and the slot tooltips.
-	 */
-	public static boolean recognises(HandledScreen<?> screen) {
-		int syncId = screen.getScreenHandler().syncId;
-		if (activeSyncId >= 0 && activeSyncId == syncId) {
-			return true;
-		}
-		// First frame for this container — and every frame of every other container in
-		// the game, so it stays cheap: five slot names, not a full read of fifty-four.
-		return LabsAddonsConfig.get().double2Overlay && McLabsSession.isActive()
-				&& looksLikeDouble2(screen.getScreenHandler());
+	@Override
+	protected boolean enabled() {
+		return LabsAddonsConfig.get().double2Overlay;
 	}
 
 	/** The five labs in slots 2-6, read straight off the handler. */
-	private static boolean looksLikeDouble2(ScreenHandler handler) {
-		if (handler.slots.size() < D2Reader.CONTAINER_SLOTS) {
-			return false;
-		}
+	@Override
+	protected boolean looksLike(ScreenHandler handler) {
 		for (Lab lab : Lab.values()) {
 			ItemStack stack = handler.slots.get(lab.pickSlot()).getStack();
 			if (stack.isEmpty() || Lab.fromText(stack.getName().getString()) != lab) {
@@ -138,57 +77,31 @@ public final class D2Screen {
 		return true;
 	}
 
+	@Override
+	protected boolean parses(List<SlotView> slots) {
+		return D2Reader.isDouble2(slots);
+	}
+
 	/**
-	 * Draws the board in place of the menu's own render.
-	 *
-	 * @return true when the board took over, so the caller cancels the vanilla render
+	 * A different container: forget where the wheel was, so reopening the menu snaps to
+	 * the live position instead of sweeping in from the last one.
 	 */
-	public static boolean render(HandledScreen<?> screen, DrawContext context,
-			int mouseX, int mouseY) {
-		HITS.clear();
-		int syncId = screen.getScreenHandler().syncId;
-		if (activeSyncId != syncId) {
-			// A different container: forget where the wheel was, so reopening the menu
-			// snaps to the live position instead of sweeping in from the last one.
-			activeSyncId = -1;
-			lastOffset = -1;
-			lastFrameMs = 0L;
-			lastGoodOffset = -1;
-			lastSeconds = -1;
-			lastState = null;
-			staleSinceMs = 0L;
-			D2Ring.reset();
-		}
-		if (!LabsAddonsConfig.get().double2Overlay || !McLabsSession.isActive()) {
-			return false;
-		}
-		List<D2Reader.SlotView> slots = slotViews(screen.getScreenHandler());
-		D2State state = hold(slots, syncId);
-		if (state == null) {
-			return false;
-		}
-		MinecraftClient client = MinecraftClient.getInstance();
-		TextRenderer font = client.textRenderer;
-		int w = context.getScaledWindowWidth();
-		int h = context.getScaledWindowHeight();
-		int accent = EditorTheme.ACCENT;
+	@Override
+	protected void onContainerChange() {
+		lastOffset = -1;
+		lastFrameMs = 0L;
+		lastGoodOffset = -1;
+		lastSeconds = -1;
+		D2Ring.reset();
+	}
 
-		// No dim of our own: Minecraft has already drawn its own behind this, and a
-		// second one on top of it reads as a doubled tint.
-		panelScale = Math.min(1f, Math.min((w - 16f) / PANEL_W, (h - 16f) / PANEL_H));
-		panelX = Math.round((w - PANEL_W * panelScale) / 2f);
-		panelY = Math.round((h - PANEL_H * panelScale) / 2f);
+	@Override
+	protected void draw(DrawContext context, TextRenderer font, List<SlotView> slots,
+			String title, float deviceScale) {
+		D2State state = D2Reader.read(slots);
+		int accent = accent();
 
-		context.getMatrices().pushMatrix();
-		context.getMatrices().translate(panelX, panelY);
-		context.getMatrices().scale(panelScale, panelScale);
-		hoverX = (mouseX - panelX) / panelScale;
-		hoverY = (mouseY - panelY) / panelScale;
-
-		HudObject.drawRoundedRect(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BG);
-		EditorPainter.outline(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BORDER);
-
-		header(context, font, state, accent);
+		topBar(context, font, state, accent);
 
 		// The wheel places itself against what it has learned; a frame it cannot place
 		// holds the last position rather than blanking.
@@ -198,11 +111,11 @@ public final class D2Screen {
 			lastGoodOffset = placed;
 		}
 		int wheelCx = PAD + LEFT_W / 2;
-		int wheelCy = CONTENT_Y + OUTER_R;
+		int wheelCy = WHEEL_TOP + OUTER_R;
 		if (offset >= 0) {
 			D2Wheel.draw(context, font, wheelCx, wheelCy, OUTER_R, INNER_R,
 					D2Ring.segments(), tween(offset), accent, hubText(state, font),
-					client.getWindow().getScaleFactor() * panelScale);
+					deviceScale);
 			if (!D2Ring.isComplete()) {
 				// Say why part of it is grey, so it does not read as a fault.
 				String note = "learning the wheel";
@@ -211,50 +124,12 @@ public final class D2Screen {
 			}
 		}
 
-		panel(context, font, state, PAD + LEFT_W + 6, CONTENT_Y,
+		panel(context, font, state, PAD + LEFT_W + 6, WHEEL_TOP,
 				PANEL_W - (PAD + LEFT_W + 6) - PAD, accent);
-
-		context.getMatrices().popMatrix();
-		return true;
-	}
-
-	/**
-	 * This frame's reading, or the last good one when the container is mid-update.
-	 *
-	 * <p>Recognition gates only the first frame. After that the container is ours until
-	 * the screen closes: the server re-sends the whole menu after a click, and for a frame
-	 * or two its panes are simply not there. Dropping the board on those frames let the
-	 * real chest through, which is what flickered on every click. The prediction mask
-	 * covers the one slot clicked; this covers the re-send behind it.
-	 *
-	 * @return the state to draw, or null when this is not our menu
-	 */
-	private static D2State hold(List<D2Reader.SlotView> slots, int syncId) {
-		if (D2Reader.isDouble2(slots)) {
-			lastSlots = slots;
-			activeSyncId = syncId;
-			staleSinceMs = 0L;
-			lastState = D2Reader.read(slots);
-			return lastState;
-		}
-		if (activeSyncId != syncId || lastState == null) {
-			return null;
-		}
-		long now = Util.getMeasuringTimeMs();
-		if (staleSinceMs == 0L) {
-			staleSinceMs = now;
-		}
-		if (now - staleSinceMs > STALE_MS) {
-			// Not a re-send — something else is behind this syncId now. Hand it back.
-			activeSyncId = -1;
-			lastState = null;
-			return null;
-		}
-		return lastState;
 	}
 
 	/** Title, phase and the closing countdown, across the top of the panel. */
-	private static void header(DrawContext context, TextRenderer font, D2State state, int accent) {
+	private void topBar(DrawContext context, TextRenderer font, D2State state, int accent) {
 		context.drawText(font, "DOUBLE²", PAD, 5, 0xFFFFFFFF, false);
 		String phase = switch (state.phase()) {
 			case BETTING -> "INVESTING OPEN";
@@ -277,7 +152,7 @@ public final class D2Screen {
 	 * The countdown, drained smoothly between the server's whole-second updates. The
 	 * server only ever states an integer, so the bar would otherwise step once a second.
 	 */
-	private static float smoothSeconds(int seconds) {
+	private float smoothSeconds(int seconds) {
 		if (seconds < 0) {
 			return ROUND_SECONDS;
 		}
@@ -295,7 +170,7 @@ public final class D2Screen {
 	 * towards it so the wheel reads smoothly however fast the client is drawing, without
 	 * inventing any motion the server did not send.
 	 */
-	private static float tween(int offset) {
+	private float tween(int offset) {
 		if (lastOffset < 0) {
 			turned = offset;
 			drawOffset = offset;
@@ -334,7 +209,7 @@ public final class D2Screen {
 		return new String[]{pointer.name(), pointer.multiplierText(), note};
 	}
 
-	private static void panel(DrawContext context, TextRenderer font, D2State state,
+	private void panel(DrawContext context, TextRenderer font, D2State state,
 			int x, int y, int width, int accent) {
 		int line = font.fontHeight;
 		long potTotal = state.potTotal();
@@ -353,7 +228,8 @@ public final class D2Screen {
 			if (staked > 0 && potTotal > 0) {
 				int barW = (int) Math.round((double) staked / potTotal * (width - 2));
 				if (barW > 0) {
-					context.fill(x + 1, y + 1, x + 1 + barW, y + ROW_H - 2, shade(lab.color()));
+					context.fill(x + 1, y + 1, x + 1 + barW, y + ROW_H - 2,
+							shade(lab.color(), 0x3C));
 				}
 			}
 
@@ -367,7 +243,7 @@ public final class D2Screen {
 			context.drawText(font, name, x + 15, y + 2, picked || hot ? 0xFFFFFFFF : TEXT, false);
 			context.drawText(font, mult, x + width - font.getWidth(mult) - 3, y + 2,
 					picked || hot ? TEXT : TEXT_DIM, false);
-			HITS.add(new Hit(x, y, width, ROW_H - 1, lab.pickSlot()));
+			clickable(x, y, width, ROW_H - 1, lab.pickSlot());
 			y += ROW_H;
 		}
 		y += 3;
@@ -380,14 +256,7 @@ public final class D2Screen {
 			int chipW = (width - gap * (row.length - 1)) / row.length;
 			for (int i = 0; i < row.length; i++) {
 				int chipX = x + i * (chipW + gap);
-				boolean hot = hovered(chipX, y, chipW, ROW_H);
-				context.fill(chipX, y, chipX + chipW, y + ROW_H, hot ? ROW_HOVER : PANEL);
-				EditorPainter.outline(context, chipX, y, chipW, ROW_H,
-						hot ? accent : BUTTON_BORDER);
-				String label = font.trimToWidth(row[i], chipW - 4);
-				context.drawText(font, label, chipX + (chipW - font.getWidth(label)) / 2,
-						y + 2, hot ? 0xFFFFFFFF : TEXT, false);
-				HITS.add(new Hit(chipX, y, chipW, ROW_H, chip++));
+				button(context, font, chipX, y, chipW, ROW_H, row[i], chip++, accent);
 			}
 			y += ROW_H + 2;
 		}
@@ -401,7 +270,7 @@ public final class D2Screen {
 				state.stake() > 0 ? 0xFFFFFFFF : TEXT_DIM, false);
 		y += line + 4;
 
-		context.fill(x, y, x + width, y + 1, PANEL_BORDER);
+		context.fill(x, y, x + width, y + 1, DIVIDER);
 		y += 4;
 		String pot = "POT " + money(potTotal);
 		context.drawText(font, pot, x, y, TEXT, false);
@@ -432,94 +301,8 @@ public final class D2Screen {
 		}
 	}
 
-	/** Whether the cursor is over this rectangle, in panel coordinates. */
-	private static boolean hovered(int x, int y, int w, int h) {
-		return hoverX >= x && hoverX < x + w && hoverY >= y && hoverY < y + h;
-	}
-
-	/** True when the click was over our board, so the hidden vanilla slots stay untouched. */
-	public static boolean mouseClicked(HandledScreen<?> screen, double mouseX, double mouseY) {
-		if (activeSyncId < 0 || activeSyncId != screen.getScreenHandler().syncId) {
-			return false;
-		}
-		double localX = (mouseX - panelX) / panelScale;
-		double localY = (mouseY - panelY) / panelScale;
-		for (Hit hit : HITS) {
-			if (hit.contains(localX, localY)) {
-				sendClick(screen, hit.slot());
-				return true;
-			}
-		}
-		// Swallowed even with nothing under the cursor: the real slots are still live
-		// behind the board, and a stray click on an invisible one would place a bet.
-		return true;
-	}
-
-	private static void sendClick(HandledScreen<?> screen, int slot) {
-		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.interactionManager == null || client.player == null) {
-			return;
-		}
-		// The client predicts the click by emptying the slot into the cursor. On a lab or
-		// chip that reads as "not the Double² menu" for the frame or two before the server
-		// corrects it — which showed up as the whole board flashing on every click. Keep
-		// what the slot held and put it back until the real contents return.
-		if (lastSlots != null && slot < lastSlots.size()) {
-			predictedSlot = slot;
-			predictedBefore = lastSlots.get(slot);
-			predictedAtMs = Util.getMeasuringTimeMs();
-		}
-		client.interactionManager.clickSlot(screen.getScreenHandler().syncId, slot, 0,
-				SlotActionType.PICKUP, client.player);
-	}
-
-	private static List<D2Reader.SlotView> slotViews(ScreenHandler handler) {
-		int count = Math.min(D2Reader.CONTAINER_SLOTS, handler.slots.size());
-		List<D2Reader.SlotView> out = new ArrayList<>(count);
-		for (int i = 0; i < count; i++) {
-			ItemStack stack = handler.slots.get(i).getStack();
-			List<String> lore = List.of();
-			String name = "";
-			if (!stack.isEmpty()) {
-				name = stack.getName().getString();
-				LoreComponent component = stack.get(DataComponentTypes.LORE);
-				if (component != null) {
-					lore = component.lines().stream().map(Text::getString).toList();
-				}
-			}
-			out.add(new D2Reader.SlotView(i, name, lore, stack.getCount()));
-		}
-		return unpredict(out);
-	}
-
-	/**
-	 * Undoes the local pickup prediction on the slot we last clicked, until the server's
-	 * own contents come back or the window lapses. Only ever substitutes for a slot that
-	 * reads empty, so a genuine change is never masked.
-	 */
-	private static List<D2Reader.SlotView> unpredict(List<D2Reader.SlotView> slots) {
-		if (predictedSlot < 0 || predictedSlot >= slots.size()) {
-			return slots;
-		}
-		if (Util.getMeasuringTimeMs() - predictedAtMs > PREDICTION_MS
-				|| !slots.get(predictedSlot).name().isEmpty()) {
-			predictedSlot = -1;
-			predictedBefore = null;
-			return slots;
-		}
-		if (predictedBefore != null) {
-			slots.set(predictedSlot, predictedBefore);
-		}
-		return slots;
-	}
-
 	private static String money(long amount) {
 		return "$" + String.format(Locale.ROOT, "%,d", amount);
-	}
-
-	/** A lab colour at the weight a background bar wants. */
-	private static int shade(int argb) {
-		return (0x3C << 24) | (argb & 0x00FFFFFF);
 	}
 
 	private static int blend(int accent) {
