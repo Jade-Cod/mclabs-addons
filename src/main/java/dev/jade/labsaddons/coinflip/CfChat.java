@@ -63,6 +63,13 @@ public final class CfChat {
 	private static final Pattern DEBITED = Pattern.compile(
 			"MCLabs\\s*»\\s*\\$([\\d,]+(?:\\.\\d{1,2})?) has been taken from your account",
 			Pattern.CASE_INSENSITIVE);
+	/**
+	 * A take, however the player sent it. The broadcast is clickable, so most takes are a
+	 * command the mod never typed — bounded the same way {@link #CREATED} is, because the
+	 * id in it came off a chat line somebody else wrote.
+	 */
+	private static final Pattern TAKE = Pattern.compile(
+			"^/?cf\\s+take\\s+(\\d{1,9})(?!\\d)", Pattern.CASE_INSENSITIVE);
 
 	/** A post lives this long, and the lobby holds no more than this many. */
 	private static final long EXPIRY_MS = 24L * 60L * 60L * 1_000L;
@@ -133,7 +140,9 @@ public final class CfChat {
 			return null;
 		}
 		Matcher debited = DEBITED.matcher(text);
-		if (debited.find() && taken == null) {
+		// taken(nowMs), not the field: a lobby click whose result line never arrived sits
+		// there for a minute, and while it did the debit for the *next* flip was dropped.
+		if (debited.find() && taken(nowMs) == null) {
 			taken = new Taken(0, Money.parseCents(debited.group(1)), null, null, nowMs);
 		}
 		return null;
@@ -147,6 +156,36 @@ public final class CfChat {
 			long nowMs) {
 		taken = new Taken(id, wagerCents, opponent, creatorFace, nowMs);
 		OPEN.remove(id);
+	}
+
+	/**
+	 * A {@code /cf take <id>} the player has just sent, from wherever they sent it.
+	 *
+	 * <p>Clicking the broadcast in chat is how a flip is usually taken, and that click does
+	 * not travel the way a typed command does — the client puts the packet on the wire
+	 * itself, so no send listener ever sees it and {@link #expect} was never called. The
+	 * flip screen states neither the wager nor the id, which left the board with nothing to
+	 * show but a dash for every take that did not come through the lobby.
+	 *
+	 * <p>Only a flip already seen posted is armed. An id we know nothing about would arm a
+	 * wager of zero, and the board says "this screen never states the wager" rather better
+	 * than it says a figure that is wrong.
+	 */
+	public static void onCommandSent(String command, long nowMs) {
+		if (command == null) {
+			return;
+		}
+		Matcher take = TAKE.matcher(command.trim());
+		if (!take.find()) {
+			return;
+		}
+		OpenFlip flip = OPEN.get(Integer.parseInt(take.group(1)));
+		if (flip == null) {
+			return;
+		}
+		// The broadcast does not say which side the poster claimed, so the faces stay
+		// unknown and the board falls back to "you win" / "they win".
+		expect(flip.id(), flip.wagerCents(), flip.player(), null, nowMs);
 	}
 
 	/** The flip in flight, or null when nothing recent enough is known about one. */

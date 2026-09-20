@@ -13,6 +13,7 @@
 - **The Farming and Mining mini-events have their own icons** — an iron hoe and a diamond pickaxe, instead of both falling through to the generic clock. The Chem Cache event also gets the server's own cache head rather than a blank Steve head.
 
 ### Fixed
+- **Taking a coinflip from chat now puts the money on the board.** The broadcast is clickable, and clicking it is how a flip is usually taken — but the client sends a clicked command straight to the server rather than the way a typed one goes, so the mod never saw it. The flip screen itself states neither the wager nor the id, so every flip taken that way spun with a dash where the pot should be, and no split of what winning and losing were worth. Both ways of taking a flip are read now, and the figures come off the broadcast the mod already had. A flip it never saw posted still says nothing rather than showing a figure it guessed.
 - **Pit times with a fraction in them are read properly.** Pit week adds 25% to a book pop, so sponsorships arrive as `sponsored The Pit for 37.5 minutes!` — and the full stop inside `37.5` was being read as the end of the sentence, which left the timer with a number and no unit, so it ignored the sponsorship entirely. Every duration the mod reads is parsed the same way, so Chum Bucket time, personal boosts, rental mounts and Raid Mine buffs all pick up fractional figures now too.
 
 ## [1.16.1] - 2026-09-12

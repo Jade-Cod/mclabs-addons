@@ -135,6 +135,61 @@ class CfChatTest {
 		assertTrue(CfChat.openFlips(NOW).isEmpty());
 	}
 
+	/**
+	 * The broadcast is clickable, so this — not the lobby — is how a flip is usually taken,
+	 * and until the click was noticed the flip screen had nothing but a dash on it.
+	 */
+	@Test
+	void takingAFlipFromChatNamesItForTheScreenThatFollows() {
+		CfChat.onMessage("Coinflip » _MikeHunt has just created a $600,000 Coinflip! "
+				+ "Click this message or do /cf take 4161 to take it!", SELF, NOW);
+		CfChat.onCommandSent("/cf take 4161", NOW);
+		CfChat.Taken taken = CfChat.taken(NOW);
+		assertNotNull(taken);
+		assertEquals(4161, taken.id());
+		assertEquals(600_000 * DOLLAR, taken.wagerCents());
+		assertEquals("_MikeHunt", taken.opponent());
+		assertTrue(CfChat.openFlips(NOW).isEmpty(), "ours now, so no longer on offer");
+	}
+
+	/** Typed, clicked or macro'd, with or without the slash — all the same take. */
+	@Test
+	void aTypedTakeReadsTheSameAsAClickedOne() {
+		CfChat.onMessage("Coinflip » _MikeHunt has just created a $600,000 Coinflip! "
+				+ "Click this message or do /cf take 4161 to take it!", SELF, NOW);
+		CfChat.onCommandSent("cf  TAKE  4161", NOW);
+		assertEquals(600_000 * DOLLAR, CfChat.taken(NOW).wagerCents());
+	}
+
+	/**
+	 * A wager of zero is what the board already knows how to say nothing about; a wager
+	 * invented for a flip never seen posted is not.
+	 */
+	@Test
+	void aTakeForAFlipWeNeverSawIsNotGuessedAt() {
+		CfChat.onCommandSent("/cf take 4161", NOW);
+		assertNull(CfChat.taken(NOW));
+	}
+
+	@Test
+	void aTakeCommandWithAnAbsurdIdIsIgnoredRatherThanThrown() {
+		CfChat.onCommandSent("/cf take 99999999999", NOW);
+		assertNull(CfChat.taken(NOW));
+	}
+
+	/**
+	 * The debit line stands in for the wager when nothing better is known. It used to be
+	 * dropped whenever any earlier take was still on the books, and a lobby click whose
+	 * result line never arrived stays on them for a minute.
+	 */
+	@Test
+	void aStaleTakeDoesNotSwallowTheNextFlipsDebit() {
+		CfChat.expect(4161, 600_000 * DOLLAR, "_MikeHunt", "heads", NOW);
+		long later = NOW + 61_000L;
+		CfChat.onMessage("MCLabs » $750 has been taken from your account.", SELF, later);
+		assertEquals(750 * DOLLAR, CfChat.taken(later).wagerCents());
+	}
+
 	@Test
 	void theLongestRealisticFlipIdStillReads() {
 		CfChat.onMessage("Coinflip » Mallory has just created a $200 Coinflip! "

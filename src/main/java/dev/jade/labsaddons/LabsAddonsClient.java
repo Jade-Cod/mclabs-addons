@@ -91,6 +91,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
@@ -239,6 +240,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (isQuickDeposit(sent)) {
 				armDepositCapture();
 			}
+			// A typed "/cf take <id>". The clicked one never gets here — see
+			// ClientPlayNetworkHandlerMixin — but both end up in the same place.
+			CfChat.onCommandSent(sent, Util.getMeasuringTimeMs());
 		});
 
 		// Attribute Pit kills. The client is never told who dealt a mob its fatal
