@@ -27,6 +27,10 @@ import java.util.Locale;
  * <p>A condition that cannot be read resolves to "no", never to "yes": an uncredited
  * bump is corrected by the next {@code /mastery} scrape, an invented one sits on the
  * HUD as a lie until then.
+ *
+ * <p>Only reached for contraband taken off a player. A bounty chest earns the same police
+ * prestige but no patrol — see {@link PoliceContraband} — so "anywhere" above means
+ * anywhere you frisked someone, not anywhere you earned progress.
  */
 final class PatrolQuests {
 	private static final String PATROL = "patrol";

@@ -23,8 +23,12 @@ import java.util.regex.Pattern;
  * "Small amount of contraband found (2)" pat-down — posts no progress line at all, and
  * so credits nothing, which is the server's own behaviour.
  *
- * <p>The figure feeds both the police prestige track and the Patrol Mastery
- * challenges, since they count the same contraband against different goals.
+ * <p><b>Only a frisk credits the Patrol Mastery challenges.</b> Both prefixes earn police
+ * prestige, and for a while both were credited to Patrol as well, which meant opening a
+ * bounty chest on horseback advanced Mount Patrol. It does not: the patrols count
+ * contraband taken off players, and a bounty chest already has a challenge of its own in
+ * {@code MasteryChatTracker}'s {@code Secure Bounties}. So the prestige figure is read from
+ * either line and the patrols only from {@code MCLPD »}.
  */
 public final class PoliceContraband {
 	/**
@@ -38,6 +42,13 @@ public final class PoliceContraband {
 	private static final Pattern EARNED = Pattern.compile(
 			"earned\\s+([\\d,]+(?:\\.\\d+)?)\\s+progress\\b.{0,20}?\\bin confiscating contraband",
 			Pattern.CASE_INSENSITIVE);
+	/**
+	 * The police prefix, which is what tells a frisk from a bounty chest. Required rather
+	 * than testing for the bounty prefix, so a third source of this line nobody has seen yet
+	 * credits no patrol either: an uncredited bump is put right by the next {@code /mastery},
+	 * an invented one sits on the HUD as a lie until then.
+	 */
+	private static final Pattern FRISK = Pattern.compile("MCLPD\\s*»", Pattern.CASE_INSENSITIVE);
 
 	private PoliceContraband() {
 	}
@@ -58,7 +69,7 @@ public final class PoliceContraband {
 		// ponytail: the Mastery challenges are credited with the same boosted figure as
 		// prestige, which is unverified — a /mastery scrape either side of one arrest
 		// settles it, and the scrape is the authority meanwhile.
-		boolean changed = PatrolQuests.advance(amount);
+		boolean changed = FRISK.matcher(text).find() && PatrolQuests.advance(amount);
 		return advancePrestige(amount) || changed;
 	}
 

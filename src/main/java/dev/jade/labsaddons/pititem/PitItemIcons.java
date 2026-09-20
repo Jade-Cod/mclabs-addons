@@ -40,6 +40,7 @@ public final class PitItemIcons {
 			case SCYTHE_SWEEP -> Items.IRON_HOE;
 			case BLINK_BOOTS -> Items.DIAMOND_BOOTS;
 			case EXCALIBUR -> Items.IRON_SWORD;
+			case FIREBALL_STAFF -> Items.BLAZE_ROD;
 		};
 	}
 }

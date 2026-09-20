@@ -70,6 +70,25 @@ public class PitItemCooldownTrackerTest {
 		assertEquals(28_000L, entry.remainingMs(NOW));
 	}
 
+	/**
+	 * The Fireball Staff prints nothing in chat, so the actionbar is the whole of it, and the
+	 * name it is matched on has to be the item's own.
+	 *
+	 * <p>Nothing here checks the icon: building an {@link net.minecraft.item.ItemStack} needs
+	 * the game's registries bootstrapped. {@code PitItemIcons} switches over the enum with no
+	 * default, so an item added without one fails to compile, which is the better guard
+	 * anyway.
+	 */
+	@Test
+	public void theFireballStaffIsTrackedFromItsActionbarAlone() {
+		PitItemCooldownTracker.onMessage("Fireball Staff [6s]", NOW);
+		CooldownEntry entry = only(NOW);
+		assertEquals("Fireball Staff", entry.label());
+		assertEquals(6_000L, entry.remainingMs(NOW));
+		assertFalse(entry.approximate());
+		assertEquals(6_000L, entry.totalMs());
+	}
+
 	@Test
 	public void actionbarCorrectsTrackedItemWithoutResettingRingTotal() {
 		PitItemCooldownTracker.onMessage("The Pit » Excalibur channels divine power...", NOW);
