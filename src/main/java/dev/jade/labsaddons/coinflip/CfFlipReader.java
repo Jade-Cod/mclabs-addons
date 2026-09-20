@@ -60,10 +60,17 @@ public final class CfFlipReader {
 		return coinIsHead && leftIsBlankPane && rightIsBlankPane;
 	}
 
+	/**
+	 * The title on its own, which is the half of {@link #isFlip} that can be asked before
+	 * any slot has been read. {@link #looksLikeFlip} is too loose to suppress a menu's own
+	 * chest frame on, so this is what decides whether the board may claim one at all.
+	 */
+	public static boolean isFlipTitle(String title) {
+		return title != null && title.toLowerCase(Locale.ROOT).contains(TITLE);
+	}
+
 	public static boolean isFlip(List<SlotView> slots, String title) {
-		return title != null
-				&& title.toLowerCase(Locale.ROOT).contains(TITLE)
-				&& !SlotView.nameAt(slots, COIN_SLOT).isEmpty();
+		return isFlipTitle(title) && !SlotView.nameAt(slots, COIN_SLOT).isEmpty();
 	}
 
 	public static Flip read(List<SlotView> slots) {

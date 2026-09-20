@@ -74,6 +74,18 @@ public final class CfStats {
 	/** How many of your own flips the lobby keeps. Two more than it can show. */
 	private static final int RECENT_KEPT = 7;
 
+	/**
+	 * How many times one run of the game may ask for the seed before giving up.
+	 *
+	 * <p>The flag that stops it asking is only set by a line the parse recognises, so if
+	 * the server ever reworded {@code /cf stats}, "ask once ever" would quietly become "ask
+	 * on every lobby open" — and the lobby is reopened by its own refresh button. Counting
+	 * the asks bounds that at three commands and three blocks of chat rather than one per
+	 * refresh for as long as somebody is browsing.
+	 */
+	private static final int MAX_ASKS = 3;
+	private static int asks;
+
 	private CfStats() {
 	}
 
@@ -130,6 +142,23 @@ public final class CfStats {
 	/** Whether the server has ever told us the lifetime figures. */
 	public static boolean seeded() {
 		return LabsAddonsConfig.get().coinflipStatsSeeded;
+	}
+
+	/**
+	 * Whether to send {@code /cf stats} now, counting the ask so an answer that never
+	 * arrives cannot keep the question open. Call it last, once the screen is known to be
+	 * the lobby — it has a side effect.
+	 *
+	 * <p>The count is per run of the game rather than persisted: a seed that failed because
+	 * the player was mid-join is worth one more try next launch, and three asks is already
+	 * the bound that matters.
+	 */
+	public static boolean shouldAsk() {
+		if (seeded() || asks >= MAX_ASKS) {
+			return false;
+		}
+		asks++;
+		return true;
 	}
 
 	/**

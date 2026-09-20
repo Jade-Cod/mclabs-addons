@@ -351,8 +351,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// and never again: the widget keeps itself up to date from the
 					// result lines after that, and firing a command every time somebody
 					// runs /cf would be noise.
+					// shouldAsk() counts the ask, so it goes last: every other test has to
+					// have passed before one is spent.
 					if (!CfStats.seeded()
-							&& CfLobbyReader.isLobbyTitle(handledScreen.getTitle().getString())) {
+							&& CfLobbyReader.isLobbyTitle(handledScreen.getTitle().getString())
+							&& CfStats.shouldAsk()) {
 						sendChatCommand("cf stats");
 					}
 					// Likewise out of the chain: /fw is nobody else's screen, and the

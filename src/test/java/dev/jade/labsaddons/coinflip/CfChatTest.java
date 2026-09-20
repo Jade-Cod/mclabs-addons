@@ -123,4 +123,22 @@ class CfChatTest {
 		assertEquals(1, CfChat.openFlips(NOW + 23 * 3_600_000L).size());
 		assertTrue(CfChat.openFlips(NOW + 25 * 3_600_000L).isEmpty());
 	}
+
+	/**
+	 * Chat is the one input here anybody on the server can shape, and the id used to go
+	 * straight to Integer.parseInt — which threw out of the chat dispatcher.
+	 */
+	@Test
+	void anAbsurdFlipIdIsIgnoredRatherThanThrown() {
+		CfChat.onMessage("Coinflip » Mallory has just created a $200 Coinflip! "
+				+ "Click this message or do /cf take 99999999999 to take it!", SELF, NOW);
+		assertTrue(CfChat.openFlips(NOW).isEmpty());
+	}
+
+	@Test
+	void theLongestRealisticFlipIdStillReads() {
+		CfChat.onMessage("Coinflip » Mallory has just created a $200 Coinflip! "
+				+ "Click this message or do /cf take 999999999 to take it!", SELF, NOW);
+		assertEquals(999_999_999, CfChat.openFlips(NOW).get(0).id());
+	}
 }

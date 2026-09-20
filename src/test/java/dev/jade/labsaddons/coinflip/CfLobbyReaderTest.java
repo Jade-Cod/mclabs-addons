@@ -120,4 +120,20 @@ class CfLobbyReaderTest {
 		assertTrue(CfLobbyReader.isLobby(slots));
 		assertTrue(CfLobbyReader.read(slots).rows().isEmpty());
 	}
+
+	/**
+	 * This parse runs inside the board's draw, so a head the server has put an absurd id
+	 * on used to throw on every frame it was on screen rather than once.
+	 */
+	@Test
+	void aHeadWithAnAbsurdIdIsSkippedRatherThanThrown() {
+		List<SlotView> slots = lobby();
+		slots.set(2, new SlotView(2, "Mallory (#99999999999)", List.of(
+				"Wager: $200",
+				"Face: heads"), 1));
+		List<CfLobbyReader.Row> rows = CfLobbyReader.read(slots).rows();
+		assertTrue(rows.stream().noneMatch(row -> row.player().equals("Mallory")));
+		// The rest of the menu still reads, which is the point of skipping the row.
+		assertFalse(rows.isEmpty());
+	}
 }

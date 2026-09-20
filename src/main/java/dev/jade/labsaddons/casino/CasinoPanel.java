@@ -139,6 +139,21 @@ public abstract class CasinoPanel {
 		return CONTAINER_SLOTS;
 	}
 
+	/**
+	 * Whether the menu's title lets this board stand in for it, asked once the cheap probe
+	 * has passed and before anything is read off the container.
+	 *
+	 * <p>Most boards recognise their menu by slot names alone and leave this alone. It
+	 * exists for coinflip's flip screen, whose probe is a player head between two blank
+	 * panes — a shape ordinary enough to turn up in menus that have nothing to do with us.
+	 * Without this gate {@link #recognises} says yes to those, and because it is what
+	 * suppresses the chest texture and the slot tooltips — both drawn outside the render we
+	 * cancel — the menu loses its frame and its tooltips with no board drawn in their place.
+	 */
+	protected boolean titleAllows(String title) {
+		return true;
+	}
+
 	/** A notch of the scroll wheel over the board, positive away from the player. */
 	protected void onScroll(double amount) {
 	}
@@ -182,7 +197,8 @@ public abstract class CasinoPanel {
 	 * before it draws, so they can suppress the chest texture and the slot tooltips.
 	 */
 	public final boolean recognises(HandledScreen<?> screen) {
-		return owns(screen) || mayBe(screen.getScreenHandler());
+		return owns(screen) || (mayBe(screen.getScreenHandler())
+				&& titleAllows(screen.getTitle().getString()));
 	}
 
 	/**
@@ -218,10 +234,17 @@ public abstract class CasinoPanel {
 		// Flattening fifty-four slots is not free, and this runs for every board against
 		// every container screen. A menu we do not already hold has to pass the cheap test
 		// first; one we are holding skips it, because mid-re-send it would fail.
-		if (!container.holding() && !mayBe(handler)) {
+		boolean holding = container.holding();
+		if (!holding && !mayBe(handler)) {
 			return false;
 		}
 		String title = screen.getTitle().getString();
+		// Same gate recognises() uses, and for the same reason — a loose probe would
+		// otherwise rebuild every slot view on this menu on every frame, for a board that
+		// is never going to draw.
+		if (!holding && !titleAllows(title)) {
+			return false;
+		}
 		List<SlotView> read = slotViews(handler);
 		ContainerHold.Result held = container.offer(read, parses(read, title), syncId,
 				holdKey(title), Util.getMeasuringTimeMs(), STALE_MS, REOPEN_MS);

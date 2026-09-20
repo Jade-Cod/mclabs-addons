@@ -36,9 +36,16 @@ public final class CfChat {
 			long atMs) {
 	}
 
+	/**
+	 * The id is bounded rather than {@code \d+}, and the lookahead stops it matching the
+	 * front of a longer run of digits. Chat is the one input here that anybody on the
+	 * server can shape, and an unbounded group fed to {@code Integer.parseInt} throws
+	 * {@link NumberFormatException} straight out of the chat dispatcher. Nine digits is
+	 * five orders of magnitude past any real flip id, so anything longer is not a flip.
+	 */
 	private static final Pattern CREATED = Pattern.compile(
 			"Coinflip\\s*»\\s*(\\w{1,16}) has just created a \\$([\\d,]+(?:\\.\\d{1,2})?) "
-					+ "Coinflip!.*?/cf take (\\d+)", Pattern.CASE_INSENSITIVE);
+					+ "Coinflip!.*?/cf take (\\d{1,9})(?!\\d)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern WON_SELF = Pattern.compile(
 			"Coinflip\\s*»\\s*You have won the \\$([\\d,]+(?:\\.\\d{1,2})?) coinflip against "
 					+ "(\\w{1,16}) and received \\$([\\d,]+(?:\\.\\d{1,2})?)",

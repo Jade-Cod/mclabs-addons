@@ -4,7 +4,9 @@ import dev.jade.labsaddons.casino.CasinoBoards;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.screen.slot.Slot;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -23,6 +25,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(HandledScreen.class)
 public abstract class HandledScreenMixin {
+	/** The slot under the cursor. Assigned only by the render we cancel — see below. */
+	@Shadow
+	protected Slot focusedSlot;
+
 	/**
 	 * Draws the board in place of the menu's <em>entire</em> render.
 	 *
@@ -39,6 +45,13 @@ public abstract class HandledScreenMixin {
 	private void labsaddons$drawCasinoBoard(DrawContext context, int mouseX, int mouseY,
 			float deltaTicks, CallbackInfo ci) {
 		if (CasinoBoards.render((HandledScreen<?>) (Object) this, context, mouseX, mouseY)) {
+			// The slot under the cursor is only ever assigned by the render being cancelled
+			// here, so left alone it keeps whatever was under the cursor on the last frame
+			// vanilla drew — and the menu's own keyPressed still acts on it. The drop key
+			// or a hotbar number would then send a real click to a slot the board has
+			// hidden, which on these menus is a wager. Clearing it covers every reader of
+			// the field rather than only the two we would have thought to guard.
+			this.focusedSlot = null;
 			ci.cancel();
 		}
 	}

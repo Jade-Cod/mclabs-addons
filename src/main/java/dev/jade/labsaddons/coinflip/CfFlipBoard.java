@@ -130,6 +130,16 @@ public final class CfFlipBoard extends CasinoPanel {
 				isBlankPane(handler, CfFlipReader.RIGHT_PANE_SLOT));
 	}
 
+	/**
+	 * A head between two blank panes turns up in menus that are nothing to do with us, so
+	 * this board never claims one the title has not named — not even for the frame in which
+	 * the chest texture is suppressed.
+	 */
+	@Override
+	protected boolean titleAllows(String title) {
+		return CfFlipReader.isFlipTitle(title);
+	}
+
 	/** Slot names alone cannot tell this menu from a chest; the title can. */
 	@Override
 	protected boolean parses(List<SlotView> slots) {

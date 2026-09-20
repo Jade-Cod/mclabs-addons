@@ -43,7 +43,14 @@ public final class CfLobbyReader {
 	public record Lobby(List<Row> rows, long minCents, long maxCents, String expiry) {
 	}
 
-	private static final Pattern NAMED = Pattern.compile("^(\\w{1,16})\\s*\\(#(\\d+)\\)$");
+	/**
+	 * The id is bounded rather than {@code \d+} so {@link Integer#parseInt} below cannot
+	 * throw on a head whose name the server has put an absurd figure in — this runs inside
+	 * the board's draw, where an exception is a crash on every frame the row is on screen.
+	 * A name that does not match is skipped, which is what {@link #row} already does with
+	 * any head it does not recognise.
+	 */
+	private static final Pattern NAMED = Pattern.compile("^(\\w{1,16})\\s*\\(#(\\d{1,9})\\)$");
 	private static final Pattern WAGER = Pattern.compile(
 			"^\\s*Wager:\\s*(\\$[\\d,]+(?:\\.\\d{1,2})?)\\s*$", Pattern.CASE_INSENSITIVE);
 	private static final Pattern FACE = Pattern.compile(
