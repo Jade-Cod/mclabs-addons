@@ -40,8 +40,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 	private static final int VISIBLE_ROWS = 11;
 	private static final int HEAD = 9;
 	private static final int NAME_X = 12;
-	private static final int WAGER_W = 34;
-	private static final int FACE_W = 8;
+	/** Wide enough for "$100.0m", which is the widest the server allows. */
+	private static final int WAGER_W = 42;
+	private static final int FACE_W = 10;
 	private static final int FOOTER_Y = CONTENT_Y + VISIBLE_ROWS * ROW_H + 3;
 	private static final int REFRESH_W = 54;
 	private static final int REFRESH_H = 13;

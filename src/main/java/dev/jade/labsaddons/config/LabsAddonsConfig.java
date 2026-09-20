@@ -243,6 +243,11 @@ public class LabsAddonsConfig {
 	public boolean minesOverlay = true;
 	public boolean blackjackOverlay = true;
 	public boolean coinflipOverlay = true;
+	/**
+	 * Put a flip's result back up after the server closes the chest on it, which it does
+	 * about two seconds after the coin lands.
+	 */
+	public boolean coinflipHoldResult = true;
 
 	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat ---
 	/** True once the server has stated the lifetime figures, so it is never asked twice. */

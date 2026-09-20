@@ -24,7 +24,9 @@ import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
 import dev.jade.labsaddons.blackjack.BjChat;
 import dev.jade.labsaddons.coinflip.CfChat;
 import dev.jade.labsaddons.coinflip.CfLobbyReader;
+import dev.jade.labsaddons.coinflip.CfFlipBoard;
 import dev.jade.labsaddons.coinflip.CfOpenHudObject;
+import dev.jade.labsaddons.coinflip.CfResultScreen;
 import dev.jade.labsaddons.coinflip.CfRecordHudObject;
 import dev.jade.labsaddons.coinflip.CfStats;
 import dev.jade.labsaddons.double2.D2Chat;
@@ -322,6 +324,15 @@ public class LabsAddonsClient implements ClientModInitializer {
 				ChemItems.ChemKey target = ChemtainerTracker.largestChem();
 				if (target != null) {
 					sendChatCommand("ch withdraw " + ChemItems.withdrawArg(target));
+				}
+			}
+			// The coinflip chest closes seconds after the coin lands. If one just did,
+			// put the result back up — once the container is really gone, so this never
+			// fights the screen it came from.
+			if (client.currentScreen == null) {
+				CfFlipBoard.Landed landed = CfFlipBoard.INSTANCE.takePendingResult();
+				if (landed != null) {
+					client.setScreen(new CfResultScreen(landed));
 				}
 			}
 			ChemtainerDepositCapture.tick();

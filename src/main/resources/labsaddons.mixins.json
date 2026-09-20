@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"CameraAccessor",
+		"ClientPlayNetworkHandlerMixin",
 		"DrawContextMixin",
 		"FishingBobberEntityAccessor",
 		"GenericContainerScreenMixin",

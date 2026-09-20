@@ -38,32 +38,56 @@ public final class CfFlipBoard extends CasinoPanel {
 
 	private static final int SEAT_HEAD = 18;
 	private static final int SEAT_TEXT_GAP = 22;
-	private static final int SEAT_Y = 44;
+	private static final int SEAT_Y = 52;
 	private static final int COIN_CX = PANEL_W / 2;
-	private static final int COIN_BASE_CY = 62;
-	private static final int COIN_D = 50;
-	private static final int LIFT_PX = 16;
-	private static final int SHADOW_Y = 92;
-	private static final int DIVIDER_Y = 99;
-	private static final int POT_Y = 104;
-	private static final int TAX_Y = 114;
-	private static final int ODDS_Y = 128;
+	private static final int COIN_BASE_CY = 66;
+	private static final int COIN_D = 62;
+	/**
+	 * How high the toss goes. The coin rises into the title bar, which is empty across the
+	 * middle — the name sits hard left and the wager hard right, so there is nothing there
+	 * for it to cover.
+	 */
+	private static final int LIFT_PX = 26;
+	/** The ground. The resting coin overlaps it, which is what sitting on a table looks like. */
+	private static final int SHADOW_Y = 100;
+	private static final int STATE_Y = 108;
+	private static final int DIVIDER_Y = 118;
+	private static final int POT_Y = 121;
+	private static final int TAX_Y = 131;
+	private static final int ODDS_Y = 145;
 	private static final int ODDS_ROW_H = 11;
-	private static final int BANNER_Y = 126;
+	private static final int BANNER_Y = 141;
 	private static final int BANNER_SCALE = 2;
-	private static final int BANNER_SUB_Y = 148;
-	private static final int FOOTER_Y = 160;
+	private static final int BANNER_SUB_Y = 161;
 	/** How long the settling ring stays up after the coin lands. */
 	private static final long RING_MS = 420L;
 	/**
-	 * How far the ring spreads. Small on purpose: the panel has no clip of its own, so a
+	 * How far the ring spreads. Modest on purpose: the panel has no clip of its own, so a
 	 * generous one would spill over the header and off the edge of the board.
 	 */
-	private static final int RING_MAX = 10;
+	private static final int RING_MAX = 14;
+	/** The jolt the whole panel takes on impact. */
+	private static final long SHAKE_MS = 110L;
+	private static final long FLASH_MS = 130L;
+	/** While the spin is this fast, it is drawn with a smear behind it. */
+	private static final long SMEAR_UNTIL_MS = 3_200L;
+	/** How long a result may wait for a clear screen before it stops being news. */
+	private static final long PENDING_MS = 4_000L;
 
 	/** Our own face sits on side 0 of the coin, so the toss starts showing the player. */
 	private static final int YOUR_SIDE = 0;
 	private static final int THEIR_SIDE = 1;
+
+	/**
+	 * Everything the result is made of, kept so it outlives the container.
+	 *
+	 * <p>The server closes the chest a couple of seconds after a flip resolves, which is
+	 * not long enough to read what just happened to several hundred thousand dollars. This
+	 * is what {@link CfResultScreen} puts back up.
+	 */
+	public record Landed(boolean won, long wagerCents, int flipId, String you, String them,
+			String yourFace, String theirFace) {
+	}
 
 	private long startedAtMs;
 	private String you;
@@ -76,6 +100,9 @@ public final class CfFlipBoard extends CasinoPanel {
 	private int flipId;
 	private String yourFace = "";
 	private String theirFace = "";
+	private Landed landedSnapshot;
+	private Landed pending;
+	private long pendingAtMs;
 
 	private CfFlipBoard() {
 	}
@@ -121,6 +148,32 @@ public final class CfFlipBoard extends CasinoPanel {
 		flipId = 0;
 		yourFace = "";
 		theirFace = "";
+		landedSnapshot = null;
+	}
+
+	/**
+	 * The server has closed the chest. If a flip had just resolved in it, hand the result
+	 * on so it can be put back up rather than blinking out mid-read.
+	 */
+	public void serverClosedScreen() {
+		if (landedSnapshot != null) {
+			pending = landedSnapshot;
+			pendingAtMs = Util.getMeasuringTimeMs();
+		}
+	}
+
+	/**
+	 * The result waiting to be shown, taken exactly once — and only while it is still the
+	 * thing that just happened. If the player was busy in another screen when the chest
+	 * closed, this should quietly expire rather than ambush them a minute later.
+	 */
+	public Landed takePendingResult() {
+		if (pending == null) {
+			return null;
+		}
+		Landed result = Util.getMeasuringTimeMs() - pendingAtMs <= PENDING_MS ? pending : null;
+		pending = null;
+		return result;
 	}
 
 	@Override
@@ -139,9 +192,16 @@ public final class CfFlipBoard extends CasinoPanel {
 		boolean landed = result != CfFlipReader.Result.RUNNING
 				&& now - resultAtMs >= CfToss.LAND_MS;
 
+		int jolt = shake(now, landed);
+		if (jolt != 0) {
+			context.getMatrices().pushMatrix();
+			context.getMatrices().translate(0f, jolt);
+		}
+
 		header(context, font, "COINFLIP", status(), headerColor());
 		seats(context, font, faceUp);
 		coin(context, font, turns, faceUp, landed, now);
+		state(context, font, now);
 
 		context.fill(PAD, DIVIDER_Y, PANEL_W - PAD, DIVIDER_Y + 1, DIVIDER);
 		stakes(context, font);
@@ -150,7 +210,23 @@ public final class CfFlipBoard extends CasinoPanel {
 		} else {
 			outcomes(context, font);
 		}
-		footer(context, font, now);
+
+		if (jolt != 0) {
+			context.getMatrices().popMatrix();
+		}
+	}
+
+	/** A pixel of kick at the moment it lands, damped out over a tenth of a second. */
+	private int shake(long now, boolean landed) {
+		if (!landed) {
+			return 0;
+		}
+		long since = now - resultAtMs - CfToss.LAND_MS;
+		if (since < 0L || since > SHAKE_MS) {
+			return 0;
+		}
+		float progress = since / (float) SHAKE_MS;
+		return Math.round((1f - progress) * 2f * (float) Math.sin(progress * 22f));
 	}
 
 	// --- the spin ------------------------------------------------------------
@@ -171,6 +247,8 @@ public final class CfFlipBoard extends CasinoPanel {
 			landFrom = CfToss.halfTurns(now - startedAtMs);
 			landTo = CfToss.landingTarget(landFrom,
 					result == CfFlipReader.Result.WON ? YOUR_SIDE : THEIR_SIDE);
+			landedSnapshot = new Landed(result == CfFlipReader.Result.WON, wagerCents, flipId,
+					you, them, yourFace, theirFace);
 		}
 		float progress = (now - resultAtMs) / (float) CfToss.LAND_MS;
 		if (progress >= 1f) {
@@ -190,19 +268,31 @@ public final class CfFlipBoard extends CasinoPanel {
 			lift *= 1f - CfToss.ease((now - resultAtMs) / (float) CfToss.LAND_MS);
 		}
 		int cy = COIN_BASE_CY - Math.round(lift * LIFT_PX);
+		long sinceLanding = now - resultAtMs - CfToss.LAND_MS;
 
 		CoinPainter.shadow(context, COIN_CX, SHADOW_Y, COIN_D, lift);
 
+		// Two faint copies a fraction of a turn behind. Eight half-turns in the first
+		// second is faster than a frame can show, and without a smear it just aliases.
+		if (result == CfFlipReader.Result.RUNNING && elapsed < SMEAR_UNTIL_MS) {
+			CoinPainter.ghost(context, COIN_CX, cy, COIN_D, CfToss.squeeze(turns - 0.10f), 46);
+			CoinPainter.ghost(context, COIN_CX, cy, COIN_D, CfToss.squeeze(turns - 0.20f), 24);
+		}
+
+		float squeeze = landed ? CfToss.settle(sinceLanding) : CfToss.squeeze(turns);
+		float flash = landed && sinceLanding < FLASH_MS
+				? 1f - sinceLanding / (float) FLASH_MS
+				: 0f;
 		boolean yours = faceUp == YOUR_SIDE;
 		String name = yours ? you : them;
-		CoinPainter.draw(context, font, COIN_CX, cy, COIN_D, CfToss.squeeze(turns),
+		CoinPainter.draw(context, font, COIN_CX, cy, COIN_D, squeeze,
 				name == null ? null : PlayerSkinCache.skin(name),
-				(yours ? yourFace : theirFace).toUpperCase(Locale.ROOT));
+				(yours ? yourFace : theirFace).toUpperCase(Locale.ROOT), flash);
 
 		if (landed) {
-			// One ring, expanding out of the coin and gone. Long enough to register the
-			// result, short enough not to sit on the screen nagging.
-			float age = (now - resultAtMs - CfToss.LAND_MS) / (float) RING_MS;
+			// Two rings, out of the coin and gone. Long enough to register the result,
+			// short enough not to sit on the screen nagging.
+			float age = sinceLanding / (float) RING_MS;
 			if (age <= 1f) {
 				float spread = CfToss.ease(age);
 				CoinPainter.ring(context, COIN_CX, cy,
@@ -343,23 +433,30 @@ public final class CfFlipBoard extends CasinoPanel {
 		context.drawText(font, detail, PAD, BANNER_SUB_Y, TEXT_DIM, false);
 	}
 
-	private void footer(DrawContext context, TextRenderer font, long now) {
+	/** One line under the coin saying what it is doing. Centred, because the coin is. */
+	private void state(DrawContext context, TextRenderer font, long now) {
 		long elapsed = now - startedAtMs;
+		String text;
+		int color;
 		if (result != CfFlipReader.Result.RUNNING) {
-			if (wagerCents > 0L) {
-				context.drawText(font,
-						"+" + CfOdds.investorPointsText(wagerCents) + " investor points",
-						PAD, FOOTER_Y, TEXT_FAINT, false);
-			}
-			return;
+			text = wagerCents > 0L
+					? "+" + CfOdds.investorPointsText(wagerCents) + " investor points"
+					: "";
+			color = TEXT_FAINT;
+		} else if (elapsed > CfToss.STALLED_MS) {
+			text = "still waiting on the server";
+			color = WARN;
+		} else if (elapsed >= CfToss.HOLD_MS) {
+			text = "on the edge…";
+			color = accent();
+		} else {
+			text = "in the air";
+			color = TEXT_FAINT;
 		}
-		if (elapsed > CfToss.STALLED_MS) {
-			context.drawText(font, "still waiting on the server", PAD, FOOTER_Y, WARN, false);
-			return;
+		if (!text.isEmpty()) {
+			context.drawText(font, text, COIN_CX - font.getWidth(text) / 2, STATE_Y, color,
+					false);
 		}
-		boolean holding = elapsed >= CfToss.HOLD_MS;
-		context.drawText(font, holding ? "on the edge…" : "in the air", PAD, FOOTER_Y,
-				holding ? accent() : TEXT_FAINT, false);
 	}
 
 	private String status() {

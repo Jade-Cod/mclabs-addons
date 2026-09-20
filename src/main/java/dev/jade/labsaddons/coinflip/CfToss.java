@@ -26,6 +26,13 @@ public final class CfToss {
 	 */
 	private static final float HOLD_CREEP = 0.45f;
 	private static final long HOLD_TAU_MS = 900L;
+	/**
+	 * How far the coin rocks while it waits. A coin standing perfectly still on its rim
+	 * reads as a frozen screen; one rocking reads as a coin that has not decided. Small
+	 * enough that the creep plus the rock never reaches the half-turn.
+	 */
+	private static final float WOBBLE = 0.035f;
+	private static final double WOBBLE_MS = 260.0;
 	/** How long the fall takes once the winner is known. */
 	public static final long LAND_MS = 260L;
 	/** Past this with no result, something is wrong and the board says so. */
@@ -46,7 +53,8 @@ public final class CfToss {
 			turns += TURNS[phase];
 			left -= span;
 		}
-		return turns + HOLD_CREEP * (1f - (float) Math.exp(-left / (double) HOLD_TAU_MS));
+		return turns + HOLD_CREEP * (1f - (float) Math.exp(-left / (double) HOLD_TAU_MS))
+				+ WOBBLE * (float) Math.sin(left / WOBBLE_MS);
 	}
 
 	/** 1 face-on, 0 edge-on. */
@@ -76,6 +84,21 @@ public final class CfToss {
 	public static float lift(long elapsedMs) {
 		float progress = Math.clamp(elapsedMs / (float) HOLD_MS, 0f, 1f);
 		return 4f * progress * (1f - progress);
+	}
+
+	/**
+	 * The squash as the coin hits: flattened at the moment of impact, overshooting once,
+	 * then still. Returned as a vertical scale, so it goes above 1 on the stretch.
+	 *
+	 * @param sinceMs time since the fall finished
+	 */
+	public static float settle(long sinceMs) {
+		if (sinceMs < 0L) {
+			return 1f;
+		}
+		double decay = Math.exp(-sinceMs / 95.0);
+		return Math.clamp((float) (1.0 - 0.30 * decay * Math.cos(sinceMs / 40.0)), 0.55f,
+				1.35f);
 	}
 
 	/** Ease-out cubic, for the fall. */

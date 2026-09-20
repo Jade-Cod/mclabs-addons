@@ -120,6 +120,14 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.coinflipOverlay = value)
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.coinflip_hold"),
+						config.coinflipHoldResult)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.coinflip_hold.tooltip"))
+				.setSaveConsumer(value -> config.coinflipHoldResult = value)
+				.build());
+
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);
 

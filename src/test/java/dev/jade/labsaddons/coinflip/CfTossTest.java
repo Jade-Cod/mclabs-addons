@@ -19,10 +19,40 @@ class CfTossTest {
 	@Test
 	void theLastHalfTurnIsNeverCompletedOnTheClock() {
 		// The whole point: the server has not said who won yet, so the coin may not land.
-		float late = CfToss.halfTurns(CfToss.HOLD_MS + 60_000);
-		assertTrue(late > CfToss.HOLD_AT, "it should creep past the hold");
-		assertTrue(late < CfToss.HOLD_AT + 0.5f,
-				"it must stop short of the flip, not complete it: " + late);
+		// Sampled across a minute of holding, because the coin rocks while it waits and a
+		// single instant would not catch a rock that carried it over the edge.
+		for (long held = 0; held <= 60_000; held += 37) {
+			float late = CfToss.halfTurns(CfToss.HOLD_MS + held);
+			assertTrue(late >= CfToss.HOLD_AT - 0.05f, "it should not turn back: " + late);
+			assertTrue(late < CfToss.HOLD_AT + 0.5f,
+					"it must stop short of the flip, not complete it: " + late);
+			assertEquals(CfToss.faceUp(CfToss.HOLD_AT), CfToss.faceUp(late),
+					"the rock must never change which face is up");
+		}
+	}
+
+	@Test
+	void itRocksWhileItWaitsRatherThanStandingStill() {
+		// A coin frozen on its rim reads as a frozen screen.
+		float low = 1f;
+		float high = 0f;
+		for (long held = 0; held <= 2_000; held += 20) {
+			float squeeze = CfToss.squeeze(CfToss.halfTurns(CfToss.HOLD_MS + held));
+			low = Math.min(low, squeeze);
+			high = Math.max(high, squeeze);
+		}
+		assertTrue(high - low > 0.05f, "the rock should be visible: " + (high - low));
+	}
+
+	@Test
+	void itSquashesOnImpactAndSettlesFlat() {
+		assertTrue(CfToss.settle(0) < 0.85f, "flattened as it hits: " + CfToss.settle(0));
+		float peak = 0f;
+		for (long ms = 0; ms <= 400; ms += 5) {
+			peak = Math.max(peak, CfToss.settle(ms));
+		}
+		assertTrue(peak > 1.05f, "it should overshoot once: " + peak);
+		assertEquals(1f, CfToss.settle(2_000), 0.01f, "and then be still");
 	}
 
 	@Test
