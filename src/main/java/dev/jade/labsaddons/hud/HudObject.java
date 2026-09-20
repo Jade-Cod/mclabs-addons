@@ -24,6 +24,18 @@ public abstract class HudObject {
 		return net.minecraft.text.Text.translatable("labsaddons.hud." + id() + ".name");
 	}
 
+	/**
+	 * The group this widget is folded under in the editor's Widgets rail, or null to sit
+	 * on a row of its own.
+	 *
+	 * <p>Widgets naming the same group share one collapsible row, so a set of related
+	 * widgets costs the rail one line rather than one each. Only the listing is folded:
+	 * each widget keeps its own position, scale, colours and on/off state.
+	 */
+	public net.minecraft.text.Text group() {
+		return null;
+	}
+
 	public abstract int contentWidth(boolean preview);
 
 	public abstract int contentHeight(boolean preview);

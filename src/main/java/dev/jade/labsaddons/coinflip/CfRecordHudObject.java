@@ -2,6 +2,7 @@ package dev.jade.labsaddons.coinflip;
 
 import dev.jade.labsaddons.casino.Money;
 import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -33,6 +34,11 @@ public class CfRecordHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Text group() {
+		return HudObjects.GAMBLING;
 	}
 
 	@Override
