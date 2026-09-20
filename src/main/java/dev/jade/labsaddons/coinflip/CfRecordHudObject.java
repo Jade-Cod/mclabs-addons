@@ -16,8 +16,7 @@ import java.util.List;
  *
  * <p>A lifetime loss on a 50/50 game is two different things added together, and only one of
  * them is worth being annoyed about. The 5% tax on everything you have ever wagered was
- * never yours; whatever is left is the coin. The sigma at the bottom says which of the two
- * is doing the work — past about two, it is a genuinely bad run rather than the house.
+ * never yours; whatever is left is the coin.
  *
  * <p>Seeded once from {@code /cf stats} and maintained from each result after that.
  */
@@ -77,8 +76,6 @@ public class CfRecordHudObject extends HudObject {
 			rows.add(new Row("the tax", signed(record.taxCostCents()), DIM_COLOR, DIM_COLOR));
 			rows.add(new Row("the luck", signed(record.luckCents()), DIM_COLOR,
 					record.luckCents() >= 0 ? WIN_COLOR : LOSS_COLOR));
-			rows.add(new Row("", CfOdds.sigmaText(record.played(), record.won()), DIM_COLOR,
-					DIM_COLOR));
 		}
 		return rows;
 	}

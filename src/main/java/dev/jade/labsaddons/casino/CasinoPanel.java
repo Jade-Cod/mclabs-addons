@@ -95,15 +95,8 @@ public abstract class CasinoPanel {
 	}
 
 	private final List<Hit> hits = new ArrayList<>();
-	/**
-	 * The syncId this board is up for, or -1. Not a bare flag: it has to stop applying
-	 * the moment a different container opens, or that menu's first click is eaten.
-	 */
-	private int activeSyncId = -1;
-	private List<SlotView> heldSlots;
-	/** The title of the menu those slots came from, for recognising its reopen. */
-	private String heldKey = "";
-	private long staleSinceMs;
+	/** Which container this board is answering for, and whose slots it is drawing. */
+	private final ContainerHold container = new ContainerHold();
 	private int predictedSlot = -1;
 	private SlotView predictedBefore;
 	private long predictedAtMs;
@@ -203,7 +196,7 @@ public abstract class CasinoPanel {
 
 	/** True once this board has taken a container over and not yet given it back. */
 	public final boolean owns(HandledScreen<?> screen) {
-		return activeSyncId >= 0 && activeSyncId == screen.getScreenHandler().syncId;
+		return container.pinnedTo(screen.getScreenHandler().syncId);
 	}
 
 	/**
@@ -217,7 +210,7 @@ public abstract class CasinoPanel {
 		ScreenHandler handler = screen.getScreenHandler();
 		int syncId = handler.syncId;
 		if (!enabled() || !McLabsSession.isActive()) {
-			if (heldSlots != null) {
+			if (container.holding()) {
 				release();
 			}
 			return false;
@@ -225,13 +218,20 @@ public abstract class CasinoPanel {
 		// Flattening fifty-four slots is not free, and this runs for every board against
 		// every container screen. A menu we do not already hold has to pass the cheap test
 		// first; one we are holding skips it, because mid-re-send it would fail.
-		if (heldSlots == null && !mayBe(handler)) {
+		if (!container.holding() && !mayBe(handler)) {
 			return false;
 		}
 		String title = screen.getTitle().getString();
-		List<SlotView> slots = hold(slotViews(handler), syncId, holdKey(title), title);
+		List<SlotView> read = slotViews(handler);
+		ContainerHold.Result held = container.offer(read, parses(read, title), syncId,
+				holdKey(title), Util.getMeasuringTimeMs(), STALE_MS, REOPEN_MS);
+		List<SlotView> slots = held.slots();
 		if (slots == null) {
+			release();
 			return false;
+		}
+		if (held.containerChanged()) {
+			onContainerChange();
 		}
 
 		MinecraftClient client = MinecraftClient.getInstance();
@@ -290,67 +290,8 @@ public abstract class CasinoPanel {
 
 	/** Hands the container back, so another board (or the real chest) can have it. */
 	public final void release() {
-		activeSyncId = -1;
-		heldSlots = null;
-		heldKey = "";
-		staleSinceMs = 0L;
+		container.release();
 		onContainerChange();
-	}
-
-	/**
-	 * This frame's slots, or the last good set when the container is mid-update.
-	 *
-	 * <p>Recognition gates only the first frame. After that the container is ours until
-	 * the screen closes or the hold lapses.
-	 *
-	 * @return the slots to draw from, or null when this is not our menu
-	 */
-	private List<SlotView> hold(List<SlotView> slots, int syncId, String key, String title) {
-		if (parses(slots, title)) {
-			if (activeSyncId != syncId) {
-				onContainerChange();
-			}
-			heldSlots = slots;
-			heldKey = key;
-			activeSyncId = syncId;
-			staleSinceMs = 0L;
-			return slots;
-		}
-		if (heldSlots == null) {
-			return null;
-		}
-		boolean reopened = activeSyncId != syncId;
-		// A new container id is not by itself a different menu. Mines and BondJoules close
-		// and reopen the chest on every click, and for a tick or two the new one is empty
-		// — which is the flash you get from clicking the stake buttons quickly. But a
-		// genuinely different menu must be handed over at once, so this only holds while
-		// the new container is both empty and still calling itself what it did before.
-		if (reopened && !(isUnfilled(slots) && heldKey.equals(key))) {
-			release();
-			return null;
-		}
-		long now = Util.getMeasuringTimeMs();
-		if (staleSinceMs == 0L) {
-			staleSinceMs = now;
-		}
-		if (now - staleSinceMs > (reopened ? REOPEN_MS : STALE_MS)) {
-			// Not a re-send — something else is behind this now. Hand it back.
-			release();
-			return null;
-		}
-		// Stay pinned to the screen actually in front of us, so a click still lands.
-		activeSyncId = syncId;
-		return heldSlots;
-	}
-
-	/** Whether the server has put anything in this container yet. */
-	private static boolean isUnfilled(List<SlotView> slots) {
-		for (SlotView slot : slots) {
-			if (!slot.isEmpty()) {
-				return false;
-			}
-		}
-		return true;
 	}
 
 	private void sendClick(HandledScreen<?> screen, int slot, SlotActionType action) {
@@ -359,9 +300,10 @@ public abstract class CasinoPanel {
 			return;
 		}
 		// Keep what the slot held, so unpredict can put it back until the server answers.
-		if (heldSlots != null && slot >= 0 && slot < heldSlots.size()) {
+		List<SlotView> shown = container.heldSlots();
+		if (shown != null && slot >= 0 && slot < shown.size()) {
 			predictedSlot = slot;
-			predictedBefore = heldSlots.get(slot);
+			predictedBefore = shown.get(slot);
 			predictedAtMs = Util.getMeasuringTimeMs();
 		}
 		onClick(slot);

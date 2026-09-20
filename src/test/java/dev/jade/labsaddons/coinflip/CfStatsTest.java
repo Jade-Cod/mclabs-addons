@@ -52,7 +52,6 @@ class CfStatsTest {
 		assertEquals(record.profitCents() - record.taxCostCents(), record.luckCents());
 		assertTrue(record.luckCents() < record.taxCostCents(),
 				"the coin cost more than the house did");
-		assertEquals(-1.367, record.sigma(), 0.001);
 	}
 
 	@Test
@@ -73,7 +72,6 @@ class CfStatsTest {
 	void anEmptyRecordSaysSoRatherThanDividingByZero() {
 		assertTrue(CfStats.Record.EMPTY.isEmpty());
 		assertEquals("—", CfStats.Record.EMPTY.winRateText());
-		assertEquals(0d, CfStats.Record.EMPTY.sigma());
 		assertEquals(0L, CfStats.Record.EMPTY.luckCents());
 	}
 

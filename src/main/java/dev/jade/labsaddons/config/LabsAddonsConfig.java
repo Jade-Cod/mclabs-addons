@@ -249,12 +249,19 @@ public class LabsAddonsConfig {
 	 */
 	public boolean coinflipHoldResult = true;
 
-	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat ---
+	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat.
+	// Server-derived, so it lives with the timers in state.json rather than with the
+	// player's own preferences. ---
 	/** True once the server has stated the lifetime figures, so it is never asked twice. */
+	@Section(ConfigSection.STATE)
 	public boolean coinflipStatsSeeded = false;
+	@Section(ConfigSection.STATE)
 	public int coinflipPlayed = 0;
+	@Section(ConfigSection.STATE)
 	public int coinflipWon = 0;
+	@Section(ConfigSection.STATE)
 	public long coinflipWageredCents = 0L;
+	@Section(ConfigSection.STATE)
 	public long coinflipWinningsCents = 0L;
 
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---

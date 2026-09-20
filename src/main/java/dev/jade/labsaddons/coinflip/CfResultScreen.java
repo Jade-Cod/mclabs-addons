@@ -28,7 +28,8 @@ import java.util.Locale;
  */
 public class CfResultScreen extends Screen {
 	private static final int PANEL_W = 176;
-	private static final int PANEL_H = 108;
+	/** Tall enough for the seats' two lines to clear the record row underneath. */
+	private static final int PANEL_H = 122;
 	private static final int PAD = 8;
 	private static final int COIN_D = 46;
 	private static final int SEAT_HEAD = 12;
@@ -126,7 +127,7 @@ public class CfResultScreen extends Screen {
 		seat(context, PANEL_W - PAD - SEAT_HEAD, rowY, landed.them(), landed.theirFace(),
 				!landed.won());
 
-		rowY += SEAT_HEAD + 5;
+		rowY += SEAT_HEAD + 12;
 		CfStats.Record record = CfStats.current();
 		if (!record.isEmpty()) {
 			String line = record.won() + " / " + record.played() + "  " + record.winRateText();
@@ -156,7 +157,7 @@ public class CfResultScreen extends Screen {
 		context.drawText(this.textRenderer, label, textX, y + 2, winner ? TEXT : TEXT_FAINT,
 				false);
 		if (face != null && !face.isEmpty()) {
-			String side = face.toUpperCase(Locale.ROOT);
+			String side = face.toLowerCase(Locale.ROOT);
 			int sideX = rightAligned ? x - 4 - this.textRenderer.getWidth(side)
 					: x + SEAT_HEAD + 4;
 			context.drawText(this.textRenderer, side, sideX, y + 2 + this.textRenderer.fontHeight,

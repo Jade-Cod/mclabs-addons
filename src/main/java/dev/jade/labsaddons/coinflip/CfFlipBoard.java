@@ -73,6 +73,12 @@ public final class CfFlipBoard extends CasinoPanel {
 	private static final long SMEAR_UNTIL_MS = 3_200L;
 	/** How long a result may wait for a clear screen before it stops being news. */
 	private static final long PENDING_MS = 4_000L;
+	/**
+	 * How recently a flip must have landed for a close to be <em>its</em> close. The server
+	 * closes a menu whenever you leave one, the lobby included, and a result from five
+	 * minutes ago must not ride in on the back of that.
+	 */
+	private static final long FRESH_RESULT_MS = 8_000L;
 
 	/** Our own face sits on side 0 of the coin, so the toss starts showing the player. */
 	private static final int YOUR_SIDE = 0;
@@ -156,9 +162,10 @@ public final class CfFlipBoard extends CasinoPanel {
 	 * on so it can be put back up rather than blinking out mid-read.
 	 */
 	public void serverClosedScreen() {
-		if (landedSnapshot != null) {
+		long now = Util.getMeasuringTimeMs();
+		if (landedSnapshot != null && now - resultAtMs <= FRESH_RESULT_MS) {
 			pending = landedSnapshot;
-			pendingAtMs = Util.getMeasuringTimeMs();
+			pendingAtMs = now;
 		}
 	}
 
@@ -363,7 +370,7 @@ public final class CfFlipBoard extends CasinoPanel {
 			context.fill(x, SEAT_Y, x + SEAT_HEAD, SEAT_Y + SEAT_HEAD, TRACK);
 		}
 		String label = name == null ? "…" : font.trimToWidth(name, 58);
-		String side = face.isEmpty() ? "" : face.toUpperCase(Locale.ROOT);
+		String side = face.toLowerCase(Locale.ROOT);
 		int textX = rightAligned ? x - SEAT_TEXT_GAP : x + SEAT_HEAD + 4;
 		drawAligned(context, font, label, textX, SEAT_Y + 1, up ? TEXT : TEXT_DIM, rightAligned);
 		drawAligned(context, font, side, textX, SEAT_Y + 11, up ? accent() : TEXT_FAINT,
@@ -384,12 +391,12 @@ public final class CfFlipBoard extends CasinoPanel {
 	private void stakes(DrawContext context, TextRenderer font) {
 		int width = PANEL_W - PAD * 2;
 		if (wagerCents <= 0L) {
-			row(context, font, PAD, POT_Y, width, "POT", "—", TEXT_FAINT, TEXT_FAINT);
+			row(context, font, PAD, POT_Y, width, "pot", "—", TEXT_FAINT, TEXT_FAINT);
 			context.drawText(font, "this screen never states the wager", PAD, TAX_Y,
 					TEXT_FAINT, false);
 			return;
 		}
-		row(context, font, PAD, POT_Y, width, "POT", Money.format(CfOdds.potCents(wagerCents)),
+		row(context, font, PAD, POT_Y, width, "pot", Money.format(CfOdds.potCents(wagerCents)),
 				TEXT_FAINT, TEXT);
 		row(context, font, PAD, TAX_Y, width, "tax",
 				"−" + Money.format(CfOdds.taxCents(wagerCents)) + " · 5%", TEXT_FAINT,
@@ -401,14 +408,15 @@ public final class CfFlipBoard extends CasinoPanel {
 			return;
 		}
 		int width = PANEL_W - PAD * 2;
-		row(context, font, PAD, ODDS_Y, width, landsLabel(yourFace, "YOU WIN"),
+		row(context, font, PAD, ODDS_Y, width, landsLabel(yourFace, "you win"),
 				"+" + Money.format(CfOdds.winProfitCents(wagerCents)), TEXT_FAINT, WIN);
-		row(context, font, PAD, ODDS_Y + ODDS_ROW_H, width, landsLabel(theirFace, "THEY WIN"),
+		row(context, font, PAD, ODDS_Y + ODDS_ROW_H, width, landsLabel(theirFace, "they win"),
 				"−" + Money.format(wagerCents), TEXT_FAINT, LOSS);
 	}
 
+	/** Lowercase, like every other data label: CAPS is for titles, buttons and the result. */
 	private static String landsLabel(String face, String fallback) {
-		return face.isEmpty() ? fallback : "LANDS " + face.toUpperCase(Locale.ROOT);
+		return face.isEmpty() ? fallback : "lands " + face.toLowerCase(Locale.ROOT);
 	}
 
 	private void banner(DrawContext context, TextRenderer font) {

@@ -3,7 +3,6 @@ package dev.jade.labsaddons.coinflip;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CfOddsTest {
 	private static final long DOLLAR = 100L;
@@ -39,15 +38,6 @@ class CfOddsTest {
 		assertEquals("1.75", CfOdds.investorPointsText(750 * DOLLAR));
 		assertEquals("1,250", CfOdds.investorPointsText(500_000 * DOLLAR));
 		assertEquals(7L, CfOdds.investorQuarterPoints(750 * DOLLAR));
-	}
-
-	@Test
-	void theRecordIsMeasuredInSigmasNotVibes() {
-		// 130 of 283 is a bad run, not a rigged coin.
-		assertEquals(-1.367, CfOdds.luckSigma(283, 130), 0.001);
-		assertEquals("-1.4σ", CfOdds.sigmaText(283, 130));
-		assertEquals("—", CfOdds.sigmaText(0, 0));
-		assertTrue(CfOdds.luckSigma(100, 60) > 0);
 	}
 
 	@Test

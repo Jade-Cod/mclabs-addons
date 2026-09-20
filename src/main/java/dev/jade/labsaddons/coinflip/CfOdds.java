@@ -74,22 +74,4 @@ public final class CfOdds {
 		};
 	}
 
-	/**
-	 * How far a record sits from an even coin, in standard deviations. A losing streak
-	 * only means something once it is bigger than the tax that explains it.
-	 */
-	public static double luckSigma(int played, int won) {
-		if (played <= 0) {
-			return 0d;
-		}
-		return (2d * won - played) / Math.sqrt(played);
-	}
-
-	/** "-1.4σ", or "—" with nothing to measure. */
-	public static String sigmaText(int played, int won) {
-		if (played <= 0) {
-			return "—";
-		}
-		return String.format(Locale.ROOT, "%+.1f", luckSigma(played, won)) + "σ";
-	}
 }

@@ -228,8 +228,6 @@ public final class CfLobbyBoard extends CasinoPanel {
 		// that is worth knowing. The widget carries the full split.
 		row(context, font, y, "luck", Money.compact(kept.luckCents()),
 				kept.luckCents() >= 0 ? WIN : LOSS);
-		y += ROW_GAP;
-		row(context, font, y, "", CfOdds.sigmaText(kept.played(), kept.won()), TEXT_FAINT);
 		return y + BLOCK_GAP;
 	}
 

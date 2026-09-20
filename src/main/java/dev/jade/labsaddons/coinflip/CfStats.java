@@ -11,10 +11,11 @@ import java.util.regex.Pattern;
  * Your lifetime coinflip record, as {@code /cf stats} states it and as every flip since
  * has changed it.
  *
- * <p>The mod asks the server for this <b>once</b>, the first time you open the lobby, and
- * then never again: firing a command the instant somebody runs {@code /cf} is noise. After
- * that seed the record maintains itself from the win and loss lines, so the widget stays
- * right without another round trip. Running {@code /cf stats} yourself always re-seeds it.
+ * <p>The mod asks the server for this <b>once ever</b>, the first time you open the lobby,
+ * and then never again — the flag and the figures are both on disk, so it does not come
+ * back after a restart either. After that seed the record maintains itself from the win and
+ * loss lines, so it stays right without another round trip. Running {@code /cf stats}
+ * yourself always re-reads it.
  *
  * <p>The interesting figure is not the profit. It is the profit split in two: 5% of
  * everything you have ever wagered was never yours to keep, and whatever is left over is
@@ -51,10 +52,6 @@ public final class CfStats {
 		/** The rest of it — the coin, not the house. */
 		public long luckCents() {
 			return profitCents() - taxCostCents();
-		}
-
-		public double sigma() {
-			return CfOdds.luckSigma(played, won);
 		}
 
 		/** "45.9%", or "—" before the first flip. */
@@ -150,7 +147,12 @@ public final class CfStats {
 	public static boolean onMessage(String text) {
 		Record before = current();
 		Record after = apply(before, text);
-		if (after.equals(before)) {
+		// Reference identity, not equality. Once the record is being kept up to date from
+		// the result lines, a /cf stats that agrees with it changes no value — and testing
+		// for a changed value meant the seed flag was never set, so it asked again on every
+		// single open. A matched line is proof the server answered, which is all the flag
+		// is for.
+		if (after == before) {
 			return false;
 		}
 		store(after, true);

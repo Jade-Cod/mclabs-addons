@@ -272,7 +272,8 @@ public final class D2Screen extends CasinoPanel {
 
 		context.fill(x, y, x + width, y + 1, DIVIDER);
 		y += 4;
-		String pot = "POT " + money(potTotal);
+		// Lowercase like every other data label; CAPS is for titles, buttons and results.
+		String pot = "pot " + money(potTotal);
 		context.drawText(font, pot, x, y, TEXT, false);
 		// Spell it out when there is room; a very large pot takes the room back.
 		String who = state.investors() + " investing";
