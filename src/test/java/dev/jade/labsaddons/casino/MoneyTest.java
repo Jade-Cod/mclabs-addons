@@ -48,4 +48,14 @@ class MoneyTest {
 		assertEquals("$9,423", Money.compact(942_308L));
 		assertEquals("$6,125", Money.compact(612_500L));
 	}
+
+	@Test
+	void aNegativeFigurePutsTheSignOutsideTheCurrency() {
+		// Coinflip is the first game with figures below zero: a lifetime profit of
+		// "Profit: -$305,062,313.11". "$-305,062,313.11" is not how anyone writes that.
+		assertEquals("−$305,062,313.11", Money.format(-30_506_231_311L));
+		assertEquals("−$305.1m", Money.compact(-30_506_231_311L));
+		assertEquals("−$19.7k", Money.compact(-1_970_000L));
+		assertEquals("−$750", Money.compact(-75_000L));
+	}
 }

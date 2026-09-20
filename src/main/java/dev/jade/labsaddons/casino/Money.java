@@ -54,11 +54,19 @@ public final class Money {
 		return dollars * CENTS + part;
 	}
 
-	/** "$3,828.25", or "$6,125" when it is a round number of dollars. */
+	/**
+	 * "$3,828.25", or "$6,125" when it is a round number of dollars.
+	 *
+	 * <p>A negative figure reads "−$305,062,313.11", not "$-305,062,313.11". Coinflip is the
+	 * first game whose figures go below zero — a lifetime profit — and the sign belongs
+	 * outside the currency, where a person would put it.
+	 */
 	public static String format(long amountCents) {
-		long dollars = amountCents / CENTS;
-		int part = (int) Math.abs(amountCents % CENTS);
-		String text = "$" + String.format(Locale.ROOT, "%,d", dollars);
+		String sign = amountCents < 0 ? "−" : "";
+		long magnitude = Math.abs(amountCents);
+		long dollars = magnitude / CENTS;
+		int part = (int) (magnitude % CENTS);
+		String text = sign + "$" + String.format(Locale.ROOT, "%,d", dollars);
 		return part == 0 ? text : text + String.format(Locale.ROOT, ".%02d", part);
 	}
 
@@ -67,14 +75,16 @@ public final class Money {
 	 * throughout: cents on some rows and not others reads as two different formats.
 	 */
 	public static String compact(long amountCents) {
-		long dollars = amountCents / CENTS;
+		String sign = amountCents < 0 ? "−" : "";
+		long magnitude = Math.abs(amountCents);
+		long dollars = magnitude / CENTS;
 		if (dollars < 10_000) {
 			return format(Math.round(amountCents / (double) CENTS) * CENTS);
 		}
 		if (dollars < 1_000_000) {
-			return "$" + String.format(Locale.ROOT, "%.1fk", dollars / 1_000.0);
+			return sign + "$" + String.format(Locale.ROOT, "%.1fk", dollars / 1_000.0);
 		}
-		return "$" + String.format(Locale.ROOT, "%.1fm", dollars / 1_000_000.0);
+		return sign + "$" + String.format(Locale.ROOT, "%.1fm", dollars / 1_000_000.0);
 	}
 
 	public static long fromDollars(long dollars) {

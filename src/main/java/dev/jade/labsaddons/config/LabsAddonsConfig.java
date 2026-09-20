@@ -242,6 +242,15 @@ public class LabsAddonsConfig {
 	public boolean double2Overlay = true;
 	public boolean minesOverlay = true;
 	public boolean blackjackOverlay = true;
+	public boolean coinflipOverlay = true;
+
+	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat ---
+	/** True once the server has stated the lifetime figures, so it is never asked twice. */
+	public boolean coinflipStatsSeeded = false;
+	public int coinflipPlayed = 0;
+	public int coinflipWon = 0;
+	public long coinflipWageredCents = 0L;
+	public long coinflipWinningsCents = 0L;
 
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;

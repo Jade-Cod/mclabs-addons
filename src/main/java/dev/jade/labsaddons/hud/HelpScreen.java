@@ -53,6 +53,8 @@ public class HelpScreen extends Screen {
 			{"/double", "Opens the Double² wheel with the mod’s own board drawn over it."},
 			{"/mines", "Opens Mines with the mod’s own grid and payout ladder over it."},
 			{"/bj", "Opens BondJoules blackjack with the mod’s own card table over it."},
+			{"/cf", "Opens coinflip with the mod’s own board, and syncs your record once."},
+			{"/cf stats", "Run it any time to re-sync your lifetime coinflip record."},
 			{"/mastery", "Open it to re-sync your active Mastery challenge bars."},
 			{"/prestige progress", "Open it to sync your chem bars and police contraband tier."},
 			{"Confiscations", "Arrests and bounty chests advance police prestige and Patrol bars live."},

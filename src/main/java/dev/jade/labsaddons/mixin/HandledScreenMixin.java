@@ -63,6 +63,23 @@ public abstract class HandledScreenMixin {
 	}
 
 	/**
+	 * Gives the wheel to the board, so the coinflip lobby can scroll a list longer than it
+	 * can show. Every other board ignores it and the menu behaves as it always did.
+	 */
+	@Inject(
+			method = "mouseScrolled(DDDD)Z",
+			at = @At("HEAD"),
+			cancellable = true
+	)
+	private void labsaddons$scrollCasinoBoard(double mouseX, double mouseY,
+			double horizontalAmount, double verticalAmount,
+			CallbackInfoReturnable<Boolean> cir) {
+		if (CasinoBoards.mouseScrolled((HandledScreen<?>) (Object) this, verticalAmount)) {
+			cir.setReturnValue(true);
+		}
+	}
+
+	/**
 	 * Swallows clicks while the board is up. Our own controls forward a real click to the
 	 * slot a player would have hit; anything else is dropped, because the container's
 	 * slots are still live underneath and a stray click would place a bet.

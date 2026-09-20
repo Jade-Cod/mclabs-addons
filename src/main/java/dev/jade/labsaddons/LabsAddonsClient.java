@@ -22,6 +22,11 @@ import dev.jade.labsaddons.bounty.BountyTracker;
 import dev.jade.labsaddons.bounty.SunkenTreasureReader;
 import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
 import dev.jade.labsaddons.blackjack.BjChat;
+import dev.jade.labsaddons.coinflip.CfChat;
+import dev.jade.labsaddons.coinflip.CfLobbyReader;
+import dev.jade.labsaddons.coinflip.CfOpenHudObject;
+import dev.jade.labsaddons.coinflip.CfRecordHudObject;
+import dev.jade.labsaddons.coinflip.CfStats;
 import dev.jade.labsaddons.double2.D2Chat;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
@@ -152,6 +157,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 		MasteryChatTracker.setSelfNameSupplier(LabsAddonsClient::selfName);
 		HudObjects.register(new RunnerHudObject());
 		HudObjects.register(new CooldownHudObject());
+		HudObjects.register(new CfOpenHudObject());
+		HudObjects.register(new CfRecordHudObject());
 		CooldownHudObject.addSource(McmmoCooldownTracker.source());
 		McmmoCooldownTracker.setHeldToolResolver(LabsAddonsClient::heldTool);
 		CooldownHudObject.addSource(PitItemCooldownTracker.source());
@@ -202,6 +209,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 			D2Chat.reset();
 			MinesChat.reset();
 			BjChat.reset();
+			// Open flips and the session ledger belong to the server we just left; the
+			// lifetime record does not, and stays in the config.
+			CfChat.reset();
 			// Entity ids are per-server; drop any hologram queued for reading.
 			RaidMineHologramReader.reset();
 			// The world we remember belongs to the server we just left.
@@ -326,6 +336,14 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// title to disagree to bail, and keeping it out avoids another
 					// nesting level in an already-deep fall-through.
 					SmugglerSatchel.tryRead(handledScreen);
+					// Seed the coinflip record the first time the lobby is ever opened,
+					// and never again: the widget keeps itself up to date from the
+					// result lines after that, and firing a command every time somebody
+					// runs /cf would be noise.
+					if (!CfStats.seeded()
+							&& CfLobbyReader.isLobbyTitle(handledScreen.getTitle().getString())) {
+						sendChatCommand("cf stats");
+					}
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);
@@ -469,6 +487,19 @@ public class LabsAddonsClient implements ClientModInitializer {
 		D2Chat.onMessage(text);
 		MinesChat.onMessage(text);
 		BjChat.onMessage(text);
+		// Coinflip is the one game the whole server hears about, so its chat feeds the
+		// open-flips widget as well as our own result. Our name is needed to tell our
+		// posts and results apart from everyone else's.
+		CfChat.Outcome coinflip = CfChat.onMessage(text, selfName(),
+				net.minecraft.util.Util.getMeasuringTimeMs());
+		if (coinflip != null) {
+			if (coinflip.won()) {
+				CfStats.recordWin(coinflip.wagerCents(), coinflip.returnedCents());
+			} else {
+				CfStats.recordLoss(coinflip.wagerCents());
+			}
+		}
+		CfStats.onMessage(text);
 		if (MasteryChatTracker.onMessage(text)) {
 			// A chat reaction moved an active challenge; keep it across a restart.
 			MasteryStore.save();

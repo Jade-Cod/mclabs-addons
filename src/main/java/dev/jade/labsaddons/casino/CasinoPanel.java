@@ -129,6 +129,37 @@ public abstract class CasinoPanel {
 	protected abstract boolean parses(List<SlotView> slots);
 
 	/**
+	 * The same check, for a menu whose only sure sign is its title. Coinflip's flip
+	 * screen is forty-five panes and one player head — a shape too ordinary to latch onto
+	 * on its own, while "Flipping a coin..." is unmistakable.
+	 */
+	protected boolean parses(List<SlotView> slots, String title) {
+		return parses(slots);
+	}
+
+	/**
+	 * Slots this game's menu owns, before the player's own thirty-six. A chest is
+	 * {@value #CONTAINER_SLOTS}; coinflip's menus are forty-five, and reading past that
+	 * would pull the player's inventory into the board's own slot list.
+	 */
+	protected int containerSlots() {
+		return CONTAINER_SLOTS;
+	}
+
+	/** A notch of the scroll wheel over the board, positive away from the player. */
+	protected void onScroll(double amount) {
+	}
+
+	/**
+	 * A click the board is about to forward. Called before the packet goes, for a board
+	 * that knows something about the slot the server is not going to repeat — the coinflip
+	 * lobby remembers which flip it just sent you into, because the screen that follows
+	 * states neither its wager nor its id.
+	 */
+	protected void onClick(int slot) {
+	}
+
+	/**
 	 * Draws the board's contents inside the panel, origin at its top-left corner.
 	 *
 	 * @param title the menu's own title, which BondJoules uses as a data source: it
@@ -167,7 +198,7 @@ public abstract class CasinoPanel {
 	 */
 	private boolean mayBe(ScreenHandler handler) {
 		return enabled() && McLabsSession.isActive()
-				&& handler.slots.size() >= CONTAINER_SLOTS && looksLike(handler);
+				&& handler.slots.size() >= containerSlots() && looksLike(handler);
 	}
 
 	/** True once this board has taken a container over and not yet given it back. */
@@ -198,7 +229,7 @@ public abstract class CasinoPanel {
 			return false;
 		}
 		String title = screen.getTitle().getString();
-		List<SlotView> slots = hold(slotViews(handler), syncId, holdKey(title));
+		List<SlotView> slots = hold(slotViews(handler), syncId, holdKey(title), title);
 		if (slots == null) {
 			return false;
 		}
@@ -248,6 +279,15 @@ public abstract class CasinoPanel {
 		return true;
 	}
 
+	/** True when the wheel turned over our board, so the menu does not also see it. */
+	public final boolean mouseScrolled(HandledScreen<?> screen, double amount) {
+		if (!owns(screen)) {
+			return false;
+		}
+		onScroll(amount);
+		return true;
+	}
+
 	/** Hands the container back, so another board (or the real chest) can have it. */
 	public final void release() {
 		activeSyncId = -1;
@@ -265,8 +305,8 @@ public abstract class CasinoPanel {
 	 *
 	 * @return the slots to draw from, or null when this is not our menu
 	 */
-	private List<SlotView> hold(List<SlotView> slots, int syncId, String key) {
-		if (parses(slots)) {
+	private List<SlotView> hold(List<SlotView> slots, int syncId, String key, String title) {
+		if (parses(slots, title)) {
 			if (activeSyncId != syncId) {
 				onContainerChange();
 			}
@@ -324,12 +364,13 @@ public abstract class CasinoPanel {
 			predictedBefore = heldSlots.get(slot);
 			predictedAtMs = Util.getMeasuringTimeMs();
 		}
+		onClick(slot);
 		client.interactionManager.clickSlot(screen.getScreenHandler().syncId, slot, 0,
 				action, client.player);
 	}
 
 	private List<SlotView> slotViews(ScreenHandler handler) {
-		int count = Math.min(CONTAINER_SLOTS, handler.slots.size());
+		int count = Math.min(containerSlots(), handler.slots.size());
 		List<SlotView> out = new ArrayList<>(count);
 		for (int i = 0; i < count; i++) {
 			ItemStack stack = handler.slots.get(i).getStack();

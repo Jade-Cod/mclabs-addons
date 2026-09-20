@@ -112,6 +112,14 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.blackjackOverlay = value)
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.coinflip"),
+						config.coinflipOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.coinflip.tooltip"))
+				.setSaveConsumer(value -> config.coinflipOverlay = value)
+				.build());
+
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);
 
