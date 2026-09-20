@@ -345,7 +345,11 @@ public abstract class CasinoPanel {
 				name = stack.getName().getString();
 				LoreComponent component = stack.get(DataComponentTypes.LORE);
 				if (component != null) {
-					lore = component.lines().stream().map(Text::getString).toList();
+					List<Text> lines = component.lines();
+					lore = new ArrayList<>(lines.size());
+					for (int j = 0; j < lines.size(); j++) {
+						lore.add(lines.get(j).getString());
+					}
 				}
 			}
 			out.add(new SlotView(i, name, lore, stack.getCount()));

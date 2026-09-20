@@ -4,6 +4,7 @@ import dev.jade.labsaddons.casino.CasinoPanel;
 import dev.jade.labsaddons.casino.Money;
 import dev.jade.labsaddons.casino.SlotView;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.hud.editor.EditorPainter;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -133,25 +134,37 @@ public final class BjBoard extends CasinoPanel {
 
 		header(context, font, "BONDJOULES", stakeLine(state), TEXT_DIM);
 
-		// The lab's total is only ever what it is showing: its hole card is face down and
-		// the title counts only the cards on the table.
+		boolean natural21 = state.yourHand().size() == 2 && state.yourTotal() == 21;
+		int playerGlow = natural21 ? 0xFFE6A817
+				: state.phase() == BjState.Phase.WON ? WIN
+				: state.yourTotal() > 21 ? LOSS
+				: 0;
+		int labGlow = state.phase() == BjState.Phase.LOST ? WIN : 0;
+
 		caption(context, font, PAD, LAB_CAPTION_Y, "COMPETING LAB");
-		hand(context, font, PAD, LAB_CARDS_Y, lab);
+		hand(context, font, PAD, LAB_CARDS_Y, lab, labGlow);
 		total(context, font, state.labTotal(), LAB_CARDS_Y + 6, TEXT,
 				state.labHand().size() > 1 && state.labHand().get(1).isHidden()
-						? "showing" : null);
+						? "showing" : null, false);
 
 		context.fill(PAD, DIVIDER_Y, PANEL_W - PAD, DIVIDER_Y + 1, DIVIDER);
 
 		caption(context, font, PAD, YOUR_CAPTION_Y, "YOU");
-		hand(context, font, PAD, YOUR_CARDS_Y, you);
-		total(context, font, state.yourTotal(), YOUR_CARDS_Y + 6,
-				state.yourTotal() > 21 ? LOSS : accent, state.soft() ? "soft" : "hard");
+		hand(context, font, PAD, YOUR_CARDS_Y, you, playerGlow);
+
+		String yourNote = state.yourTotal() > 21 ? "BUST"
+				: natural21 ? "★ BLACKJACK"
+				: state.soft() ? "soft (" + (state.yourTotal() - 10) + "/" + state.yourTotal() + ")"
+				: "hard";
+		int yourTotalColor = natural21 ? 0xFFFFD700
+				: state.yourTotal() > 21 ? LOSS
+				: accent;
+		total(context, font, state.yourTotal(), YOUR_CARDS_Y + 6, yourTotalColor, yourNote, natural21);
 
 		odds(context, font, state);
 
 		if (state.settled()) {
-			banner(context, font, state, width);
+			banner(context, font, state, width, natural21);
 		} else {
 			controls(context, font, state, width, accent);
 		}
@@ -161,11 +174,11 @@ public final class BjBoard extends CasinoPanel {
 	/**
 	 * Draws a seat's cards, each overlapping the last.
 	 *
-	 * <p>A newly dealt card slides in from the far side of the panel; a hole card turning
-	 * over squeezes edge-on and comes back as itself. Neither invents anything — the cards
-	 * are the server's, only the moment they appear to move is ours.
+	 * <p>A newly dealt card glides in from the dealer shoe at the top-right with an ease-out
+	 * curve and a slight tilt, snapping square into place. A hole card turning over flips in
+	 * 3D with a specular shine glint.
 	 */
-	private void hand(DrawContext context, TextRenderer font, int x, int y, Seat seat) {
+	private void hand(DrawContext context, TextRenderer font, int x, int y, Seat seat, int glowColor) {
 		long now = Util.getMeasuringTimeMs();
 		for (int i = 0; i < seat.cards.size(); i++) {
 			Card card = seat.cards.get(i);
@@ -174,28 +187,38 @@ public final class BjBoard extends CasinoPanel {
 			float t = arrived == 0L ? 1f
 					: Math.clamp((now - arrived) / (float) DEAL_MS, 0f, 1f);
 			if (t >= 1f) {
-				CardPainter.draw(context, font, home, y, card);
+				CardPainter.draw(context, font, home, y, card, glowColor);
 			} else if (seat.turnedOver(i)) {
-				turnOver(context, font, home, y, card, t);
+				turnOver(context, font, home, y, card, t, glowColor);
 			} else {
-				// Never starts outside the panel: there is no clip here, and a card drawn
-				// past the edge would be drawn over the world.
-				int from = PANEL_W - PAD - CardPainter.CARD_W;
+				int fromX = PANEL_W - PAD - CardPainter.CARD_W;
+				int fromY = LAB_CARDS_Y - 12;
 				float ease = 1f - (1f - t) * (1f - t) * (1f - t);
-				CardPainter.draw(context, font,
-						Math.round(from + (home - from) * ease), y, card);
+				int currX = Math.round(fromX + (home - fromX) * ease);
+				int currY = Math.round(fromY + (y - fromY) * ease);
+
+				context.getMatrices().pushMatrix();
+				context.getMatrices().translate(currX + CardPainter.CARD_W / 2f, currY + CardPainter.CARD_H / 2f);
+				context.getMatrices().rotate((1f - ease) * 0.08f);
+				context.getMatrices().translate(-(currX + CardPainter.CARD_W / 2f), -(currY + CardPainter.CARD_H / 2f));
+				CardPainter.draw(context, font, currX, currY, card, glowColor);
+				context.getMatrices().popMatrix();
 			}
 		}
 	}
 
 	private void turnOver(DrawContext context, TextRenderer font, int x, int y, Card card,
-			float t) {
+			float t, int glowColor) {
 		float squeeze = Math.max(0.02f, Math.abs(t * 2f - 1f));
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate(x + CardPainter.CARD_W / 2f, 0f);
 		context.getMatrices().scale(squeeze, 1f);
 		context.getMatrices().translate(-(x + CardPainter.CARD_W / 2f), 0f);
-		CardPainter.draw(context, font, x, y, t >= 0.5f ? card : Card.HIDDEN);
+		CardPainter.draw(context, font, x, y, t >= 0.5f ? card : Card.HIDDEN, glowColor);
+		if (t >= 0.40f && t <= 0.65f) {
+			int shineAlpha = (int) (0x90 * (1f - Math.abs(t - 0.52f) / 0.13f));
+			context.fill(x, y, x + CardPainter.CARD_W, y + CardPainter.CARD_H, (shineAlpha << 24) | 0x00FFFFFF);
+		}
 		context.getMatrices().popMatrix();
 	}
 
@@ -215,7 +238,7 @@ public final class BjBoard extends CasinoPanel {
 	 * board exists to show, and at one scale it disappears next to the cards.
 	 */
 	private void total(DrawContext context, TextRenderer font, int value, int y, int color,
-			String note) {
+			String note, boolean gold) {
 		if (value <= 0) {
 			return;
 		}
@@ -228,14 +251,25 @@ public final class BjBoard extends CasinoPanel {
 		context.drawText(font, text, 0, 0, color, false);
 		context.getMatrices().popMatrix();
 		if (note != null) {
+			int noteColor = gold ? 0xFFFFD700 : note.startsWith("soft") ? 0xFF00E5FF : TEXT_FAINT;
 			context.drawText(font, note, PANEL_W - PAD - font.getWidth(note),
-					y + font.fontHeight * TOTAL_SCALE, TEXT_FAINT, false);
+					y + font.fontHeight * TOTAL_SCALE, noteColor, false);
 		}
 	}
 
 	/** The one computed figure on this board, and the dealer rule behind it. */
 	private void odds(DrawContext context, TextRenderer font, BjState state) {
 		if (state.settled() || state.yourTotal() <= 0) {
+			return;
+		}
+		if (state.phase() == BjState.Phase.LAB_TURN) {
+			if (state.labTotal() > 21) {
+				context.drawText(font, "LAB BUSTED (" + state.labTotal() + ")", PAD, ODDS_Y, WIN, false);
+			} else if (state.labTotal() >= 17) {
+				context.drawText(font, "LAB STANDS ON " + state.labTotal(), PAD, ODDS_Y, TEXT_DIM, false);
+			} else {
+				context.drawText(font, "LAB EXPERIMENTING...", PAD, ODDS_Y, accent(), false);
+			}
 			return;
 		}
 		if (state.yourTotal() > 21) {
@@ -262,15 +296,29 @@ public final class BjBoard extends CasinoPanel {
 				state.canDouble() ? BjReader.DOUBLE_SLOT : -1, accent);
 	}
 
-	/** The server's own settled words, centred where the buttons were. */
-	private void banner(DrawContext context, TextRenderer font, BjState state, int width) {
-		int color = switch (state.phase()) {
+	/**
+	 * The server's own settled words, centred where the buttons were.
+	 *
+	 * <p>The 3:2 treatment needs the hand to have <em>won</em>, not merely to be a dealt
+	 * 21. A dealt 21 against the lab's own dealt 21 is a push: the stake comes back and
+	 * nothing is paid, and {@link BjState.Phase#PUSH} settles like any other end of hand.
+	 * Keyed on the two cards alone, this band told you it had paid you half your stake
+	 * again on a hand that paid you nothing.
+	 */
+	private void banner(DrawContext context, TextRenderer font, BjState state, int width, boolean natural21) {
+		boolean naturalWin = natural21 && state.phase() == BjState.Phase.WON;
+		int bg = naturalWin ? 0x30E6A817 : PANEL;
+		int color = naturalWin ? 0xFFFFD700 : switch (state.phase()) {
 			case WON -> WIN;
 			case LOST -> LOSS;
 			default -> TEXT_DIM;
 		};
-		context.fill(PAD, BUTTONS_Y, PANEL_W - PAD, BUTTONS_Y + BUTTON_H, PANEL);
-		String text = font.trimToWidth(state.banner(), width - 6);
+		context.fill(PAD, BUTTONS_Y, PANEL_W - PAD, BUTTONS_Y + BUTTON_H, bg);
+		if (naturalWin) {
+			EditorPainter.outline(context, PAD, BUTTONS_Y, PANEL_W - PAD * 2, BUTTON_H, 0xFFE6A817);
+		}
+		String text = naturalWin ? "★ PERFECT REACTION ★ 3:2 WIN!"
+				: font.trimToWidth(state.banner(), width - 6);
 		context.drawText(font, text, PAD + (width - font.getWidth(text)) / 2,
 				BUTTONS_Y + (BUTTON_H - font.fontHeight) / 2 + 1, color, false);
 	}

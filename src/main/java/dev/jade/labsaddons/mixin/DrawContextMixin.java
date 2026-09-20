@@ -1,13 +1,18 @@
 package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.double2.DrawContextBridge;
 import dev.jade.labsaddons.item.ItemUses;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.render.state.GuiRenderState;
+import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
 import net.minecraft.item.ItemStack;
 import org.joml.Matrix3x2fStack;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,7 +24,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * any container screen) funnels through, so one hook covers all of them.
  */
 @Mixin(DrawContext.class)
-public abstract class DrawContextMixin {
+public abstract class DrawContextMixin implements DrawContextBridge {
+	// Package-private and final, exactly as DrawContext declares it. Mixin only warns on a
+	// mismatch, but a shadow that misstates the target drifts quietly, and writing to a
+	// field Mixin has not been told is final fails outright.
+	@Shadow
+	@Final
+	GuiRenderState state;
+
+	@Override
+	public void labsaddons$addSimpleElement(SimpleGuiElementRenderState element) {
+		this.state.addSimpleElement(element);
+	}
+
 	private static final int SLOT_SIZE = 16;
 	private static final int INSET = 2;
 
@@ -39,7 +56,12 @@ public abstract class DrawContextMixin {
 		}
 		String text = String.valueOf(uses);
 		float scale = config.itemUsesScale;
-		ItemUsesCorner corner = ItemUsesCorner.valueOf(config.itemUsesCorner);
+		ItemUsesCorner corner;
+		try {
+			corner = ItemUsesCorner.valueOf(config.itemUsesCorner);
+		} catch (Exception e) {
+			corner = ItemUsesCorner.TOP_LEFT;
+		}
 		boolean right = corner == ItemUsesCorner.TOP_RIGHT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		boolean bottom = corner == ItemUsesCorner.BOTTOM_LEFT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		int textX = right

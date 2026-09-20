@@ -56,6 +56,10 @@ public final class D2Screen extends CasinoPanel {
 	private int lastGoodOffset = -1;
 	private int lastSeconds = -1;
 	private long secondsChangedMs;
+	private float pointerAngle;
+	private float pointerVel;
+	private long lastPhysicsMs;
+	private float lastPointerPos = -1f;
 
 	private D2Screen() {
 	}
@@ -90,9 +94,13 @@ public final class D2Screen extends CasinoPanel {
 	protected void onContainerChange() {
 		lastOffset = -1;
 		lastFrameMs = 0L;
+		lastPhysicsMs = 0L;
 		lastGoodOffset = -1;
 		lastSeconds = -1;
-		D2Ring.reset();
+		pointerAngle = 0f;
+		pointerVel = 0f;
+		lastPointerPos = -1f;
+		D2Ring.resetOffset();
 	}
 
 	@Override
@@ -113,9 +121,25 @@ public final class D2Screen extends CasinoPanel {
 		int wheelCx = PAD + LEFT_W / 2;
 		int wheelCy = WHEEL_TOP + OUTER_R;
 		if (offset >= 0) {
+			float drawPos = tween(offset);
+			float pointerPos = drawPos + D2Ring.POINTER;
+			long now = Util.getMeasuringTimeMs();
+			float dtSec = lastPhysicsMs == 0L ? 0.016f : Math.min(0.064f, (now - lastPhysicsMs) / 1000f);
+			lastPhysicsMs = now;
+
+			updatePointerPhysics(pointerPos, dtSec);
+
+			Lab settledLab = state.phase() == D2State.Phase.SETTLED ? state.settledLab() : null;
+			int winningIndex = settledLab != null
+					? Math.floorMod(Math.round(drawPos + D2Ring.POINTER), D2Ring.SIZE)
+					: -1;
+			float settledPulse = (float) (0.5 + 0.5 * Math.sin(now / 150.0));
+
+			HubDisplay hub = hubDisplay(state, font);
 			D2Wheel.draw(context, font, wheelCx, wheelCy, OUTER_R, INNER_R,
-					D2Ring.segments(), tween(offset), accent, hubText(state, font),
-					deviceScale);
+					D2Ring.segments(), drawPos, accent, hub.lines(), hub.noteColor(),
+					deviceScale, pointerAngle, settledLab, winningIndex, settledPulse);
+
 			if (!D2Ring.isComplete()) {
 				// Say why part of it is grey, so it does not read as a fault.
 				String note = "learning the wheel";
@@ -192,21 +216,122 @@ public final class D2Screen extends CasinoPanel {
 		return drawOffset;
 	}
 
-	private static String[] hubText(D2State state, TextRenderer font) {
+	private void updatePointerPhysics(float pointerPos, float dtSec) {
+		if (dtSec <= 0f) {
+			return;
+		}
+		if (lastPointerPos < 0f || Math.abs(pointerPos - lastPointerPos) > D2Ring.SIZE / 2f) {
+			lastPointerPos = pointerPos;
+		}
+
+		float pos0 = lastPointerPos;
+		float pos1 = pointerPos;
+		lastPointerPos = pointerPos;
+
+		double segRad = Math.PI * 2.0 / D2Ring.SIZE;
+		double ratio = (double) OUTER_R / 9.5;
+		double releaseTheta = 0.36;
+		double releasePhi = -releaseTheta / ratio;
+
+		double omega0 = 130.0;
+		double zeta = 0.35;
+		double kSpring = omega0 * omega0;
+		double cDamp = 2.0 * zeta * omega0;
+
+		float step = 0.002f;
+		for (float t = 0f; t < dtSec; t += step) {
+			float h = Math.min(step, dtSec - t);
+			float alpha = (t + h * 0.5f) / dtSec;
+			float subPos = pos0 + (pos1 - pos0) * alpha;
+
+			double u = subPos + 0.5;
+			long k = Math.round(u);
+			double phi = (k - u) * segRad;
+			boolean inContact = phi <= 0.0 && phi >= releasePhi;
+			double targetTheta = inContact ? -ratio * phi : 0.0;
+
+			if (inContact && pointerAngle < targetTheta) {
+				pointerAngle = (float) targetTheta;
+				if (pointerVel < 0f) {
+					pointerVel = 0f;
+				}
+			} else {
+				float acc = (float) (-kSpring * pointerAngle - cDamp * pointerVel);
+				pointerVel += acc * h;
+				pointerAngle += pointerVel * h;
+			}
+		}
+
+		if (Math.abs(pointerAngle) < 0.001f && Math.abs(pointerVel) < 0.01f) {
+			pointerAngle = 0f;
+			pointerVel = 0f;
+		} else {
+			pointerAngle = Math.clamp(pointerAngle, -0.20f, 0.40f);
+		}
+	}
+
+	private record HubDisplay(String[] lines, int noteColor) {
+	}
+
+	private static HubDisplay hubDisplay(D2State state, TextRenderer font) {
 		Lab pointer = state.pointerLab();
 		if (pointer == null) {
-			return null;
+			return new HubDisplay(null, TEXT_DIM);
 		}
-		String note = switch (state.phase()) {
-			case BETTING -> state.secondsLeft() >= 0 ? state.secondsLeft() + "s left" : null;
-			case SPINNING -> "simulating";
-			case SETTLED -> "profiting lab";
-		};
-		// A small hub has room for the code alone; drop the rest rather than overflow it.
+
+		String line1 = pointer.name();
+		String line2 = pointer.multiplierText();
+		String note = "";
+		int noteColor = TEXT_DIM;
+
+		switch (state.phase()) {
+			case BETTING -> {
+				note = state.secondsLeft() >= 0 ? state.secondsLeft() + "s left" : "";
+				noteColor = TEXT_DIM;
+			}
+			case SPINNING -> {
+				if (pointer == Lab.EOL) {
+					line2 = "★ 24.0x ★";
+					note = "JACKPOT";
+					noteColor = Lab.EOL.lift();
+				} else if (state.selected() != null && pointer == state.selected()) {
+					note = "YOUR PICK!";
+					noteColor = state.selected().lift();
+				} else {
+					note = "simulating";
+					noteColor = TEXT_DIM;
+				}
+			}
+			case SETTLED -> {
+				Lab settled = state.settledLab() != null ? state.settledLab() : pointer;
+				line1 = settled.name();
+				line2 = settled.multiplierText();
+				D2Chat.Outcome outcome = D2Chat.lastOutcome();
+				if (outcome != null && outcome.won()) {
+					line2 = settled.multiplierText() + " WIN!";
+					note = "+" + money(outcome.amount());
+					noteColor = WIN;
+				} else if (outcome != null && !outcome.won()) {
+					note = "−" + money(outcome.amount());
+					noteColor = LOSS;
+				} else if (state.hasBet() && state.betLab() == settled) {
+					line2 = settled.multiplierText() + " WIN!";
+					note = "≈ +" + money(winReturn(state.betAmount(), settled));
+					noteColor = WIN;
+				} else if (state.hasBet()) {
+					note = "−" + money(state.betAmount());
+					noteColor = LOSS;
+				} else {
+					note = "profiting lab";
+					noteColor = TEXT_DIM;
+				}
+			}
+		}
+
 		if (INNER_R < font.fontHeight * 3) {
-			return new String[]{pointer.name()};
+			return new HubDisplay(new String[]{line1}, noteColor);
 		}
-		return new String[]{pointer.name(), pointer.multiplierText(), note};
+		return new HubDisplay(new String[]{line1, line2, note}, noteColor);
 	}
 
 	private void panel(DrawContext context, TextRenderer font, D2State state,
@@ -300,6 +425,23 @@ public final class D2Screen extends CasinoPanel {
 			String rounds = state.eolDrought() + " rounds";
 			context.drawText(font, rounds, x + width - font.getWidth(rounds), y, TEXT_DIM, false);
 		}
+	}
+
+	/**
+	 * The cut the server takes off a win, measured: $1,000 on CQL's "2.0x Profit" credited
+	 * <b>$1,940</b>, not $2,000.
+	 *
+	 * <p>One sample cannot tell 3% of the return from 6% of the profit — at 2.0x they are
+	 * the same figure. They part company higher up the wheel: $1,000 on ADL's 6.0x pays
+	 * $5,820 under this reading and $5,700 under the other. That is why the figure this
+	 * feeds is shown with a "≈" and why anything wanting a real payout waits for
+	 * {@link D2Chat#lastOutcome()}, which is the server's own.
+	 */
+	private static final double RETURN_CUT = 0.03;
+
+	/** What a winning stake comes back as, near enough to show while the server catches up. */
+	private static long winReturn(long betAmount, Lab lab) {
+		return Math.round(betAmount * lab.multiplier() * (1.0 - RETURN_CUT));
 	}
 
 	private static String money(long amount) {

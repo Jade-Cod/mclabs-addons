@@ -43,8 +43,10 @@ public final class MinesBoard extends CasinoPanel {
 
 	private static final int TILE_BG = 0xFF23262E;
 	private static final int TILE_BORDER = 0xFF343945;
-	private static final int SAFE_BG = 0xFF2A2418;
-	private static final int MINE_BG = 0xFF2E1B1B;
+	private static final int SAFE_EARNED_BG = 0xFF2D2315;
+	private static final int SAFE_GHOST_BG = 0xFF201D17;
+	private static final int MINE_FATAL_BG = 0xFF4A1414;
+	private static final int MINE_CASCADE_BG = 0xFF281616;
 	private static final int CASH_BG = 0xFF17342F;
 	private static final int CASH_BORDER = 0xFF45C08A;
 
@@ -57,6 +59,8 @@ public final class MinesBoard extends CasinoPanel {
 	private final MinesState.Tile[] seen = new MinesState.Tile[MinesOdds.TILES];
 	/** When each tile should start turning; 0 for one that was already face up. */
 	private final long[] turnsAt = new long[MinesOdds.TILES];
+	/** Tiles the player uncovered while the game was live (as opposed to post-game cascade). */
+	private final boolean[] playerPicks = new boolean[MinesOdds.TILES];
 	/** The mine that ended the game, which the losing cascade radiates from. */
 	private int hitTile = -1;
 	/**
@@ -94,6 +98,7 @@ public final class MinesBoard extends CasinoPanel {
 	protected void onContainerChange() {
 		Arrays.fill(seen, null);
 		Arrays.fill(turnsAt, 0L);
+		Arrays.fill(playerPicks, false);
 		hitTile = -1;
 		playedStars = 0;
 	}
@@ -143,6 +148,11 @@ public final class MinesBoard extends CasinoPanel {
 			seen[i] = tile;
 		}
 		if (!state.blown()) {
+			for (int i = 0; i < MinesOdds.TILES; i++) {
+				if (state.tiles().get(i) == MinesState.Tile.SAFE) {
+					playerPicks[i] = true;
+				}
+			}
 			playedStars = state.stars();
 		}
 	}
@@ -180,13 +190,20 @@ public final class MinesBoard extends CasinoPanel {
 				boolean shown = turn >= 0.5f;
 				float squeeze = turn >= 1f ? 1f : Math.abs(turn * 2f - 1f);
 
+				// Ambient drop shadow beneath tile
+				context.fill(x + 1, y + 1, x + TILE + 1, y + TILE + 1, 0x44000000);
+
 				if (squeeze < 1f) {
 					context.getMatrices().pushMatrix();
-					context.getMatrices().translate(x + TILE / 2f, 0f);
+					context.getMatrices().translate(x + TILE / 2f, y + TILE / 2f);
 					context.getMatrices().scale(Math.max(0.02f, squeeze), 1f);
-					context.getMatrices().translate(-(x + TILE / 2f), 0f);
+					context.getMatrices().translate(-(x + TILE / 2f), -(y + TILE / 2f));
 				}
-				face(context, shown ? tile : MinesState.Tile.HIDDEN, x, y, hot, accent);
+				face(context, shown ? tile : MinesState.Tile.HIDDEN, index, x, y, hot, accent, state);
+				if (turn >= 0.40f && turn <= 0.65f) {
+					int shineAlpha = (int) (0x90 * (1f - Math.abs(turn - 0.52f) / 0.13f));
+					context.fill(x, y, x + TILE, y + TILE, (shineAlpha << 24) | 0x00FFFFFF);
+				}
 				if (squeeze < 1f) {
 					context.getMatrices().popMatrix();
 				}
@@ -198,22 +215,55 @@ public final class MinesBoard extends CasinoPanel {
 		}
 	}
 
-	private void face(DrawContext context, MinesState.Tile tile, int x, int y, boolean hot,
-			int accent) {
-		context.fill(x, y, x + TILE, y + TILE, switch (tile) {
-			case HIDDEN -> hot ? ROW_HOVER : TILE_BG;
-			case SAFE -> SAFE_BG;
-			case MINE -> MINE_BG;
-		});
-		EditorPainter.outline(context, x, y, TILE, TILE, switch (tile) {
-			case HIDDEN -> hot ? accent : TILE_BORDER;
-			case SAFE -> WARN;
-			case MINE -> LOSS;
-		});
-		if (tile == MinesState.Tile.SAFE) {
-			Glyphs.centred(context, Glyphs.STAR, x, y, TILE, TILE, 2, WARN);
-		} else if (tile == MinesState.Tile.MINE) {
-			Glyphs.centred(context, Glyphs.MINE, x, y, TILE, TILE, 2, LOSS);
+	private void face(DrawContext context, MinesState.Tile tile, int index, int x, int y,
+			boolean hot, int accent, MinesState state) {
+		switch (tile) {
+			case HIDDEN -> {
+				int bg = hot ? ROW_HOVER : TILE_BG;
+				context.fill(x, y, x + TILE, y + TILE, bg);
+
+				// Specular top highlight & bottom shadow bevel
+				context.fill(x + 1, y + 1, x + TILE - 1, y + 2, hot ? 0x30FFFFFF : 0x18FFFFFF);
+				context.fill(x + 1, y + TILE - 2, x + TILE - 1, y + TILE - 1, 0x40000000);
+
+				int border = hot ? accent : TILE_BORDER;
+				EditorPainter.outline(context, x, y, TILE, TILE, border);
+				// Interactive center pip ONLY when hovered under cursor
+				if (hot) {
+					context.fill(x + 10, y + 10, x + 12, y + 12, accent);
+				}
+			}
+			case SAFE -> {
+				boolean earned = playerPicks[index] || !state.blown();
+				if (earned) {
+					// Trophy Star (uncovered by player during active play)
+					context.fill(x, y, x + TILE, y + TILE, SAFE_EARNED_BG);
+					context.fill(x + 1, y + 1, x + TILE - 1, y + 2, 0x35FFE082);
+					EditorPainter.outline(context, x, y, TILE, TILE, 0xFFE6A817);
+					Glyphs.centred(context, Glyphs.STAR, x, y, TILE, TILE, 2, 0xFFFFD54F);
+				} else {
+					// Ghost / cascade revealed safe tile after loss
+					context.fill(x, y, x + TILE, y + TILE, SAFE_GHOST_BG);
+					EditorPainter.outline(context, x, y, TILE, TILE, 0xFF6E5D3B);
+					Glyphs.centred(context, Glyphs.STAR, x, y, TILE, TILE, 2, 0xFF9E8A5E);
+				}
+			}
+			case MINE -> {
+				boolean fatal = index == hitTile;
+				if (fatal) {
+					// The fatal mine stepped on
+					context.fill(x, y, x + TILE, y + TILE, MINE_FATAL_BG);
+					context.fill(x + 1, y + 1, x + TILE - 1, y + 2, 0x50FF5252);
+					EditorPainter.outline(context, x, y, TILE, TILE, 0xFFFF1744);
+					EditorPainter.outline(context, x - 1, y - 1, TILE + 2, TILE + 2, 0x60FF1744);
+					Glyphs.centred(context, Glyphs.MINE, x, y, TILE, TILE, 2, 0xFFFF3D00);
+				} else {
+					// Other hidden mines revealed in cascade
+					context.fill(x, y, x + TILE, y + TILE, MINE_CASCADE_BG);
+					EditorPainter.outline(context, x, y, TILE, TILE, 0xFF7A2E2E);
+					Glyphs.centred(context, Glyphs.MINE, x, y, TILE, TILE, 2, 0xFFB84444);
+				}
+			}
 		}
 	}
 
