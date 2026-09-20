@@ -14,6 +14,11 @@ import java.util.regex.Pattern;
 public final class Money {
 	private static final Pattern AMOUNT = Pattern.compile("\\$?([\\d,]+)(?:\\.(\\d{1,2}))?");
 	private static final int CENTS = 100;
+	private static final long MILLION = 1_000_000L;
+	private static final double MILLION_D = 1_000_000.0;
+	/** Where {@link #compact} starts shortening, and where {@link #abbreviated} does. */
+	private static final long COMPACT_FROM_DOLLARS = 10_000L;
+	private static final long ABBREVIATE_FROM_DOLLARS = 1_000L;
 
 	private Money() {
 	}
@@ -75,16 +80,31 @@ public final class Money {
 	 * throughout: cents on some rows and not others reads as two different formats.
 	 */
 	public static String compact(long amountCents) {
+		return shorten(amountCents, COMPACT_FROM_DOLLARS);
+	}
+
+	/**
+	 * "$9.0k" where {@link #compact} would still spell out "$9,000".
+	 *
+	 * <p>For a column where every row has to read the same way: one row saying "$9,000"
+	 * beside another saying "$10.0k" is two formats in one column, which is the thing
+	 * compact() was supposed to stop. Below a thousand it still spells the figure out,
+	 * because "$0.8k" is a worse answer than "$750".
+	 */
+	public static String abbreviated(long amountCents) {
+		return shorten(amountCents, ABBREVIATE_FROM_DOLLARS);
+	}
+
+	private static String shorten(long amountCents, long fromDollars) {
 		String sign = amountCents < 0 ? "−" : "";
-		long magnitude = Math.abs(amountCents);
-		long dollars = magnitude / CENTS;
-		if (dollars < 10_000) {
+		long dollars = Math.abs(amountCents) / CENTS;
+		if (dollars < fromDollars) {
 			return format(Math.round(amountCents / (double) CENTS) * CENTS);
 		}
-		if (dollars < 1_000_000) {
+		if (dollars < MILLION) {
 			return sign + "$" + String.format(Locale.ROOT, "%.1fk", dollars / 1_000.0);
 		}
-		return sign + "$" + String.format(Locale.ROOT, "%.1fm", dollars / 1_000_000.0);
+		return sign + "$" + String.format(Locale.ROOT, "%.1fm", dollars / MILLION_D);
 	}
 
 	public static long fromDollars(long dollars) {

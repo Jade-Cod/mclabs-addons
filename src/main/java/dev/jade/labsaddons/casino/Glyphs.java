@@ -13,14 +13,23 @@ import net.minecraft.client.gui.DrawContext;
 public final class Glyphs {
 	private static final int SIZE = 7;
 
-	/** A five-pointed star: a revealed safe tile. */
-	public static final int[] STAR = {0x08, 0x1C, 0x7F, 0x3E, 0x1C, 0x36, 0x41};
+	/**
+	 * A five-pointed star: a revealed safe tile. The feet are two pixels wide — a single
+	 * one read as a dot floating below the leg rather than the end of it.
+	 */
+	public static final int[] STAR = {0x08, 0x1C, 0x7F, 0x3E, 0x1C, 0x36, 0x63};
 	/** A bomb with a fuse: a revealed mine. */
 	public static final int[] MINE = {0x0A, 0x1C, 0x3E, 0x7F, 0x7F, 0x3E, 0x1C};
 	public static final int[] DIAMOND = {0x08, 0x1C, 0x3E, 0x7F, 0x3E, 0x1C, 0x08};
 	public static final int[] HEART = {0x36, 0x7F, 0x7F, 0x7F, 0x3E, 0x1C, 0x08};
 	public static final int[] SPADE = {0x08, 0x1C, 0x3E, 0x7F, 0x7F, 0x08, 0x1C};
-	public static final int[] CLUB = {0x08, 0x1C, 0x2A, 0x7F, 0x7F, 0x08, 0x1C};
+	/**
+	 * Three lobes and a stem. Seven pixels will not hold three separated circles, and
+	 * punching holes between them reads as eyes at this size — so the lobes live in the
+	 * silhouette instead: a round crown where the spade has a point, and a notch under it
+	 * where the spade is flat.
+	 */
+	public static final int[] CLUB = {0x1C, 0x3E, 0x7F, 0x7F, 0x36, 0x08, 0x1C};
 
 	private Glyphs() {
 	}

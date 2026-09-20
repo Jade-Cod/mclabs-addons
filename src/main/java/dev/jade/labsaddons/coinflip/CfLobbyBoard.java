@@ -223,7 +223,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 			if (y + RECENT_ENTRY_H > PANEL_H - PAD) {
 				return;
 			}
-			String amount = (flip.won ? "+" : "") + Money.compact(flip.netCents);
+			// Abbreviated rather than compact: every row of this column has to read the
+			// same way, and "+$9,000" beside "−$10.0k" does not.
+			String amount = (flip.won ? "+" : "") + Money.abbreviated(flip.netCents);
 			context.drawText(font, amount, RAIL_X, y, flip.won ? WIN : LOSS, false);
 			String who = font.trimToWidth(flip.opponent, width - RECENT_INDENT);
 			context.drawText(font, who, RAIL_X + RECENT_INDENT, y + ROW_GAP, TEXT_FAINT, false);

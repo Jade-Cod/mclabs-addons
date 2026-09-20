@@ -58,4 +58,19 @@ class MoneyTest {
 		assertEquals("−$19.7k", Money.compact(-1_970_000L));
 		assertEquals("−$750", Money.compact(-75_000L));
 	}
+
+	@Test
+	void anAbbreviatedColumnNeverMixesUnits() {
+		// The coinflip lobby's recent list showed "+$9,000" directly above "−$10.0k".
+		assertEquals("$9.0k", Money.abbreviated(900_000L));
+		assertEquals("$10.0k", Money.abbreviated(1_000_000L));
+		assertEquals("$1.0k", Money.abbreviated(100_000L));
+		assertEquals("−$592.3k", Money.abbreviated(-59_230_000L));
+		assertEquals("$18.0m", Money.abbreviated(1_800_000_000L));
+		// Under a thousand there is nothing useful to abbreviate to.
+		assertEquals("$750", Money.abbreviated(75_000L));
+		assertEquals("$180", Money.abbreviated(18_000L));
+		// compact() is untouched: it still spells out anything under ten thousand.
+		assertEquals("$9,000", Money.compact(900_000L));
+	}
 }
