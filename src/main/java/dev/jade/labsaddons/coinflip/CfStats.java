@@ -71,8 +71,14 @@ public final class CfStats {
 	private static final Pattern WINNINGS = Pattern.compile(
 			"Total\\s+Winnings:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
 
-	/** How many of your own flips the lobby keeps. Two more than it can show. */
-	private static final int RECENT_KEPT = 7;
+	/**
+	 * How many of your own flips the lobby keeps. Two more than the rail has room to draw,
+	 * so the list survives a couple of flips' worth of scroll without going stale.
+	 *
+	 * <p>Public because the config applies the same ceiling to what it loads: this is the
+	 * only place the number should live.
+	 */
+	public static final int RECENT_KEPT = 7;
 
 	/**
 	 * How many times one run of the game may ask for the seed before giving up.

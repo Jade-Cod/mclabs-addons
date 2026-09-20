@@ -500,6 +500,13 @@ public class LabsAddonsConfig {
 		clean.coinflipWinningsCents = Math.max(0L, this.coinflipWinningsCents);
 		if (this.coinflipRecent != null) {
 			for (dev.jade.labsaddons.coinflip.CfPlayed flip : this.coinflipRecent) {
+				// The list is written under this ceiling, but the file is not: a state.json
+				// from a future version, a hand-edit or a bad merge is the one way a longer
+				// one arrives, and every frame the lobby is open copies whatever it finds.
+				if (clean.coinflipRecent.size()
+						>= dev.jade.labsaddons.coinflip.CfStats.RECENT_KEPT) {
+					break;
+				}
 				if (flip != null) {
 					flip.opponent = flip.opponent == null ? "" : flip.opponent;
 					clean.coinflipRecent.add(flip);
