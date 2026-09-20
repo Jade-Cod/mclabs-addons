@@ -263,6 +263,10 @@ public class LabsAddonsConfig {
 	public long coinflipWageredCents = 0L;
 	@Section(ConfigSection.STATE)
 	public long coinflipWinningsCents = 0L;
+	/** Your own last few flips, newest first, for the lobby's recent list. */
+	@Section(ConfigSection.STATE)
+	public java.util.List<dev.jade.labsaddons.coinflip.CfPlayed> coinflipRecent =
+			new java.util.ArrayList<>();
 
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;

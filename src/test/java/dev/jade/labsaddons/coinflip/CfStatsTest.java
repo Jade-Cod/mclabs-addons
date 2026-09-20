@@ -45,13 +45,9 @@ class CfStatsTest {
 	}
 
 	@Test
-	void theLossSplitsIntoTheTaxAndTheCoin() {
+	void winsAndLossesAddUpToWhatWasPlayed() {
 		CfStats.Record record = parsed();
-		// 5% of everything ever wagered was never yours.
-		assertEquals(-6_156_787_958L, record.taxCostCents());
-		assertEquals(record.profitCents() - record.taxCostCents(), record.luckCents());
-		assertTrue(record.luckCents() < record.taxCostCents(),
-				"the coin cost more than the house did");
+		assertEquals(record.played(), record.won() + record.lost());
 	}
 
 	@Test
@@ -72,7 +68,8 @@ class CfStatsTest {
 	void anEmptyRecordSaysSoRatherThanDividingByZero() {
 		assertTrue(CfStats.Record.EMPTY.isEmpty());
 		assertEquals("—", CfStats.Record.EMPTY.winRateText());
-		assertEquals(0L, CfStats.Record.EMPTY.luckCents());
+		assertEquals(0, CfStats.Record.EMPTY.lost());
+		assertEquals(0L, CfStats.Record.EMPTY.profitCents());
 	}
 
 	@Test

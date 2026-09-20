@@ -49,10 +49,12 @@ public final class CfLobbyBoard extends CasinoPanel {
 	private static final int REFRESH_Y = PANEL_H - PAD - REFRESH_H;
 	private static final int ROW_GAP = 9;
 	private static final int BLOCK_GAP = 12;
+	/** A recent flip is two lines: what it moved, and who moved it. */
+	private static final int RECENT_ENTRY_H = 20;
+	private static final int RECENT_INDENT = 6;
 
 	private final Map<Integer, CfLobbyReader.Row> rowsBySlot = new HashMap<>();
 	private int scroll;
-	private CfLobbyReader.Row underCursor;
 
 	private CfLobbyBoard() {
 	}
@@ -82,7 +84,6 @@ public final class CfLobbyBoard extends CasinoPanel {
 	protected void onContainerChange() {
 		scroll = 0;
 		rowsBySlot.clear();
-		underCursor = null;
 	}
 
 	@Override
@@ -112,7 +113,6 @@ public final class CfLobbyBoard extends CasinoPanel {
 			rowsBySlot.put(row.slot(), row);
 		}
 		scroll = Math.clamp(scroll, 0, Math.max(0, rows.size() - VISIBLE_ROWS));
-		underCursor = null;
 
 		header(context, font, "COINFLIPS", rows.size() + " open",
 				rows.isEmpty() ? TEXT_FAINT : TEXT_DIM);
@@ -121,7 +121,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 		button(context, font, LIST_X + LIST_W - REFRESH_W, REFRESH_Y, REFRESH_W, REFRESH_H,
 				"REFRESH", CfLobbyReader.REFRESH_SLOT, accent());
 		context.fill(RAIL_X - 6, CONTENT_Y, RAIL_X - 5, PANEL_H - PAD, DIVIDER);
-		rail(context, font, lobby);
+		rail(context, font);
 	}
 
 	private void list(DrawContext context, TextRenderer font, List<CfLobbyReader.Row> rows) {
@@ -152,7 +152,6 @@ public final class CfLobbyBoard extends CasinoPanel {
 		boolean hot = hovered(LIST_X, y, LIST_W, ROW_H);
 		if (hot) {
 			context.fill(LIST_X, y, LIST_X + LIST_W, y + ROW_H, ROW_HOVER);
-			underCursor = row;
 		}
 		PlayerSkinDrawer.draw(context, PlayerSkinCache.skin(row.player()), LIST_X + 1, y + 1,
 				HEAD);
@@ -173,62 +172,62 @@ public final class CfLobbyBoard extends CasinoPanel {
 		clickable(LIST_X, y, LIST_W, ROW_H, row.slot());
 	}
 
-	private void rail(DrawContext context, TextRenderer font, CfLobbyReader.Lobby lobby) {
+	private void rail(DrawContext context, TextRenderer font) {
 		int y = CONTENT_Y;
-		caption(context, font, RAIL_X, y, "A WIN PAYS");
+		caption(context, font, RAIL_X, y, "STATS");
 		y += ROW_GAP;
-		context.drawText(font, "1.90x", RAIL_X, y, accent(), false);
-		String edge = "−5.0% edge";
-		context.drawText(font, edge, PANEL_W - PAD - font.getWidth(edge), y, WIN, false);
-		y += BLOCK_GAP;
+		y = stats(context, font, y);
 
 		y = divider(context, y);
-		caption(context, font, RAIL_X, y, "WAGER");
+		caption(context, font, RAIL_X, y, "RECENT");
 		y += ROW_GAP;
-		row(context, font, y, "min", bound(lobby.minCents()), TEXT_DIM);
-		y += ROW_GAP;
-		row(context, font, y, "max", bound(lobby.maxCents()), TEXT_DIM);
-		y += BLOCK_GAP;
-
-		y = divider(context, y);
-		caption(context, font, RAIL_X, y, "YOUR RECORD");
-		y += ROW_GAP;
-		y = record(context, font, y);
-
-		y = divider(context, y);
-		if (underCursor != null) {
-			caption(context, font, RAIL_X, y, "#" + underCursor.id());
-			y += ROW_GAP;
-			row(context, font, y, "collect",
-					"+" + Money.compact(CfOdds.winProfitCents(underCursor.wagerCents())), WIN);
-			y += ROW_GAP;
-			row(context, font, y, "lose", "−" + Money.compact(underCursor.wagerCents()), LOSS);
-		} else {
-			caption(context, font, RAIL_X, y, "HOVER A FLIP");
-			y += ROW_GAP;
-			context.drawText(font, "for both figures", RAIL_X, y, TEXT_FAINT, false);
-		}
+		recent(context, font, y);
 	}
 
-	/** The lifetime record, or an honest gap where it will be. */
-	private int record(DrawContext context, TextRenderer font, int y) {
+	/** Wins and losses on one line, coloured, and what the two of them came to. */
+	private int stats(DrawContext context, TextRenderer font, int y) {
 		CfStats.Record kept = CfStats.current();
 		if (kept.isEmpty()) {
 			context.drawText(font, CfStats.seeded() ? "no flips yet" : "run /cf stats",
 					RAIL_X, y, TEXT_FAINT, false);
 			return y + BLOCK_GAP;
 		}
-		row(context, font, y, kept.won() + "/" + kept.played(), kept.winRateText(),
-				kept.won() * 2 >= kept.played() ? WIN : LOSS);
+		String wins = String.valueOf(kept.won());
+		String slash = "/";
+		String losses = String.valueOf(kept.lost());
+		int x = RAIL_X;
+		context.drawText(font, wins, x, y, WIN, false);
+		x += font.getWidth(wins);
+		context.drawText(font, slash, x, y, TEXT_FAINT, false);
+		x += font.getWidth(slash);
+		context.drawText(font, losses, x, y, LOSS, false);
+		String rate = kept.winRateText();
+		context.drawText(font, rate, PANEL_W - PAD - font.getWidth(rate), y, TEXT_DIM, false);
+
 		y += ROW_GAP;
-		row(context, font, y, "net", Money.compact(kept.profitCents()),
+		row(context, font, y, "profit", Money.compact(kept.profitCents()),
 				kept.profitCents() >= 0 ? WIN : LOSS);
-		y += ROW_GAP;
-		// The tax is not shown here: it never varies, and the luck is the part of the loss
-		// that is worth knowing. The widget carries the full split.
-		row(context, font, y, "luck", Money.compact(kept.luckCents()),
-				kept.luckCents() >= 0 ? WIN : LOSS);
 		return y + BLOCK_GAP;
+	}
+
+	/** Your own last few flips: what each one moved, and who moved it. */
+	private void recent(DrawContext context, TextRenderer font, int y) {
+		List<CfPlayed> played = CfStats.recent();
+		if (played.isEmpty()) {
+			context.drawText(font, "none yet", RAIL_X, y, TEXT_FAINT, false);
+			return;
+		}
+		int width = PANEL_W - PAD - RAIL_X;
+		for (CfPlayed flip : played) {
+			if (y + RECENT_ENTRY_H > PANEL_H - PAD) {
+				return;
+			}
+			String amount = (flip.won ? "+" : "") + Money.compact(flip.netCents);
+			context.drawText(font, amount, RAIL_X, y, flip.won ? WIN : LOSS, false);
+			String who = font.trimToWidth(flip.opponent, width - RECENT_INDENT);
+			context.drawText(font, who, RAIL_X + RECENT_INDENT, y + ROW_GAP, TEXT_FAINT, false);
+			y += RECENT_ENTRY_H;
+		}
 	}
 
 	private int divider(DrawContext context, int y) {
@@ -244,10 +243,6 @@ public final class CfLobbyBoard extends CasinoPanel {
 		}
 		context.drawText(font, value, PANEL_W - PAD - font.getWidth(value), y, valueColor,
 				false);
-	}
-
-	private static String bound(long cents) {
-		return cents <= 0L ? "—" : Money.compact(cents);
 	}
 
 	private static String nameOf(ScreenHandler handler, int slot) {

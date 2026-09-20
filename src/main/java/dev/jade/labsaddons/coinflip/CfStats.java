@@ -3,6 +3,8 @@ package dev.jade.labsaddons.coinflip;
 import dev.jade.labsaddons.casino.Money;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -17,10 +19,8 @@ import java.util.regex.Pattern;
  * loss lines, so it stays right without another round trip. Running {@code /cf stats}
  * yourself always re-reads it.
  *
- * <p>The interesting figure is not the profit. It is the profit split in two: 5% of
- * everything you have ever wagered was never yours to keep, and whatever is left over is
- * the coin. {@link Record#luckCents()} is that remainder, and {@link Record#sigma()} says
- * whether it is a bad run or an ordinary one.
+ * <p>The lobby also keeps your own last few flips beside it, so the rail says what has
+ * actually been happening rather than only what it adds up to.
  */
 public final class CfStats {
 	/**
@@ -42,16 +42,6 @@ public final class CfStats {
 		/** What the record is actually worth: paid back less staked. */
 		public long profitCents() {
 			return winningsCents - wageredCents;
-		}
-
-		/** The part of the loss the 5% tax always accounted for. */
-		public long taxCostCents() {
-			return -CfOdds.expectedLossCents(wageredCents);
-		}
-
-		/** The rest of it — the coin, not the house. */
-		public long luckCents() {
-			return profitCents() - taxCostCents();
 		}
 
 		/** "45.9%", or "—" before the first flip. */
@@ -80,6 +70,9 @@ public final class CfStats {
 			"Total\\s+Wagered:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern WINNINGS = Pattern.compile(
 			"Total\\s+Winnings:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
+
+	/** How many of your own flips the lobby keeps. Two more than it can show. */
+	private static final int RECENT_KEPT = 7;
 
 	private CfStats() {
 	}
@@ -160,12 +153,31 @@ public final class CfStats {
 	}
 
 	/** A flip we just won, folded into the record so it never needs re-asking. */
-	public static void recordWin(long wagerCents, long returnedCents) {
+	public static void recordWin(long wagerCents, long returnedCents, String opponent) {
+		remember(new CfPlayed(true, returnedCents - wagerCents, opponent));
 		store(current().plusWin(wagerCents, returnedCents), seeded());
 	}
 
-	public static void recordLoss(long wagerCents) {
+	public static void recordLoss(long wagerCents, String opponent) {
+		remember(new CfPlayed(false, -wagerCents, opponent));
 		store(current().plusLoss(wagerCents), seeded());
+	}
+
+	/** Your own last few flips, newest first. */
+	public static List<CfPlayed> recent() {
+		List<CfPlayed> kept = LabsAddonsConfig.get().coinflipRecent;
+		return kept == null ? List.of() : List.copyOf(kept);
+	}
+
+	private static void remember(CfPlayed flip) {
+		LabsAddonsConfig config = LabsAddonsConfig.get();
+		if (config.coinflipRecent == null) {
+			config.coinflipRecent = new ArrayList<>();
+		}
+		config.coinflipRecent.add(0, flip);
+		while (config.coinflipRecent.size() > RECENT_KEPT) {
+			config.coinflipRecent.remove(config.coinflipRecent.size() - 1);
+		}
 	}
 
 	private static void store(Record record, boolean seeded) {

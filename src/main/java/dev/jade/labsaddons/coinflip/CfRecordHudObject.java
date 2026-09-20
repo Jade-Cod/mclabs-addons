@@ -12,13 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Your coinflip record, with the tax and the luck told apart.
+ * Your coinflip record: what you have won, what you have lost, and what it came to.
  *
- * <p>A lifetime loss on a 50/50 game is two different things added together, and only one of
- * them is worth being annoyed about. The 5% tax on everything you have ever wagered was
- * never yours; whatever is left is the coin.
- *
- * <p>Seeded once from {@code /cf stats} and maintained from each result after that.
+ * <p>Seeded once from {@code /cf stats} and maintained from each result after that, so it
+ * costs no command to keep current.
  */
 public class CfRecordHudObject extends HudObject {
 	public static final String ID = "coinflip_record";
@@ -55,14 +52,15 @@ public class CfRecordHudObject extends HudObject {
 	private List<Row> rows() {
 		CfStats.Record record = CfStats.current();
 		List<Row> rows = new ArrayList<>();
-		int accent = settings().textColor | 0xFF000000;
 		rows.add(new Row("Coinflip", "", HEADER_COLOR, HEADER_COLOR));
 		if (record.isEmpty()) {
 			rows.add(new Row("record", CfStats.seeded() ? "none yet" : "run /cf stats",
 					DIM_COLOR, DIM_COLOR));
 		} else {
-			rows.add(new Row(record.won() + " / " + record.played(), record.winRateText(),
-					DIM_COLOR, accent));
+			rows.add(new Row("wins", String.valueOf(record.won()), DIM_COLOR, WIN_COLOR));
+			rows.add(new Row("losses", String.valueOf(record.lost()), DIM_COLOR, LOSS_COLOR));
+			rows.add(new Row("rate", record.winRateText(), DIM_COLOR,
+					settings().textColor | 0xFF000000));
 		}
 		if (CfChat.sessionPlayed() > 0) {
 			long net = CfChat.sessionNetCents();
@@ -70,12 +68,8 @@ public class CfRecordHudObject extends HudObject {
 					net >= 0 ? WIN_COLOR : LOSS_COLOR));
 		}
 		if (!record.isEmpty()) {
-			rows.add(new Row("lifetime", signed(record.profitCents()), DIM_COLOR,
+			rows.add(new Row("profit", signed(record.profitCents()), DIM_COLOR,
 					record.profitCents() >= 0 ? WIN_COLOR : LOSS_COLOR));
-			// The two halves of that figure: what the house was always taking, and the coin.
-			rows.add(new Row("the tax", signed(record.taxCostCents()), DIM_COLOR, DIM_COLOR));
-			rows.add(new Row("the luck", signed(record.luckCents()), DIM_COLOR,
-					record.luckCents() >= 0 ? WIN_COLOR : LOSS_COLOR));
 		}
 		return rows;
 	}

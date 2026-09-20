@@ -130,11 +130,20 @@ public class CfResultScreen extends Screen {
 		rowY += SEAT_HEAD + 12;
 		CfStats.Record record = CfStats.current();
 		if (!record.isEmpty()) {
-			String line = record.won() + " / " + record.played() + "  " + record.winRateText();
-			context.drawText(this.textRenderer, line, PAD, rowY, TEXT_DIM, false);
-			String net = Money.compact(record.profitCents());
-			context.drawText(this.textRenderer, net,
-					PANEL_W - PAD - this.textRenderer.getWidth(net), rowY,
+			// Same shape as the lobby's stats block: wins in green, losses in red.
+			int x = PAD;
+			String wins = String.valueOf(record.won());
+			context.drawText(this.textRenderer, wins, x, rowY, WIN, false);
+			x += this.textRenderer.getWidth(wins);
+			context.drawText(this.textRenderer, "/", x, rowY, TEXT_FAINT, false);
+			x += this.textRenderer.getWidth("/");
+			String losses = String.valueOf(record.lost());
+			context.drawText(this.textRenderer, losses, x, rowY, LOSS, false);
+			x += this.textRenderer.getWidth(losses) + 6;
+			context.drawText(this.textRenderer, record.winRateText(), x, rowY, TEXT_DIM, false);
+			String profit = Money.compact(record.profitCents());
+			context.drawText(this.textRenderer, profit,
+					PANEL_W - PAD - this.textRenderer.getWidth(profit), rowY,
 					record.profitCents() >= 0 ? WIN : LOSS, false);
 		}
 

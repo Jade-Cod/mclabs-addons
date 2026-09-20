@@ -505,9 +505,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 				net.minecraft.util.Util.getMeasuringTimeMs());
 		if (coinflip != null) {
 			if (coinflip.won()) {
-				CfStats.recordWin(coinflip.wagerCents(), coinflip.returnedCents());
+				CfStats.recordWin(coinflip.wagerCents(), coinflip.returnedCents(),
+						coinflip.opponent());
 			} else {
-				CfStats.recordLoss(coinflip.wagerCents());
+				CfStats.recordLoss(coinflip.wagerCents(), coinflip.opponent());
 			}
 		}
 		CfStats.onMessage(text);
