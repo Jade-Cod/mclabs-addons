@@ -26,10 +26,22 @@ import java.util.Set;
  * then credit the kill exactly once when it dies (the death animation lingers ~20
  * ticks, all reporting {@code isDead()}).
  *
- * <p>Attribution comes from {@link #onPlayerHit}, which the client fires when the
- * player attacks an entity. A death only counts if our own last hit on that mob
- * landed within {@link #LAST_HIT_WINDOW_MS} of it, which is what separates the mob
- * you just killed from the one you tagged and abandoned.
+ * <p>Attribution comes from {@link #onPlayerHit}, and a death only counts if our own last
+ * hit on that mob landed within {@link #LAST_HIT_WINDOW_MS} of it, which is what separates
+ * the mob you just killed from the one you tagged and abandoned. Two things call it:
+ *
+ * <ul>
+ *   <li>Fabric's attack callback, which fires when the player left-clicks an entity.</li>
+ *   <li>The server's own damage report, relayed by {@code ClientPlayNetworkHandlerMixin}.
+ *       It names the entity the server holds responsible, so a kill dealt by a Pit item's
+ *       ability — a Fireball Staff's fireball, Stormbreaker's thunder — is attributed too.
+ *       The melee callback covers nothing this does not, but it is optimistic where this
+ *       is confirmed, so both are kept.</li>
+ * </ul>
+ *
+ * <p>Neither covers a kill dealt by something of ours that is not us: the Possessed Armour
+ * the Heavy Steel Chestplate summons is the responsible entity for its own hits, and the
+ * client is never told whose summon it is.
  *
  * <p>Gated implicitly on an active {@code Kill} challenge: with none, nothing is
  * scanned, and {@link MasteryTracker#advance} ignores any mob whose challenge the
