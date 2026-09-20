@@ -5,6 +5,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.component.DataComponentTypes;
@@ -31,6 +32,11 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Text group() {
+		return HudObjects.EVENTS;
 	}
 
 	@Override

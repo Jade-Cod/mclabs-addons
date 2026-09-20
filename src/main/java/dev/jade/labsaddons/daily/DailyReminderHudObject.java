@@ -2,6 +2,7 @@ package dev.jade.labsaddons.daily;
 
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -23,6 +24,11 @@ public class DailyReminderHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Text group() {
+		return HudObjects.REMINDERS;
 	}
 
 	@Override

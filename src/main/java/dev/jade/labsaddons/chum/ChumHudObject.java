@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.chum;
 
 import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -25,6 +26,11 @@ public class ChumHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Text group() {
+		return HudObjects.BOOSTS;
 	}
 
 	@Override

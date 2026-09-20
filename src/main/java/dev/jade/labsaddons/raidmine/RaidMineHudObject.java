@@ -2,6 +2,7 @@ package dev.jade.labsaddons.raidmine;
 
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
@@ -28,6 +29,11 @@ public class RaidMineHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Text group() {
+		return HudObjects.EVENTS;
 	}
 
 	@Override
