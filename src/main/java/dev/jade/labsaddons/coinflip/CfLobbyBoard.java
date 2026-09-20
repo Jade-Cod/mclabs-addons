@@ -118,8 +118,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 				rows.isEmpty() ? TEXT_FAINT : TEXT_DIM);
 
 		list(context, font, rows);
-		button(context, font, LIST_X + LIST_W - REFRESH_W, REFRESH_Y, REFRESH_W, REFRESH_H,
-				"REFRESH", CfLobbyReader.REFRESH_SLOT, accent());
+		// Centred on the list it belongs to, not shoved against the rail divider.
+		button(context, font, LIST_X + (LIST_W - REFRESH_W) / 2, REFRESH_Y, REFRESH_W,
+				REFRESH_H, "REFRESH", CfLobbyReader.REFRESH_SLOT, accent());
 		context.fill(RAIL_X - 6, CONTENT_Y, RAIL_X - 5, PANEL_H - PAD, DIVIDER);
 		rail(context, font);
 	}
