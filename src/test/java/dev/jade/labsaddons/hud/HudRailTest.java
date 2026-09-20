@@ -85,69 +85,99 @@ class HudRailTest {
 	}
 
 	@Test
-	void ungroupedWidgetsKeepTheirRegistrationOrder() {
-		List<HudObject> widgets = List.of(new Fake("a", null), new Fake("b", null));
-		assertEquals(List.of("a", "b"), labels(rows(widgets)));
+	void ungroupedWidgetsAreListedAlphabetically() {
+		List<HudObject> widgets = List.of(new Fake("Runner Jobs", null),
+				new Fake("Ability Cooldowns", null), new Fake("Chemtainer", null));
+		assertEquals(List.of("Ability Cooldowns", "Chemtainer", "Runner Jobs"),
+				labels(rows(widgets)));
 	}
 
 	/** The whole point: a pair costs the rail one row rather than two. */
 	@Test
 	void aGroupCollapsesToASingleRow() {
-		List<HudObject> widgets = List.of(new Fake("a", null),
-				new Fake("coinflips", GAMBLING), new Fake("coinflip_record", GAMBLING));
-		assertEquals(List.of("a", "[Gambling]"), labels(rows(widgets)));
+		List<HudObject> widgets = List.of(new Fake("Chemtainer", null),
+				new Fake("Open Coinflips", GAMBLING), new Fake("Coinflip Record", GAMBLING));
+		assertEquals(List.of("Chemtainer", "[Gambling]"), labels(rows(widgets)));
 	}
 
 	@Test
-	void anOpenGroupListsItsWidgetsUnderTheHeader() {
-		List<HudObject> widgets = List.of(new Fake("a", null),
-				new Fake("coinflips", GAMBLING), new Fake("coinflip_record", GAMBLING));
-		assertEquals(List.of("a", "[Gambling]", "coinflips", "coinflip_record"),
+	void anOpenGroupListsItsWidgetsUnderTheHeaderAlphabetically() {
+		List<HudObject> widgets = List.of(new Fake("Chemtainer", null),
+				new Fake("Open Coinflips", GAMBLING), new Fake("Coinflip Record", GAMBLING));
+		assertEquals(List.of("Chemtainer", "[Gambling]", "Coinflip Record", "Open Coinflips"),
 				labels(rows(widgets, GAMBLING)));
 	}
 
 	/**
-	 * The header stands where the group's first member was registered. Shunting groups to
-	 * the end would reshuffle a list people have learned the shape of.
+	 * Groups sink below every loose widget, whatever order they were registered in, so the
+	 * rows you can act on directly are all together at the top.
 	 */
 	@Test
-	void theHeaderStandsWhereTheGroupsFirstWidgetDid() {
-		List<HudObject> widgets = List.of(new Fake("a", null),
-				new Fake("coinflips", GAMBLING), new Fake("b", null),
-				new Fake("coinflip_record", GAMBLING), new Fake("c", null));
-		assertEquals(List.of("a", "[Gambling]", "b", "c"), labels(rows(widgets)));
-		// Open, the members gather under the header rather than staying where they were.
-		assertEquals(List.of("a", "[Gambling]", "coinflips", "coinflip_record", "b", "c"),
+	void groupsSitBelowEveryUngroupedWidget() {
+		List<HudObject> widgets = List.of(
+				new Fake("Open Coinflips", GAMBLING),
+				new Fake("Runner Jobs", null),
+				new Fake("Coinflip Record", GAMBLING),
+				new Fake("Ability Cooldowns", null));
+		assertEquals(List.of("Ability Cooldowns", "Runner Jobs", "[Gambling]"),
+				labels(rows(widgets)));
+	}
+
+	@Test
+	void groupHeadersAreThemselvesAlphabetical() {
+		// Gambling's widgets are registered first, and Fishing still heads the list.
+		List<HudObject> widgets = List.of(
+				new Fake("Open Coinflips", GAMBLING), new Fake("Coinflip Record", GAMBLING),
+				new Fake("Bait", OTHER), new Fake("Catch", OTHER));
+		assertEquals(List.of("[Fishing]", "[Gambling]"), labels(rows(widgets)));
+	}
+
+	/** Opening one group leaves the other shut, and neither moves. */
+	@Test
+	void groupsAreFoldedIndependently() {
+		List<HudObject> widgets = List.of(
+				new Fake("Open Coinflips", GAMBLING), new Fake("Coinflip Record", GAMBLING),
+				new Fake("Bait", OTHER), new Fake("Catch", OTHER));
+		assertEquals(List.of("[Fishing]", "[Gambling]", "Coinflip Record", "Open Coinflips"),
 				labels(rows(widgets, GAMBLING)));
+		assertEquals(List.of("[Fishing]", "Bait", "Catch", "[Gambling]"),
+				labels(rows(widgets, OTHER)));
 	}
 
 	/** A header hiding one widget saves nothing and costs a click. */
 	@Test
-	void aGroupOfOneGetsAPlainRow() {
-		List<HudObject> widgets = List.of(new Fake("coinflips", GAMBLING), new Fake("a", null));
+	void aGroupOfOneIsListedPlainlyAndNotIndented() {
+		List<HudObject> widgets = List.of(new Fake("Open Coinflips", GAMBLING),
+				new Fake("Chemtainer", null));
 		List<HudRail.Row> rows = rows(widgets);
-		assertEquals(List.of("coinflips", "a"), labels(rows));
-		assertFalse(rows.get(0).isHeader());
+		assertEquals(List.of("Chemtainer", "Open Coinflips"), labels(rows));
+		assertFalse(rows.get(1).isHeader());
+		// Naming a group is not the same as sitting under a header, which is what the
+		// editor steps the label in for.
+		assertFalse(rows.get(1).indented());
 	}
 
 	@Test
-	void groupsAreFoldedIndependently() {
-		List<HudObject> widgets = List.of(
-				new Fake("coinflips", GAMBLING), new Fake("coinflip_record", GAMBLING),
-				new Fake("x", OTHER), new Fake("y", OTHER));
-		assertEquals(List.of("[Gambling]", "coinflips", "coinflip_record", "[Fishing]"),
-				labels(rows(widgets, GAMBLING)));
+	void onlyAGroupsMembersAreIndented() {
+		List<HudObject> widgets = List.of(new Fake("Chemtainer", null),
+				new Fake("Open Coinflips", GAMBLING), new Fake("Coinflip Record", GAMBLING));
+		List<HudRail.Row> rows = rows(widgets, GAMBLING);
+		assertFalse(rows.get(0).indented(), "a loose widget");
+		assertFalse(rows.get(1).indented(), "the header");
+		assertTrue(rows.get(2).indented());
+		assertTrue(rows.get(3).indented());
 	}
 
 	/** A header carries the widgets it stands for, which is what its tick switches. */
 	@Test
 	void aHeaderCarriesEveryWidgetItStandsFor() {
-		HudObject open = new Fake("coinflips", GAMBLING);
-		HudObject record = new Fake("coinflip_record", GAMBLING);
+		HudObject open = new Fake("Open Coinflips", GAMBLING);
+		HudObject record = new Fake("Coinflip Record", GAMBLING);
 		HudRail.Row header = rows(List.of(open, record)).get(0);
 		assertTrue(header.isHeader());
 		assertEquals(2, header.members().size());
-		assertSame(open, header.members().get(0));
-		assertSame(record, header.members().get(1));
+		// Alphabetical here too, not registration order.
+		assertSame(record, header.members().get(0));
+		assertSame(open, header.members().get(1));
 	}
 }

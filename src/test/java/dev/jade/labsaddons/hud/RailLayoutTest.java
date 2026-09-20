@@ -16,19 +16,26 @@ import dev.jade.labsaddons.mount.RentalMountHudObject;
 import dev.jade.labsaddons.personal.PersonalBoosterHudObject;
 import dev.jade.labsaddons.raidmine.RaidMineHudObject;
 import dev.jade.labsaddons.runner.RunnerHudObject;
+import net.minecraft.text.Text;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The rail as it actually comes out, against the real widgets in the order
- * {@code LabsAddonsClient} registers them.
+ * The rail as it actually comes out, against the real widgets {@code LabsAddonsClient}
+ * registers. {@link HudRailTest} pins the rule; this pins which widget landed in which
+ * group, the thing a {@code group()} on the wrong class would spoil.
  *
- * <p>{@link HudRailTest} pins the folding rule; this pins the result of applying it to the
- * mod's own widgets, which is the thing a mis-assigned {@code group()} would spoil.
+ * <p><b>Nothing here asserts alphabetical order, deliberately.</b> A plain test JVM loads no
+ * language file, so {@code displayName()} comes back as its own translation key and the rail
+ * sorts by {@code labsaddons.hud.pit_timer.name} where the game sorts by "The Pit". Pinning
+ * the key order here would read as a check on the ordering while testing something else.
+ * {@link HudRailTest} covers the comparator with literal names instead.
  */
 class RailLayoutTest {
 	/** Registration order, mirroring LabsAddonsClient. */
@@ -51,73 +58,79 @@ class RailLayoutTest {
 			new CfOpenHudObject(),
 			new CfRecordHudObject());
 
-	private static List<String> keys(List<HudRail.Row> rows) {
-		return rows.stream()
-				.map(row -> row.isHeader() ? "[" + row.group().getString() + "]" : row.widget().id())
-				.toList();
+	/** Seventeen widgets come out as eight rows: four on their own, and four groups. */
+	@Test
+	void theRailFoldsToEightRows() {
+		List<HudRail.Row> rows = HudRail.rows(REGISTERED, group -> false);
+		assertEquals(8, rows.size());
+		assertEquals(Set.of("chemtainer", "progress", "runner_jobs", "ability_cooldowns"),
+				rows.stream().filter(row -> !row.isHeader())
+						.map(row -> row.widget().id()).collect(Collectors.toSet()));
+		assertEquals(Set.of(HudObjects.BOOSTS.getString(), HudObjects.EVENTS.getString(),
+						HudObjects.REMINDERS.getString(), HudObjects.GAMBLING.getString()),
+				rows.stream().filter(HudRail.Row::isHeader)
+						.map(row -> row.group().getString()).collect(Collectors.toSet()));
 	}
 
-	/**
-	 * Every group shut. Seventeen widgets come out as eight rows, and each group's header
-	 * stands where its first widget was registered rather than at the end of the list.
-	 */
+	/** Every loose widget is above every group, so the actionable rows are all together. */
 	@Test
-	void theRailFoldsToOneRowPerGroup() {
-		assertEquals(List.of(
-						"[labsaddons.hud.group.boosts]",
-						"[labsaddons.hud.group.events]",
-						"[labsaddons.hud.group.reminders]",
-						"chemtainer",
-						"progress",
-						"runner_jobs",
-						"ability_cooldowns",
-						"[labsaddons.hud.group.gambling]"),
-				keys(HudRail.rows(REGISTERED, group -> false)));
+	void theGroupsAllSitBelowTheUngroupedWidgets() {
+		List<HudRail.Row> rows = HudRail.rows(REGISTERED, group -> false);
+		int firstHeader = rows.size();
+		for (int i = 0; i < rows.size(); i++) {
+			if (rows.get(i).isHeader()) {
+				firstHeader = i;
+				break;
+			}
+		}
+		for (int i = firstHeader; i < rows.size(); i++) {
+			assertTrue(rows.get(i).isHeader(), "row " + i + " is a widget below a group header");
+		}
+		assertEquals(4, firstHeader);
 	}
 
 	@Test
 	void everyWidgetIsStillReachableWithEveryGroupOpen() {
-		List<String> open = keys(HudRail.rows(REGISTERED, group -> true));
+		List<HudRail.Row> rows = HudRail.rows(REGISTERED, group -> true);
+		Set<String> shown = rows.stream().filter(row -> !row.isHeader())
+				.map(row -> row.widget().id()).collect(Collectors.toSet());
 		for (HudObject widget : REGISTERED) {
-			assertTrue(open.contains(widget.id()), widget.id() + " fell out of the rail");
+			assertTrue(shown.contains(widget.id()), widget.id() + " fell out of the rail");
 		}
 		// Every widget plus a header each for the four groups.
-		assertEquals(REGISTERED.size() + 4, open.size());
+		assertEquals(REGISTERED.size() + 4, rows.size());
 	}
 
-	/** Boosts gathers the rates and rentals, even though they are registered apart. */
+	/** Boosts gathers the rates and rentals, though they are registered far apart. */
 	@Test
 	void boostsGathersEveryRateAndRental() {
-		assertEquals(
-				List.of("chum_timer", "booster_timer", "lab_wars", "rental_mount",
-						"personal_boosters"),
-				members(HudObjects.BOOSTS.getString()));
+		assertEquals(Set.of("chum_timer", "booster_timer", "lab_wars", "rental_mount",
+				"personal_boosters"), members(HudObjects.BOOSTS));
 	}
 
 	@Test
 	void eventsGathersWhatTheServerIsRunning() {
-		assertEquals(List.of("mini_event", "pit_timer", "raid_mine", "bounty"),
-				members(HudObjects.EVENTS.getString()));
+		assertEquals(Set.of("mini_event", "pit_timer", "raid_mine", "bounty"),
+				members(HudObjects.EVENTS));
 	}
 
 	@Test
 	void remindersGathersWhatIsStillOwedToday() {
-		assertEquals(List.of("dailies", "votes"), members(HudObjects.REMINDERS.getString()));
+		assertEquals(Set.of("dailies", "votes"), members(HudObjects.REMINDERS));
 	}
 
 	@Test
 	void gamblingGathersTheCasinoWidgets() {
-		assertEquals(List.of("coinflips", "coinflip_record"),
-				members(HudObjects.GAMBLING.getString()));
+		assertEquals(Set.of("coinflips", "coinflip_record"), members(HudObjects.GAMBLING));
 	}
 
-	private static List<String> members(String group) {
+	private static Set<String> members(Text group) {
 		return HudRail.rows(REGISTERED, g -> false).stream()
-				.filter(row -> row.isHeader() && row.group().getString().equals(group))
+				.filter(row -> row.isHeader() && row.group().getString().equals(group.getString()))
 				.findFirst()
-				.orElseThrow(() -> new AssertionError("no header for " + group))
+				.orElseThrow(() -> new AssertionError("no header for " + group.getString()))
 				.members().stream()
 				.map(HudObject::id)
-				.toList();
+				.collect(Collectors.toSet());
 	}
 }

@@ -979,9 +979,13 @@ public class HudEditScreen extends Screen {
 		return true;
 	}
 
-	/** How far in a row's label sits: members of a group are stepped in under their header. */
+	/**
+	 * How far in a row's label sits. Read off the row rather than off the widget's group: a
+	 * group holding a single widget is listed plainly, so naming a group is not the same
+	 * thing as sitting under a header.
+	 */
 	private static int railIndent(HudRail.Row entry) {
-		return !entry.isHeader() && entry.widget().group() != null ? GROUP_INDENT : 0;
+		return entry.indented() ? GROUP_INDENT : 0;
 	}
 
 	/** Height of the rows block below the header when the rail is fully rolled down. */
