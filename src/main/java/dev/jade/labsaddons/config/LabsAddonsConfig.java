@@ -486,6 +486,30 @@ public class LabsAddonsConfig {
 				}
 			});
 		}
+		clean.double2Overlay = this.double2Overlay;
+		clean.minesOverlay = this.minesOverlay;
+		clean.blackjackOverlay = this.blackjackOverlay;
+		clean.coinflipOverlay = this.coinflipOverlay;
+		clean.coinflipHoldResult = this.coinflipHoldResult;
+		clean.coinflipStatsSeeded = this.coinflipStatsSeeded;
+		clean.coinflipPlayed = Math.max(0, this.coinflipPlayed);
+		// Bounded by the games played, so the losses derived from the pair can never go
+		// negative on a hand-edited file.
+		clean.coinflipWon = Math.clamp(this.coinflipWon, 0, clean.coinflipPlayed);
+		clean.coinflipWageredCents = Math.max(0L, this.coinflipWageredCents);
+		clean.coinflipWinningsCents = Math.max(0L, this.coinflipWinningsCents);
+		if (this.coinflipRecent != null) {
+			for (dev.jade.labsaddons.coinflip.CfPlayed flip : this.coinflipRecent) {
+				if (flip != null) {
+					flip.opponent = flip.opponent == null ? "" : flip.opponent;
+					clean.coinflipRecent.add(flip);
+				}
+			}
+		}
+		if (this.hiddenRaidMineCodes != null) {
+			this.hiddenRaidMineCodes.stream().filter(java.util.Objects::nonNull)
+					.forEach(clean.hiddenRaidMineCodes::add);
+		}
 		if (this.hudObjects != null) {
 			this.hudObjects.forEach((id, settings) -> {
 				if (id != null && settings != null) {
