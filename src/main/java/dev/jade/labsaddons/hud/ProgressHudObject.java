@@ -7,6 +7,7 @@ import dev.jade.labsaddons.mastery.MasteryGains;
 import dev.jade.labsaddons.mastery.MasteryQuest;
 import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.mastery.MasteryTracker;
+import dev.jade.labsaddons.police.PoliceContraband;
 import dev.jade.labsaddons.prestige.PrestigeChem;
 import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.prestige.PrestigeTracker;
@@ -166,8 +167,17 @@ public class ProgressHudObject extends HudObject {
 		String figures = chem.hasFigures()
 				? figures(chem.current(), chem.target(), chem.percent())
 				: Text.translatable("labsaddons.hud.progress.complete").getString();
-		return new Row(ChemIcons.iconFor(chem.chem()), chem.chem(), figures, chem.fraction(),
+		return new Row(prestigeIcon(chem.chem()), chem.chem(), figures, chem.fraction(),
 				MasteryGains.delta(chem.chem()), alpha);
+	}
+
+	/**
+	 * Chem tracks are named after a base chem {@link ChemIcons} knows; the police
+	 * contraband ladder is not, and gets the baton the server hands out with its own
+	 * Patrol challenges rather than the unknown-chem fallback.
+	 */
+	private static ItemStack prestigeIcon(String name) {
+		return PoliceContraband.isTrack(name) ? new ItemStack(Items.STICK) : ChemIcons.iconFor(name);
 	}
 
 	private static String figures(double current, double target, int percent) {

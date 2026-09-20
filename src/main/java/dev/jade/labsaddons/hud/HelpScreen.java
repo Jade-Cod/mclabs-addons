@@ -54,7 +54,8 @@ public class HelpScreen extends Screen {
 			{"/mines", "Opens Mines with the mod’s own grid and payout ladder over it."},
 			{"/bj", "Opens BondJoules blackjack with the mod’s own card table over it."},
 			{"/mastery", "Open it to re-sync your active Mastery challenge bars."},
-			{"/prestige progress", "Run it to sync your chem prestige bars; sales then track live."},
+			{"/prestige progress", "Open it to sync your chem bars and police contraband tier."},
+			{"Confiscations", "Arrests and bounty chests advance police prestige and Patrol bars live."},
 			{"Chat reactions", "Wins and runner-ups advance your Mastery bars live."},
 			{"Vote on all 7 sites", "Every ‘Vote registered!’ counts toward your daily 7."},
 	};

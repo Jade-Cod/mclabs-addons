@@ -46,6 +46,8 @@ import dev.jade.labsaddons.mastery.MasterySellTracker;
 import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.mastery.MasteryReader;
 import dev.jade.labsaddons.mastery.MasteryStore;
+import dev.jade.labsaddons.police.PoliceContraband;
+import dev.jade.labsaddons.police.PolicePrestigeReader;
 import dev.jade.labsaddons.prestige.PrestigeChat;
 import dev.jade.labsaddons.raidmine.RaidMineHologramReader;
 import dev.jade.labsaddons.raidmine.RaidMineHudObject;
@@ -327,6 +329,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);
+					// Also out of the chain: the /prestige GUI is nobody else's screen.
+					if (PolicePrestigeReader.tryRead(handledScreen)) {
+						PrestigeStore.save();
+					}
 					if (!LabWarsRatesReader.tryRead(handledScreen)) {
 						if (!BoosterRatesReader.tryRead(handledScreen)) {
 							if (!ChemtainerReader.tryRead(handledScreen)) {
@@ -465,6 +471,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 		BjChat.onMessage(text);
 		if (MasteryChatTracker.onMessage(text)) {
 			// A chat reaction moved an active challenge; keep it across a restart.
+			MasteryStore.save();
+		}
+		if (PoliceContraband.onMessage(text)) {
+			// A confiscation moves the police prestige tier and every patrol challenge it
+			// counted toward, so both boards are written back.
+			PrestigeStore.save();
 			MasteryStore.save();
 		}
 	}
