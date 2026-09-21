@@ -88,6 +88,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.Entity;
+import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.Box;
@@ -110,6 +111,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 	private static KeyBinding chemDepositKey;
 	private static KeyBinding chemWithdrawKey;
 	private static net.minecraft.client.gui.screen.Screen lastRatesScreen;
+	/** The menu being waited on, and for how long; see {@link #readyToScrape}. */
+	private static net.minecraft.client.gui.screen.Screen scrapeWaitScreen;
+	private static int scrapeWaits;
+	/**
+	 * How long to wait for a menu's contents before scraping it anyway.
+	 *
+	 * <p>A second, which is far longer than the gap between the packet that opens a menu and the
+	 * one that fills it, and short enough that a menu which is genuinely empty is not waited on.
+	 */
+	private static final int SCRAPE_WAIT_TICKS = 20;
 
 	/** Create the "McLab Addons" category and hoist it above the vanilla ones
 	 *  (mod categories are otherwise appended last). Best-effort: if the registry
@@ -346,7 +357,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// the countdown).
 			net.minecraft.client.gui.screen.Screen current = client.currentScreen;
 			if (current instanceof HandledScreen<?> handledScreen) {
-				if (current != lastRatesScreen) {
+				if (current != lastRatesScreen && readyToScrape(handledScreen)) {
 					lastRatesScreen = current;
 					// Ahead of the chain rather than in it: a satchel read only needs the
 					// title to disagree to bail, and keeping it out avoids another
@@ -391,6 +402,37 @@ public class LabsAddonsClient implements ClientModInitializer {
 		});
 	}
 
+	/**
+	 * Whether the open menu has anything in it yet, so scraping it will see what it holds.
+	 *
+	 * <p>A menu arrives in two packets: one opens the screen, another fills its slots. They
+	 * usually land in the same tick, but nothing guarantees it — and every reader above runs
+	 * exactly once per open, on the first tick the screen is seen, and then never again for it.
+	 * One late slot packet therefore meant the menu was never read at all, silently, until it was
+	 * opened again. The whole point of reading once is that the lore is a snapshot, so the answer
+	 * is to wait for the snapshot rather than to keep re-reading it.
+	 *
+	 * <p>Gives up after {@link #SCRAPE_WAIT_TICKS} and reads anyway: a container that is simply
+	 * empty has nothing to hand any reader, and every one of them bails on the title regardless.
+	 */
+	private static boolean readyToScrape(HandledScreen<?> screen) {
+		// Each menu gets the whole wait to itself: a second one opening straight after the first
+		// must not inherit what the first spent, or it is read early on an empty container —
+		// which is the very thing being fixed.
+		if (screen != scrapeWaitScreen) {
+			scrapeWaitScreen = screen;
+			scrapeWaits = 0;
+		}
+		// The trailing 36 slots are always the player's own, and are filled locally — so they
+		// say nothing about whether the server has sent this menu.
+		List<Slot> slots = screen.getScreenHandler().slots;
+		for (int slot = 0; slot < slots.size() - 36; slot++) {
+			if (!slots.get(slot).getStack().isEmpty()) {
+				return true;
+			}
+		}
+		return scrapeWaits++ >= SCRAPE_WAIT_TICKS;
+	}
 
 	/** Whether a sent command is a chem quick-deposit ("ch qd"/"c qd", slash-stripped). */
 	private static boolean isQuickDeposit(String sent) {
