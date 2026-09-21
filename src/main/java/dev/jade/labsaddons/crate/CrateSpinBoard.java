@@ -183,6 +183,7 @@ public final class CrateSpinBoard extends CasinoPanel {
 		candidates(context, now);
 		flash(context, now, winner == null ? null : winner.rarity());
 		name(context, font, now);
+		hoveredTooltip(context, font, now);
 	}
 
 	// --- reading the container ----------------------------------------------
@@ -245,17 +246,42 @@ public final class CrateSpinBoard extends CasinoPanel {
 					1f - age * 0.4f, fade, ambient * fade);
 		}
 
-		boolean swelling = spin.winner() != null;
+		boolean winning = spin.winner() != null;
 		for (int column : alive) {
-			CrateSpin.Column state = spin.column(column);
-			float scale = 1f;
-			float lift = 0f;
-			if (swelling && column == spin.winnerColumn()) {
-				float grown = Math.clamp((now - state.changedAtMs()) / (float) SWELL_MS, 0f, 1f);
-				scale = 1f + (WINNER_SCALE - 1f) * grown;
-				lift = pulse(now);
+			float lift = winning && column == spin.winnerColumn() ? pulse(now) : 0f;
+			candidate(context, column, atX[column], atY[column], scaleOf(column, now), 1f,
+					ambient + lift);
+		}
+	}
+
+	/** How big a live candidate is drawn: its own size, or the winner's as it swells. */
+	private float scaleOf(int column, long now) {
+		if (spin.winner() == null || column != spin.winnerColumn()) {
+			return 1f;
+		}
+		float grown = Math.clamp(
+				(now - spin.column(column).changedAtMs()) / (float) SWELL_MS, 0f, 1f);
+		return 1f + (WINNER_SCALE - 1f) * grown;
+	}
+
+	/**
+	 * The hovered candidate's own tooltip, exactly as the chest menu this replaces would have
+	 * shown it — the server's stack handed straight to the game, with nothing added.
+	 *
+	 * <p>Live candidates only. One the server has already killed is fading out of the chamber,
+	 * and a tooltip standing over it would outlast the thing it describes.
+	 */
+	private void hoveredTooltip(DrawContext context, TextRenderer font, long now) {
+		for (int column = 0; column < CrateSpin.COLUMNS; column++) {
+			if (!spin.column(column).alive()) {
+				continue;
 			}
-			candidate(context, column, atX[column], atY[column], scale, 1f, ambient + lift);
+			int box = Math.round(CrateChamber.MOTE * scaleOf(column, now));
+			if (hovered(Math.round(atX[column] - box / 2f), Math.round(atY[column] - box / 2f),
+					box, box)) {
+				tooltip(context, font, held[column]);
+				return;
+			}
 		}
 	}
 
