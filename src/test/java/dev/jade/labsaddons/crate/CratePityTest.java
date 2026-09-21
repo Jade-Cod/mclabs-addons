@@ -112,16 +112,47 @@ class CratePityTest {
 	}
 
 	/**
-	 * Winning a rarity leaves the ones above it alone. Two captures a session apart had Very
-	 * Rare sitting at roll #1 while Super Rare went from page 3 to page 5 and Exceedingly Rare
-	 * from 22 to 25 — the ladders above a win keep climbing, which is what the server rolling
-	 * from the rarest down has to look like.
+	 * Winning a rarity leaves every other ladder exactly where it was.
+	 *
+	 * <p>Confirmed in game in both directions: unboxing an Exceedingly Rare does not reset the
+	 * Super Rare or Very Rare streak, and unboxing a Super Rare does not reset Exceedingly Rare
+	 * or Very Rare. The captures agree from the other side — two a session apart had Very Rare
+	 * at roll #1 while Super Rare went from page 3 to page 5 and Exceedingly Rare from 22 to 25.
+	 *
+	 * <p>Which is the whole shape of the thing: six counters that never speak to each other, so
+	 * a four-hundred-roll Exceedingly Rare drought survives every other rarity landing on it.
 	 */
 	@Test
-	void winningARarityDoesNotResetTheOnesAboveIt() {
-		Map<String, Integer> next = CratePity.rolled(counts(190, 19, 4), CrateRarity.VERY_RARE);
-		assertTrue(CratePity.roll(next, CrateRarity.SUPER_RARE) > 19);
-		assertTrue(CratePity.roll(next, CrateRarity.EXCEEDINGLY_RARE) > 190);
+	void winningARarityLeavesEveryOtherLadderAlone() {
+		Map<String, Integer> afterTop =
+				CratePity.rolled(counts(190, 19, 4), CrateRarity.EXCEEDINGLY_RARE);
+		assertEquals(1, CratePity.roll(afterTop, CrateRarity.EXCEEDINGLY_RARE));
+		assertEquals(20, CratePity.roll(afterTop, CrateRarity.SUPER_RARE));
+		assertEquals(5, CratePity.roll(afterTop, CrateRarity.VERY_RARE));
+
+		Map<String, Integer> afterMiddle =
+				CratePity.rolled(counts(190, 19, 4), CrateRarity.SUPER_RARE);
+		assertEquals(191, CratePity.roll(afterMiddle, CrateRarity.EXCEEDINGLY_RARE));
+		assertEquals(1, CratePity.roll(afterMiddle, CrateRarity.SUPER_RARE));
+		assertEquals(5, CratePity.roll(afterMiddle, CrateRarity.VERY_RARE));
+
+		Map<String, Integer> afterBottom =
+				CratePity.rolled(counts(190, 19, 4), CrateRarity.VERY_RARE);
+		assertEquals(191, CratePity.roll(afterBottom, CrateRarity.EXCEEDINGLY_RARE));
+		assertEquals(20, CratePity.roll(afterBottom, CrateRarity.SUPER_RARE));
+		assertEquals(1, CratePity.roll(afterBottom, CrateRarity.VERY_RARE));
+	}
+
+	/**
+	 * A rarity below the three tracked ones landing moves all three on, because none of them
+	 * landed. Most rolls are exactly this.
+	 */
+	@Test
+	void winningARarityWeDoNotTrackStillCostsEveryLadderARoll() {
+		Map<String, Integer> next = CratePity.rolled(counts(190, 19, 4), CrateRarity.COMMON);
+		assertEquals(191, CratePity.roll(next, CrateRarity.EXCEEDINGLY_RARE));
+		assertEquals(20, CratePity.roll(next, CrateRarity.SUPER_RARE));
+		assertEquals(5, CratePity.roll(next, CrateRarity.VERY_RARE));
 	}
 
 	/** A roll whose result we never saw still counts, because the server said one happened. */

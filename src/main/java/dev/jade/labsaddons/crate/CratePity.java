@@ -20,9 +20,11 @@ import java.util.TreeMap;
  *
  * <p>The counters are per rarity and shared across every crate — the menu's own words are
  * "your odds of unboxing a Rare+ item <em>in all crates</em> increases" — and winning a rarity
- * puts that one back to roll #1. Only that one: two captures a session apart had Very Rare
- * sitting at roll #1 while Super Rare and Exceedingly Rare carried on climbing, which is what
- * a ladder rolled from the top down has to look like. Nothing resets a rarity above it.
+ * puts that one back to roll #1. <b>Only that one.</b> The ladders are entirely independent in
+ * both directions, confirmed in game: unboxing an Exceedingly Rare leaves the Super Rare and
+ * Very Rare streaks where they were, and unboxing a Super Rare leaves Exceedingly Rare and Very
+ * Rare where they were. The captures show the same thing from the other side — two of them a
+ * session apart had Very Rare sitting at roll #1 while the two above it carried on climbing.
  *
  * <p>Minecraft-free on purpose, like {@link CrateSpin}, so the curves can be checked against
  * the captures. The counters are handed in and out as a plain map, which is the config field
