@@ -49,13 +49,27 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int[] REELS = {11, 13, 15};
 
 	private static final int CENTRE_X = PANEL_W / 2;
-	private static final int REEL_GAP = 78;
+	/**
+	 * Spacing between the three reels, and how wide a name may be.
+	 *
+	 * <p>The two are the same number on purpose: at anything wider the outer reels' names run
+	 * under the middle one's. "Mount Rental Coupon (15m)" is a real reward, so a name that does
+	 * not fit wraps to a second line rather than being cut — {@code Mount Rental C} tells you
+	 * nothing about which coupon you drew.
+	 */
+	private static final int REEL_GAP = 92;
+	private static final int NAME_W = REEL_GAP - 6;
+	private static final int NAME_LINES = 2;
+	private static final int LINE_H = 10;
 	private static final int REEL_Y = 62;
 	private static final int TAG_Y = REEL_Y - 24;
 	private static final int NAME_Y = REEL_Y + 22;
-	private static final int CHANCE_Y = NAME_Y + 11;
+	/** Below both name lines whether or not the second is used, so the figures stay aligned. */
+	private static final int CHANCE_Y = NAME_Y + NAME_LINES * LINE_H + 2;
 	private static final int ONE_IN_Y = CHANCE_Y + 10;
-	private static final int FOOT_Y = 154;
+	private static final int FOOT_Y = 134;
+	/** Sized to the three reels and their figures, not to a chest. */
+	private static final int PANEL_HEIGHT = 150;
 	private static final int PICK_W = 72;
 	private static final int PICK_H = 62;
 
@@ -81,6 +95,11 @@ public final class VoteRollBoard extends CasinoPanel {
 	@Override
 	protected boolean enabled() {
 		return LabsAddonsConfig.get().crateOverlay;
+	}
+
+	@Override
+	protected int panelHeight() {
+		return PANEL_HEIGHT;
 	}
 
 	@Override
@@ -209,8 +228,11 @@ public final class VoteRollBoard extends CasinoPanel {
 			CrateChamber.centred(context, font, tag, cx, TAG_Y, accent());
 		}
 
-		String label = font.trimToWidth(name, PICK_W + 4);
-		CrateChamber.centred(context, font, label, cx, NAME_Y, settled ? TEXT : TEXT_FAINT);
+		List<String> label = wrap(font, name, NAME_W);
+		for (int line = 0; line < label.size(); line++) {
+			CrateChamber.centred(context, font, label.get(line), cx, NAME_Y + line * LINE_H,
+					settled ? TEXT : TEXT_FAINT);
+		}
 
 		if (!settled) {
 			return;
@@ -226,12 +248,6 @@ public final class VoteRollBoard extends CasinoPanel {
 
 	private void foot(DrawContext context, TextRenderer font, VoteOdds.Table table,
 			List<String> drawn) {
-		if (table.isEmpty()) {
-			CrateChamber.centred(context, font,
-					"punch a voter crate once and the odds show up here", CENTRE_X, FOOT_Y,
-					TEXT_FAINT);
-			return;
-		}
 		if (choosing && VoteOdds.rarest(table, drawn) < 0) {
 			// Worth saying only because the absence of a flag would otherwise look like the
 			// odds failed to load. Everything else this line used to say — that there are
@@ -250,15 +266,11 @@ public final class VoteRollBoard extends CasinoPanel {
 	 * is not, an empty table shows no figures rather than the wrong crate's.
 	 */
 	private static VoteOdds.Table tableFor(List<String> drawn) {
-		List<VoteOddsEntry> known = LabsAddonsConfig.get().voteCrateOdds;
-		if (known == null || known.isEmpty()) {
-			return VoteOdds.Table.EMPTY;
-		}
 		VoteOdds.Table best = VoteOdds.Table.EMPTY;
 		int bestHits = 0;
 		boolean tied = false;
-		for (String crate : crates(known)) {
-			VoteOdds.Table table = VoteOdds.tableFor(known, crate);
+		for (String crate : crates()) {
+			VoteOdds.Table table = tableFor(crate);
 			int hits = 0;
 			for (String name : drawn) {
 				if (table.chance(name) != null) {
@@ -276,14 +288,66 @@ public final class VoteRollBoard extends CasinoPanel {
 		return bestHits == 0 || tied ? VoteOdds.Table.EMPTY : best;
 	}
 
-	private static List<String> crates(List<VoteOddsEntry> known) {
-		List<String> out = new ArrayList<>();
-		for (VoteOddsEntry entry : known) {
-			if (entry != null && entry.crate != null && !out.contains(entry.crate)) {
-				out.add(entry.crate);
+	/**
+	 * One crate's table: what was scraped from it if anything, otherwise what shipped.
+	 *
+	 * <p>Not merged. A scrape is the whole of that crate's current table, so mixing it with the
+	 * bundled one would resurrect rewards the server has since removed.
+	 */
+	private static VoteOdds.Table tableFor(String crate) {
+		List<VoteOddsEntry> scraped =
+				VoteOdds.entriesFor(LabsAddonsConfig.get().voteCrateOdds, crate);
+		if (!scraped.isEmpty()) {
+			return VoteOdds.Table.of(scraped);
+		}
+		return VoteOdds.Table.of(VoteOddsDefaults.get().get(crate));
+	}
+
+	/** Every crate either shipped with the mod or seen since. */
+	private static List<String> crates() {
+		List<String> out = new ArrayList<>(VoteOddsDefaults.get().keySet());
+		List<VoteOddsEntry> known = LabsAddonsConfig.get().voteCrateOdds;
+		if (known != null) {
+			for (VoteOddsEntry entry : known) {
+				if (entry != null && entry.crate != null && !out.contains(entry.crate)) {
+					out.add(entry.crate);
+				}
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * A reward's name over at most {@link #NAME_LINES} lines, broken on spaces.
+	 *
+	 * <p>Only the last line is ever cut, and only when a single run of words is wider than a
+	 * reel on its own — which none of the fifty-four rewards across the two crates is.
+	 */
+	private static List<String> wrap(TextRenderer font, String text, int width) {
+		if (text == null || text.isEmpty()) {
+			return List.of();
+		}
+		if (font.getWidth(text) <= width) {
+			return List.of(text);
+		}
+		String[] words = text.split(" ");
+		StringBuilder head = new StringBuilder();
+		int taken = 0;
+		while (taken < words.length) {
+			String candidate = head.isEmpty() ? words[taken] : head + " " + words[taken];
+			// The first word goes on whatever it measures: a line has to hold something.
+			if (!head.isEmpty() && font.getWidth(candidate) > width) {
+				break;
+			}
+			head.setLength(0);
+			head.append(candidate);
+			taken++;
+		}
+		if (taken >= words.length) {
+			return List.of(head.toString());
+		}
+		String rest = String.join(" ", List.of(words).subList(taken, words.length));
+		return List.of(head.toString(), font.trimToWidth(rest, width));
 	}
 
 	/** "7.6" rather than "7.6000000000000005", and "3" rather than "3.0". */

@@ -1,0 +1,222 @@
+{
+ "Voter Crate": [
+  {
+   "item": "Deluxe Voter Crate Key",
+   "chance": 0.9
+  },
+  {
+   "item": "Zombie Spawner",
+   "chance": 0.9
+  },
+  {
+   "item": "Skeleton Spawner",
+   "chance": 0.9
+  },
+  {
+   "item": "Enhanced Farming Access",
+   "chance": 0.9
+  },
+  {
+   "item": "mcMMO Credit x20",
+   "chance": 1.9
+  },
+  {
+   "item": "EXP x1,500",
+   "chance": 1.9
+  },
+  {
+   "item": "Tag Key Crate Key",
+   "chance": 1.9
+  },
+  {
+   "item": "Voter Armour Set",
+   "chance": 2.8
+  },
+  {
+   "item": "Voter Shovel",
+   "chance": 2.8
+  },
+  {
+   "item": "Voter Pickaxe",
+   "chance": 2.8
+  },
+  {
+   "item": "Voter Axe",
+   "chance": 2.8
+  },
+  {
+   "item": "Enhanced Farming Access",
+   "chance": 2.8
+  },
+  {
+   "item": "Vote Token x3",
+   "chance": 2.8
+  },
+  {
+   "item": "EXP x300",
+   "chance": 2.8
+  },
+  {
+   "item": "Pocket Rocket x2",
+   "chance": 2.8
+  },
+  {
+   "item": "Mount Rental Coupon (15m)",
+   "chance": 3.8
+  },
+  {
+   "item": "mcMMO Credit x10",
+   "chance": 3.8
+  },
+  {
+   "item": "Hopper x2",
+   "chance": 3.8
+  },
+  {
+   "item": "Vote Token x1",
+   "chance": 3.8
+  },
+  {
+   "item": "Insta-Grow x4",
+   "chance": 4.8
+  },
+  {
+   "item": "mcMMO Credit x5",
+   "chance": 4.8
+  },
+  {
+   "item": "Crate Scrap x3",
+   "chance": 5.7
+  },
+  {
+   "item": "$7,500",
+   "chance": 6.7
+  },
+  {
+   "item": "EXP x150",
+   "chance": 6.7
+  },
+  {
+   "item": "Insta-Grow x2",
+   "chance": 7.6
+  },
+  {
+   "item": "$3,000",
+   "chance": 7.6
+  },
+  {
+   "item": "Potion of Invisibility",
+   "chance": 7.6
+  }
+ ],
+ "Deluxe Voter Crate": [
+  {
+   "item": "mcMMO Credit x50",
+   "chance": 1.0
+  },
+  {
+   "item": "Mystery Crate Key",
+   "chance": 1.0
+  },
+  {
+   "item": "Deluxe Voter Armour Set",
+   "chance": 1.0
+  },
+  {
+   "item": "Deluxe Voter Sword",
+   "chance": 2.0
+  },
+  {
+   "item": "Deluxe Voter Pickaxe",
+   "chance": 2.0
+  },
+  {
+   "item": "Deluxe Voter Shovel",
+   "chance": 2.0
+  },
+  {
+   "item": "Deluxe Voter Axe",
+   "chance": 2.0
+  },
+  {
+   "item": "Deluxe Voter Bow",
+   "chance": 2.0
+  },
+  {
+   "item": "Mount Rental Coupon (60m)",
+   "chance": 2.0
+  },
+  {
+   "item": "Hopper x5",
+   "chance": 3.0
+  },
+  {
+   "item": "EXP x1,500",
+   "chance": 3.0
+  },
+  {
+   "item": "Vote Token x10",
+   "chance": 3.0
+  },
+  {
+   "item": "$75,000",
+   "chance": 3.0
+  },
+  {
+   "item": "Zombie Spawner",
+   "chance": 3.0
+  },
+  {
+   "item": "Skeleton Spawner",
+   "chance": 3.0
+  },
+  {
+   "item": "mcMMO Credit x35",
+   "chance": 4.0
+  },
+  {
+   "item": "Hopper x3",
+   "chance": 4.0
+  },
+  {
+   "item": "Enchanted Gold Apple x2",
+   "chance": 4.0
+  },
+  {
+   "item": "Enhanced Farming Access",
+   "chance": 4.0
+  },
+  {
+   "item": "Tag Key Crate Key",
+   "chance": 4.0
+  },
+  {
+   "item": "Insta-Grow x8",
+   "chance": 5.0
+  },
+  {
+   "item": "$50 000",
+   "chance": 5.0
+  },
+  {
+   "item": "Vote Token x5",
+   "chance": 6.0
+  },
+  {
+   "item": "Mount Rental Coupon (30m)",
+   "chance": 7.0
+  },
+  {
+   "item": "mcMMO Credit x25",
+   "chance": 7.0
+  },
+  {
+   "item": "$25,000",
+   "chance": 8.0
+  },
+  {
+   "item": "Insta-Grow x4",
+   "chance": 8.0
+  }
+ ]
+}

@@ -2,9 +2,8 @@ package dev.jade.labsaddons.crate;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -110,14 +109,33 @@ class VoteOddsTest {
 
 	@Test
 	void anEntryWithoutAUsableChanceIsNotKept() {
-		Map<String, Double> chances = new LinkedHashMap<>();
-		chances.put("Good", 1d);
-		chances.put("Zero", 0d);
-		chances.put("", 5d);
-		chances.put("Null", null);
+		List<VoteOddsEntry> chances = new ArrayList<>(table("Good", 1d, "Zero", 0d, "", 5d));
+		chances.add(null);
 		List<VoteOddsEntry> known = VoteOdds.relearn(List.of(), "Voter Crate", chances);
 		assertEquals(1, known.size());
 		assertEquals("Good", known.get(0).item);
+	}
+
+	@Test
+	void aNameTwoRewardsShareIsDeclinedRatherThanGuessed() {
+		// Verbatim from the Voter Crate: Enhanced Farming Access is listed twice, ninety
+		// minutes at 0.9% and sixty at 2.8%, and the roll screen calls both the same thing.
+		// Keeping either put a confident wrong figure under a real draw.
+		VoteOdds.Table table = VoteOdds.Table.of(table(
+				"Enhanced Farming Access", 0.9d,
+				"Enhanced Farming Access", 2.8d,
+				"Voter Shovel", 2.8d));
+		assertNull(table.chance("Enhanced Farming Access"));
+		assertEquals(2.8d, table.chance("Voter Shovel"));
+		assertEquals(1, table.size());
+	}
+
+	@Test
+	void twoRewardsSharingBothNameAndChanceAreNotAmbiguous() {
+		// Whichever was drawn, the figure is the same figure, so there is nothing to decline.
+		VoteOdds.Table table = VoteOdds.Table.of(table("Vote Token x1", 3.8d,
+				"Vote Token x1", 3.8d));
+		assertEquals(3.8d, table.chance("Vote Token x1"));
 	}
 
 	@Test
@@ -138,10 +156,11 @@ class VoteOddsTest {
 		assertEquals("", VoteOdds.oneIn(0d));
 	}
 
-	private static Map<String, Double> table(Object... pairs) {
-		Map<String, Double> out = new LinkedHashMap<>();
+	/** One crate's entries, in the shape both the jar and a scrape produce. */
+	private static List<VoteOddsEntry> table(Object... pairs) {
+		List<VoteOddsEntry> out = new ArrayList<>();
 		for (int i = 0; i < pairs.length; i += 2) {
-			out.put((String) pairs[i], (Double) pairs[i + 1]);
+			out.add(new VoteOddsEntry("Voter Crate", (String) pairs[i], (Double) pairs[i + 1]));
 		}
 		return out;
 	}

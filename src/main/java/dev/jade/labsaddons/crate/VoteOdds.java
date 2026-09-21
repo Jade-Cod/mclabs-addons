@@ -1,23 +1,25 @@
 package dev.jade.labsaddons.crate;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * What a voter crate's rewards are worth, learned from the crate's own odds menu.
+ * What a voter crate's rewards are worth.
  *
  * <p>A voter crate has no rarity tiers at all — no coloured panes, no "Rarity:" lore, nothing
  * the roll screen can be read for. The only statement of how rare anything is lives in the
  * menu you get from punching the crate, as {@code "┃ Chance: 7.6%"} on each of its
- * twenty-seven rewards. So this is scraped once when the player looks at it and remembered,
- * which is what lets the three-way choice say which of its three draws is the rare one.
+ * twenty-seven rewards. Both tables ship with the mod, and punching a crate re-reads whichever
+ * one you opened, so a table the server changes corrects itself without an update.
  *
- * <p>Pure and Minecraft-free: the reader hands it names and lore lines it has already
+ * <p>Pure and Minecraft-free: callers hand it names and lore lines they have already
  * flattened. Nothing here models the odds — {@link #parseChance} only reads the number the
  * server printed.
  */
@@ -32,7 +34,7 @@ public final class VoteOdds {
 	private VoteOdds() {
 	}
 
-	/** Whether a menu title names a crate whose odds are worth keeping. */
+	/** Whether a menu title names a crate whose odds are worth reading. */
 	public static boolean isVoterCrate(String title) {
 		if (title == null) {
 			return false;
@@ -77,59 +79,43 @@ public final class VoteOdds {
 	}
 
 	/**
-	 * Replaces everything known about one crate with a fresh reading.
+	 * One crate's rewards, looked up by the name the roll screen shows.
 	 *
-	 * <p>Authoritative rather than merged: the server is free to change a crate's table, and
-	 * a reward that has left it should leave with it instead of lingering as a stale figure.
-	 *
-	 * @return the new list of entries across all crates
-	 */
-	public static List<VoteOddsEntry> relearn(List<VoteOddsEntry> existing, String crate,
-			Map<String, Double> chances) {
-		List<VoteOddsEntry> out = new ArrayList<>();
-		if (existing != null) {
-			for (VoteOddsEntry entry : existing) {
-				if (entry != null && entry.crate != null && !entry.crate.equalsIgnoreCase(crate)) {
-					out.add(entry);
-				}
-			}
-		}
-		if (chances != null) {
-			chances.forEach((item, chance) -> {
-				if (item != null && !item.isBlank() && chance != null && chance > 0d) {
-					out.add(new VoteOddsEntry(crate, item, chance));
-				}
-			});
-		}
-		return out;
-	}
-
-	/**
-	 * One crate's rewards and their chances.
-	 *
-	 * <p>A type rather than a bare map because the keys are normalised — the roll screen's name
-	 * has to match the odds menu's whatever the casing — and a caller handing over a map it
-	 * built itself would silently miss every lookup. {@link #of} is the only way in, so the
-	 * normalisation cannot be forgotten.
+	 * <p>A type rather than a bare map because two things have to hold and neither is obvious.
+	 * Keys are normalised, so a name matches whatever its casing. And a display name two
+	 * different rewards share is <b>dropped</b> rather than resolved: the Voter Crate lists
+	 * Enhanced Farming Access twice, ninety minutes at 0.9% and sixty at 2.8%, and the roll
+	 * screen calls both of them the same thing. Keeping one silently put a confident wrong
+	 * figure under a real draw; showing none says what is actually known.
 	 */
 	public record Table(Map<String, Double> byKey) {
 		public static final Table EMPTY = new Table(Map.of());
 
-		/** Normalises and keeps only rewards with a usable chance. */
-		public static Table of(Map<String, Double> chances) {
-			if (chances == null || chances.isEmpty()) {
+		/** Builds from one crate's entries. Duplicates must survive to here to be noticed. */
+		public static Table of(List<VoteOddsEntry> entries) {
+			if (entries == null || entries.isEmpty()) {
 				return EMPTY;
 			}
 			Map<String, Double> out = new LinkedHashMap<>();
-			chances.forEach((item, chance) -> {
-				if (item != null && !item.isBlank() && chance != null && chance > 0d) {
-					out.put(key(item), chance);
+			Set<String> shared = new HashSet<>();
+			for (VoteOddsEntry entry : entries) {
+				if (entry == null || entry.item == null || entry.item.isBlank()
+						|| entry.chance <= 0d) {
+					continue;
 				}
-			});
-			return out.isEmpty() ? EMPTY : new Table(out);
+				String key = key(entry.item);
+				Double seen = out.putIfAbsent(key, entry.chance);
+				// Two rewards of the same name at the same chance are not ambiguous: whichever
+				// one was drawn, the figure is that figure.
+				if (seen != null && seen != entry.chance) {
+					shared.add(key);
+				}
+			}
+			out.keySet().removeAll(shared);
+			return out.isEmpty() ? EMPTY : new Table(Map.copyOf(out));
 		}
 
-		/** A reward's chance, or null when this crate's odds were never read. */
+		/** A reward's chance, or null when it is unknown or its name is ambiguous. */
 		public Double chance(String item) {
 			return item == null ? null : byKey.get(key(item));
 		}
@@ -143,21 +129,50 @@ public final class VoteOdds {
 		}
 	}
 
+	/**
+	 * Replaces everything known about one crate with a fresh reading.
+	 *
+	 * <p>Authoritative rather than merged: the server is free to change a crate's table, and a
+	 * reward that has left it should leave with it instead of lingering as a stale figure.
+	 */
+	public static List<VoteOddsEntry> relearn(List<VoteOddsEntry> existing, String crate,
+			List<VoteOddsEntry> fresh) {
+		List<VoteOddsEntry> out = new ArrayList<>();
+		if (existing != null) {
+			for (VoteOddsEntry entry : existing) {
+				if (entry != null && entry.crate != null && !entry.crate.equalsIgnoreCase(crate)) {
+					out.add(entry);
+				}
+			}
+		}
+		if (fresh != null) {
+			for (VoteOddsEntry entry : fresh) {
+				if (entry != null && entry.item != null && !entry.item.isBlank()
+						&& entry.chance > 0d) {
+					out.add(new VoteOddsEntry(crate, entry.item, entry.chance));
+				}
+			}
+		}
+		return out;
+	}
+
+	/** One crate's entries out of everything remembered. */
+	public static List<VoteOddsEntry> entriesFor(List<VoteOddsEntry> entries, String crate) {
+		List<VoteOddsEntry> out = new ArrayList<>();
+		if (entries == null || crate == null) {
+			return out;
+		}
+		for (VoteOddsEntry entry : entries) {
+			if (entry != null && entry.crate != null && entry.crate.equalsIgnoreCase(crate)) {
+				out.add(entry);
+			}
+		}
+		return out;
+	}
+
 	/** One crate's table out of everything remembered. */
 	public static Table tableFor(List<VoteOddsEntry> entries, String crate) {
-		if (entries == null || crate == null) {
-			return Table.EMPTY;
-		}
-		Map<String, Double> out = new LinkedHashMap<>();
-		for (VoteOddsEntry entry : entries) {
-			if (entry == null || entry.crate == null || entry.item == null) {
-				continue;
-			}
-			if (entry.crate.equalsIgnoreCase(crate) && entry.chance > 0d) {
-				out.put(entry.item, entry.chance);
-			}
-		}
-		return Table.of(out);
+		return Table.of(entriesFor(entries, crate));
 	}
 
 	/**

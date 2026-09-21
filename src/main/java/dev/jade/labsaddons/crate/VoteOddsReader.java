@@ -9,9 +9,7 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Scrapes a voter crate's published odds, once per open, the same passive read as
@@ -41,7 +39,9 @@ public final class VoteOddsReader {
 		if (handler.slots.size() < MENU_SLOTS) {
 			return false;
 		}
-		Map<String, Double> chances = new LinkedHashMap<>();
+		// A list, not a map: two rewards can share a display name, and collapsing them here
+		// would hide that from the table rather than letting it decline to guess.
+		List<VoteOddsEntry> chances = new ArrayList<>();
 		for (int slot = FIRST_REWARD; slot <= LAST_REWARD; slot++) {
 			ItemStack stack = handler.slots.get(slot).getStack();
 			if (stack.isEmpty()) {
@@ -49,7 +49,7 @@ public final class VoteOddsReader {
 			}
 			Double chance = VoteOdds.chanceIn(lore(stack));
 			if (chance != null) {
-				chances.put(stack.getName().getString(), chance);
+				chances.add(new VoteOddsEntry(title.trim(), stack.getName().getString(), chance));
 			}
 		}
 		if (chances.isEmpty()) {
