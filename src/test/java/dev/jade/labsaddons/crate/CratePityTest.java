@@ -179,6 +179,28 @@ class CratePityTest {
 		assertEquals(0, CratePity.roll(next, CrateRarity.EXCEEDINGLY_RARE));
 	}
 
+	/**
+	 * The drought is keys burned, not the server's roll number, and those are one apart.
+	 *
+	 * <p>The moment a rarity lands the server's next roll for it is #1 and no keys have gone in
+	 * since, so the board has to read nought. It read one, which is the roll about to happen —
+	 * true, and not what the word means.
+	 */
+	@Test
+	void theDroughtIsNoughtTheMomentTheRarityLands() {
+		Map<String, Integer> won = CratePity.rolled(counts(190, 19, 4), CrateRarity.VERY_RARE);
+		assertEquals(1, CratePity.roll(won, CrateRarity.VERY_RARE));
+		assertEquals(0, CratePity.dry(CratePity.roll(won, CrateRarity.VERY_RARE)));
+		// And the chance beside it is that upcoming roll's, which is the first-roll figure.
+		assertEquals("0.66%", CratePity.format(CratePity.chance(CrateRarity.VERY_RARE,
+				CratePity.roll(won, CrateRarity.VERY_RARE))));
+
+		// One crate later: one key in, and the next roll is #2.
+		Map<String, Integer> after = CratePity.rolled(won, CrateRarity.COMMON);
+		assertEquals(1, CratePity.dry(CratePity.roll(after, CrateRarity.VERY_RARE)));
+		assertEquals(218, CratePity.dry(219));
+	}
+
 	// --- anchoring off the odds menu -----------------------------------------
 
 	/**

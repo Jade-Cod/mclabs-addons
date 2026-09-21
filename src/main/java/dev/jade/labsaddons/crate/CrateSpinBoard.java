@@ -244,9 +244,10 @@ public final class CrateSpinBoard extends CasinoPanel {
 	 * ends. Dropped entirely when the window is too narrow to hold it, which is the same
 	 * condition under which the panel itself has already been scaled down.
 	 *
-	 * <p>"Dry" is the roll about to happen, which is the same thing as how long it has been
-	 * since that rarity last landed — the server's own numbering, read exactly off its odds
-	 * menu rather than estimated. See {@link CratePity#currentRoll}.
+	 * <p>"Dry" is how many keys have gone in since that rarity last landed, so it is nought the
+	 * moment one does. The chance beside it belongs to the roll about to happen, which is the
+	 * server's own {@code "Roll #N"} one further on — read exactly off its odds menu rather than
+	 * estimated. See {@link CratePity#dry} and {@link CratePity#currentRoll}.
 	 */
 	private void pity(DrawContext context, TextRenderer font) {
 		if (roomLeft() < PITY_W + PITY_GAP + 2) {
@@ -280,7 +281,8 @@ public final class CrateSpinBoard extends CasinoPanel {
 				context.drawText(font, PITY_UNKNOWN, x + PAD, y + PITY_LINE, TEXT_FAINT, false);
 			} else {
 				row(context, font, x + PAD, y + PITY_LINE, width,
-						CratePity.format(CratePity.chance(rarity, roll)), "Dry: " + roll,
+						CratePity.format(CratePity.chance(rarity, roll)),
+						"Dry: " + CratePity.dry(roll),
 						TEXT, TEXT_DIM);
 			}
 			y += PITY_ROW_H;

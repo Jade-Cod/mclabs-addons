@@ -134,6 +134,19 @@ public final class CratePity {
 	}
 
 	/**
+	 * How many keys have gone in since this rarity last landed: nought the moment it does, one
+	 * after the next crate, and so on.
+	 *
+	 * <p>One less than the roll number the server uses, which counts the roll <em>about to</em>
+	 * happen — after a win the next roll is #1, and no keys have been spent on the drought yet.
+	 * The chance shown beside this is that upcoming roll's, so the pair reads as what the
+	 * drought has cost so far and what the next key is worth.
+	 */
+	public static int dry(int roll) {
+		return Math.max(0, roll - 1);
+	}
+
+	/**
 	 * The counters after one crate roll, or null if none of them moved.
 	 *
 	 * @param won the rarity that landed, whose counter goes back to one, or null for a roll
