@@ -50,6 +50,7 @@ public class HelpScreen extends Screen {
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
 			{"/fw", "Open it to re-sync the Sunken Treasure crates left."},
+			{"Crate odds", "Open a reward\u2019s odds once to sync your crate pity counters."},
 			{"/double", "Opens the Double² wheel with the mod’s own board drawn over it."},
 			{"/mines", "Opens Mines with the mod’s own grid and payout ladder over it."},
 			{"/bj", "Opens BondJoules blackjack with the mod’s own card table over it."},

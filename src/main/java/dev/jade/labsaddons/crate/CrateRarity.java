@@ -70,6 +70,25 @@ public enum CrateRarity {
 	}
 
 	/**
+	 * The rarity spelled out exactly, as the odds menu's title spells it, or null.
+	 *
+	 * <p>Exact where {@link #fromLore} is lenient, because the caller has already stripped the
+	 * words around it and a near miss here would anchor the wrong ladder.
+	 */
+	public static CrateRarity fromLabel(String label) {
+		if (label == null) {
+			return null;
+		}
+		String trimmed = label.trim();
+		for (CrateRarity rarity : values()) {
+			if (rarity.label.equalsIgnoreCase(trimmed)) {
+				return rarity;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * The rarity named by a reward's lore line, or null. Matched longest-label-first because
 	 * "Rare" is a suffix of three of the others and would otherwise swallow them.
 	 */

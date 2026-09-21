@@ -3,6 +3,9 @@ package dev.jade.labsaddons.crate;
 import dev.jade.labsaddons.casino.CasinoPanel;
 import dev.jade.labsaddons.casino.SlotView;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.editor.EditorPainter;
+import dev.jade.labsaddons.hud.editor.EditorTheme;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -12,6 +15,7 @@ import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The crate opening, drawn as a chamber the candidates are vented out of.
@@ -59,6 +63,21 @@ public final class CrateSpinBoard extends CasinoPanel {
 	/** The name fades up rather than appearing, so it does not fight the landing flash. */
 	private static final long NAME_FADE_MS = 240L;
 
+	/** The pity window that hangs beside the panel; see {@link #pity}. */
+	/**
+	 * Wide enough for "Exceedingly Rare" spelled out (87 pixels) and for the line that asks you
+	 * to open the odds menu (96), with the padding either side. Narrower and the longest rarity
+	 * in the game is the one that gets trimmed.
+	 */
+	private static final int PITY_W = 112;
+	private static final int PITY_GAP = 6;
+	/** Two lines a rarity: its name, then its chance and which roll that is. */
+	private static final int PITY_ROW_H = 21;
+	private static final int PITY_TOP = HEADER_H + 6;
+	private static final int PITY_LINE = 10;
+	/** What a rarity the odds menu has never been opened for shows instead of a figure. */
+	private static final String PITY_UNKNOWN = "—";
+
 	/** How long a vented candidate takes to fade and fall out of the chamber. */
 	private static final long VENT_MS = 340L;
 	/** How far it falls while it does. */
@@ -95,6 +114,8 @@ public final class CrateSpinBoard extends CasinoPanel {
 	private long lastFrameMs;
 	/** Which column the winner was last drawn in, so its position survives the walk. */
 	private int drawnWinner = -1;
+	/** Whether this spin's result has already moved the pity counters. One roll, one count. */
+	private boolean counted;
 
 	private CrateSpinBoard() {
 	}
@@ -159,6 +180,7 @@ public final class CrateSpinBoard extends CasinoPanel {
 		placed = false;
 		lastFrameMs = 0L;
 		drawnWinner = -1;
+		counted = false;
 		for (int i = 0; i < CrateSpin.COLUMNS; i++) {
 			held[i] = null;
 		}
@@ -172,6 +194,7 @@ public final class CrateSpinBoard extends CasinoPanel {
 
 		CrateSpin.Column winner = spin.winner();
 		float tightness = tightness();
+		count(winner, now);
 
 		// The crate's own name and nothing else. Which rarity is still in play is what the
 		// light is for; saying it in words as well only gave the eye somewhere else to go.
@@ -183,7 +206,88 @@ public final class CrateSpinBoard extends CasinoPanel {
 		candidates(context, now);
 		flash(context, now, winner == null ? null : winner.rarity());
 		name(context, font, now);
+		pity(context, font);
 		hoveredTooltip(context, font, now);
+	}
+
+	// --- the pity ladder -----------------------------------------------------
+
+	/**
+	 * Counts this spin against the pity ladder, once, the moment it lands.
+	 *
+	 * <p>Done here rather than off the unbox chat line because the chat line never names the
+	 * rarity and the board already knows it: the winner's own pane said so. The server's
+	 * odds-went-up line arrives about half a second later and is suppressed by
+	 * {@link CratePity#counted}, so the same roll is not counted twice.
+	 */
+	private void count(CrateSpin.Column winner, long now) {
+		if (counted || winner == null || winner.rarity() == null
+				|| spin.phase() != CrateSpin.Phase.LANDED) {
+			return;
+		}
+		counted = true;
+		CratePity.counted(now);
+		LabsAddonsConfig config = LabsAddonsConfig.get();
+		Map<String, Integer> rolled = CratePity.rolled(config.cratePityRolls, winner.rarity());
+		if (rolled != null) {
+			config.cratePityRolls = rolled;
+			config.save();
+		}
+	}
+
+	/**
+	 * The three rarities worth waiting for, in a window hanging off the panel's left edge:
+	 * what each one's chance is on the roll about to happen, and which roll that is.
+	 *
+	 * <p>Beside the panel rather than inside it because the chamber uses its whole width, and
+	 * because the numbers are not part of the spin — they are true before it starts and after it
+	 * ends. Dropped entirely when the window is too narrow to hold it, which is the same
+	 * condition under which the panel itself has already been scaled down.
+	 *
+	 * <p>The roll carries a {@code +} because the server's odds menu pins you to a page of nine
+	 * and marks none of them, so the count is a floor. See {@link CratePity#anchored}.
+	 */
+	private void pity(DrawContext context, TextRenderer font) {
+		if (roomLeft() < PITY_W + PITY_GAP + 2) {
+			return;
+		}
+		Map<String, Integer> rolls = LabsAddonsConfig.get().cratePityRolls;
+		boolean anyUnknown = false;
+		for (CrateRarity rarity : CratePity.TRACKED) {
+			if (CratePity.roll(rolls, rarity) <= 0) {
+				anyUnknown = true;
+			}
+		}
+		int x = -(PITY_W + PITY_GAP);
+		int height = PITY_TOP + CratePity.TRACKED.size() * PITY_ROW_H + 2
+				+ (anyUnknown ? PITY_LINE + 2 : 0);
+
+		HudObject.drawRoundedRect(context, x, 0, PITY_W, height, EditorTheme.PANEL_BG);
+		EditorPainter.outline(context, x, 0, PITY_W, height, EditorTheme.PANEL_BORDER);
+		context.drawText(font, "YOUR ODDS", x + PAD, 5, TEXT_DIM, false);
+		context.fill(x + PAD, HEADER_H, x + PITY_W - PAD, HEADER_H + 1, DIVIDER);
+
+		int y = PITY_TOP;
+		int width = PITY_W - PAD * 2;
+		for (CrateRarity rarity : CratePity.TRACKED) {
+			int roll = CratePity.roll(rolls, rarity);
+			// Trimmed rather than trusted to fit: the widths above are measured, but a resource
+			// pack's font is not the one they were measured in.
+			context.drawText(font, font.trimToWidth(rarity.label(), width), x + PAD, y,
+					rarity.color(), false);
+			if (roll <= 0) {
+				context.drawText(font, PITY_UNKNOWN, x + PAD, y + PITY_LINE, TEXT_FAINT, false);
+			} else {
+				row(context, font, x + PAD, y + PITY_LINE, width,
+						CratePity.format(CratePity.chance(rarity, roll)), "#" + roll + "+",
+						TEXT, TEXT_DIM);
+			}
+			y += PITY_ROW_H;
+		}
+		if (anyUnknown) {
+			caption(context, font, x + PAD, y,
+					font.trimToWidth("open its odds once", width));
+		}
 	}
 
 	// --- reading the container ----------------------------------------------

@@ -29,6 +29,8 @@ import dev.jade.labsaddons.coinflip.CfOpenHudObject;
 import dev.jade.labsaddons.coinflip.CfResultScreen;
 import dev.jade.labsaddons.coinflip.CfRecordHudObject;
 import dev.jade.labsaddons.coinflip.CfStats;
+import dev.jade.labsaddons.crate.CratePity;
+import dev.jade.labsaddons.crate.CratePityReader;
 import dev.jade.labsaddons.crate.VoteOddsReader;
 import dev.jade.labsaddons.double2.D2Chat;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
@@ -378,6 +380,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// else's screen, and it is the only place those figures are ever
 					// stated — the roll that follows shows three items and no odds.
 					VoteOddsReader.tryRead(handledScreen);
+					// And out of it too: "Your Exceedingly Rare odds" is the only place the
+					// server says which roll of the pity ladder you are on.
+					CratePityReader.tryRead(handledScreen);
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);
@@ -566,6 +571,22 @@ public class LabsAddonsClient implements ClientModInitializer {
 			}
 		}
 		CfStats.onMessage(text);
+		// "[⚡ Your Exceedingly Rare odds have been JACKED-UP! ⚡]" — one per crate roll, in
+		// every capture, including the ones that won a Rare. It is the only signal for a crate
+		// opened with the board off, so it counts the roll whenever the board has not already.
+		if (CratePity.isPityTick(text)) {
+			long now = net.minecraft.util.Util.getMeasuringTimeMs();
+			if (CratePity.isNewRoll(now)) {
+				CratePity.counted(now);
+				LabsAddonsConfig config = LabsAddonsConfig.get();
+				java.util.Map<String, Integer> rolled =
+						CratePity.rolled(config.cratePityRolls, null);
+				if (rolled != null) {
+					config.cratePityRolls = rolled;
+					config.save();
+				}
+			}
+		}
 		if (MasteryChatTracker.onMessage(text)) {
 			// A chat reaction moved an active challenge; keep it across a restart.
 			MasteryStore.save();

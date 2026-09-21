@@ -260,6 +260,16 @@ public class LabsAddonsConfig {
 	@Section(ConfigSection.STATE)
 	public java.util.List<dev.jade.labsaddons.crate.VoteOddsEntry> voteCrateOdds =
 			new java.util.ArrayList<>();
+	/**
+	 * Which roll each rarity's pity ladder is on, keyed by {@code CrateRarity.name()}. Anchored
+	 * off the server's own odds menu and counted on from there; absent until that menu has been
+	 * opened for that rarity, because a count with nothing behind it would be invented.
+	 *
+	 * <p>Server-derived and shared across every crate, so it lives in state.json beside the
+	 * coinflip record rather than with anything a player would edit.
+	 */
+	@Section(ConfigSection.STATE)
+	public java.util.Map<String, Integer> cratePityRolls = new java.util.LinkedHashMap<>();
 
 	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat.
 	// Server-derived, so it lives with the timers in state.json rather than with the
@@ -516,6 +526,15 @@ public class LabsAddonsConfig {
 							entry.crate, entry.item, entry.chance, entry.lore()));
 				}
 			}
+		}
+		if (this.cratePityRolls != null) {
+			this.cratePityRolls.forEach((rarity, roll) -> {
+				// A hand-edited file is the one way a roll below one gets in, and every curve
+				// here is undefined there.
+				if (rarity != null && !rarity.isBlank() && roll != null && roll >= 1) {
+					clean.cratePityRolls.put(rarity, roll);
+				}
+			});
 		}
 		clean.coinflipStatsSeeded = this.coinflipStatsSeeded;
 		clean.coinflipPlayed = Math.max(0, this.coinflipPlayed);

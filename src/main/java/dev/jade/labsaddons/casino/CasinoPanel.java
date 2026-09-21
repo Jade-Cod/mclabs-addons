@@ -430,6 +430,18 @@ public abstract class CasinoPanel {
 
 	// --- drawing helpers every board wants ----------------------------------
 
+	/**
+	 * How much room there is to the left of the panel, in panel coordinates.
+	 *
+	 * <p>For a board that wants to hang something beside itself rather than inside itself. The
+	 * panel is centred and only ever shrinks, so this is generous on any ordinary window and
+	 * nought on a very small one — which is the case that has to be checked, because drawing at
+	 * a negative x is drawing off the screen.
+	 */
+	protected final float roomLeft() {
+		return panelScale <= 0f ? 0f : panelX / panelScale;
+	}
+
 	/** Whether the cursor is over this rectangle, in panel coordinates. */
 	protected final boolean hovered(int x, int y, int w, int h) {
 		return hoverX >= x && hoverX < x + w && hoverY >= y && hoverY < y + h;
