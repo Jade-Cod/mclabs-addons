@@ -17,6 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * every figure the board shows comes from a table scraped earlier and matched by name.
  */
 class VoteOddsTest {
+	/** The two Voter Crate variants, verbatim. */
+	private static final List<String> NINETY =
+			List.of("Info: /efarm", "", "Duration: 90 minutes");
+	private static final List<String> SIXTY =
+			List.of("Info: /efarm", "", "Duration: 60 minutes");
+
 	@Test
 	void theChanceIsReadOffTheServersOwnLoreLine() {
 		// Verbatim from votecrate-odds.jsonl, box-drawing prefix included.
@@ -48,29 +54,26 @@ class VoteOddsTest {
 		VoteOdds.Table table = VoteOdds.Table.of(table(
 				"mcMMO Credit x20", 1.9d,
 				"$3,000", 7.6d));
-		assertEquals(0, VoteOdds.rarest(table,
-				List.of("mcMMO Credit x20", "$3,000", "$3,000")));
+		assertEquals(0, VoteOdds.rarest(table, drawn("mcMMO Credit x20", "$3,000", "$3,000")));
 	}
 
 	@Test
 	void twoEquallyRareDrawsFlagNeither() {
 		// Flagging one of a tie would read as a recommendation the odds cannot support.
 		VoteOdds.Table table = VoteOdds.Table.of(table("$3,000", 7.6d, "Insta-Grow x2", 7.6d));
-		assertEquals(-1, VoteOdds.rarest(table, List.of("$3,000", "Insta-Grow x2")));
+		assertEquals(-1, VoteOdds.rarest(table, drawn("$3,000", "Insta-Grow x2")));
 	}
 
 	@Test
 	void aTieAboveSomethingRarerStillFlagsTheRareOne() {
 		VoteOdds.Table table =
 				VoteOdds.Table.of(table("$3,000", 7.6d, "mcMMO Credit x20", 1.9d));
-		assertEquals(2, VoteOdds.rarest(table,
-				List.of("$3,000", "$3,000", "mcMMO Credit x20")));
+		assertEquals(2, VoteOdds.rarest(table, drawn("$3,000", "$3,000", "mcMMO Credit x20")));
 	}
 
 	@Test
 	void nothingIsFlaggedWhenTheCratesOddsWereNeverRead() {
-		assertEquals(-1, VoteOdds.rarest(VoteOdds.Table.EMPTY,
-				List.of("$3,000", "Hopper x2", "EXP x150")));
+		assertEquals(-1, VoteOdds.rarest(VoteOdds.Table.EMPTY, drawn("$3,000", "Hopper x2", "EXP x150")));
 		assertEquals(-1, VoteOdds.rarest(null, null));
 	}
 
@@ -117,25 +120,64 @@ class VoteOddsTest {
 	}
 
 	@Test
-	void aNameTwoRewardsShareIsDeclinedRatherThanGuessed() {
+	void aNameTwoRewardsShareIsToldApartByItsLore() {
 		// Verbatim from the Voter Crate: Enhanced Farming Access is listed twice, ninety
 		// minutes at 0.9% and sixty at 2.8%, and the roll screen calls both the same thing.
-		// Keeping either put a confident wrong figure under a real draw.
-		VoteOdds.Table table = VoteOdds.Table.of(table(
-				"Enhanced Farming Access", 0.9d,
-				"Enhanced Farming Access", 2.8d,
-				"Voter Shovel", 2.8d));
-		assertNull(table.chance("Enhanced Farming Access"));
-		assertEquals(2.8d, table.chance("Voter Shovel"));
-		assertEquals(1, table.size());
+		// The duration is the only thing separating them.
+		List<VoteOddsEntry> entries = List.of(
+				new VoteOddsEntry("Voter Crate", "Enhanced Farming Access", 0.9d, NINETY),
+				new VoteOddsEntry("Voter Crate", "Enhanced Farming Access", 2.8d, SIXTY),
+				new VoteOddsEntry("Voter Crate", "Voter Shovel", 2.8d, List.of()));
+		VoteOdds.Table table = VoteOdds.Table.of(entries);
+
+		assertEquals(0.9d, table.chance("Enhanced Farming Access", NINETY));
+		assertEquals(2.8d, table.chance("Enhanced Farming Access", SIXTY));
+		assertEquals(3, table.size());
 	}
 
 	@Test
-	void twoRewardsSharingBothNameAndChanceAreNotAmbiguous() {
-		// Whichever was drawn, the figure is the same figure, so there is nothing to decline.
-		VoteOdds.Table table = VoteOdds.Table.of(table("Vote Token x1", 3.8d,
-				"Vote Token x1", 3.8d));
-		assertEquals(3.8d, table.chance("Vote Token x1"));
+	void aSharedNameWithNoLoreToMatchOnIsDeclinedRatherThanGuessed() {
+		// Better no figure than whichever of the two happened to be stored first.
+		List<VoteOddsEntry> entries = List.of(
+				new VoteOddsEntry("Voter Crate", "Enhanced Farming Access", 0.9d, NINETY),
+				new VoteOddsEntry("Voter Crate", "Enhanced Farming Access", 2.8d, SIXTY));
+		VoteOdds.Table table = VoteOdds.Table.of(entries);
+		assertNull(table.chance("Enhanced Farming Access"));
+		assertNull(table.chance("Enhanced Farming Access", List.of("Duration: 5 minutes")));
+	}
+
+	@Test
+	void aUniqueNameIsMatchedWithoutItsLore() {
+		// So a table keeps working if the server retunes an enchantment on a reward.
+		VoteOdds.Table table = VoteOdds.Table.of(List.of(
+				new VoteOddsEntry("Voter Crate", "Voter Shovel", 2.8d,
+						List.of("Efficiency IV", "Unbreaking II"))));
+		assertEquals(2.8d, table.chance("Voter Shovel", List.of("Efficiency V")));
+		assertEquals(2.8d, table.chance("Voter Shovel"));
+	}
+
+	@Test
+	void theScreensOwnAnnotationsAreNotPartOfARewardsLore() {
+		// The odds menu appends its chance, the choice appends "Choice 2/3"; strip both and
+		// what is left matches exactly across the two.
+		assertEquals(List.of("Info: /efarm", "", "Duration: 90 minutes"),
+				VoteOdds.intrinsicLore(List.of("Info: /efarm", "", "Duration: 90 minutes",
+						"┃", "┃ Chance: 0.9%")));
+		assertEquals(List.of(), VoteOdds.intrinsicLore(
+				List.of("┃", "┃ Choice 2/3", "┃ Click to claim this item!")));
+		assertEquals(List.of(), VoteOdds.intrinsicLore(null));
+	}
+
+	@Test
+	void aTimedRewardSaysHowLongItLasts() {
+		// The whole point: three rewards across the two crates are called Enhanced Farming
+		// Access and differ only in this.
+		assertEquals("90 minutes", VoteOdds.duration(NINETY));
+		assertEquals("60 minutes", VoteOdds.duration(SIXTY));
+		assertEquals("120 minutes",
+				VoteOdds.duration(List.of("Info: /efarm", "", "Duration: 120 minutes")));
+		assertEquals("", VoteOdds.duration(List.of("Efficiency IV", "Unbreaking II")));
+		assertEquals("", VoteOdds.duration(null));
 	}
 
 	@Test
@@ -161,6 +203,14 @@ class VoteOddsTest {
 		List<VoteOddsEntry> out = new ArrayList<>();
 		for (int i = 0; i < pairs.length; i += 2) {
 			out.add(new VoteOddsEntry("Voter Crate", (String) pairs[i], (Double) pairs[i + 1]));
+		}
+		return out;
+	}
+
+	private static List<VoteOdds.Draw> drawn(String... names) {
+		List<VoteOdds.Draw> out = new ArrayList<>();
+		for (String name : names) {
+			out.add(new VoteOdds.Draw(name, List.of()));
 		}
 		return out;
 	}

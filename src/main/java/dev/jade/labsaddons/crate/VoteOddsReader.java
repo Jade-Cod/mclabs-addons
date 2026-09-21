@@ -47,9 +47,11 @@ public final class VoteOddsReader {
 			if (stack.isEmpty()) {
 				continue;
 			}
-			Double chance = VoteOdds.chanceIn(lore(stack));
+			List<String> lore = lore(stack);
+			Double chance = VoteOdds.chanceIn(lore);
 			if (chance != null) {
-				chances.add(new VoteOddsEntry(title.trim(), stack.getName().getString(), chance));
+				chances.add(new VoteOddsEntry(title.trim(), stack.getName().getString(), chance,
+						VoteOdds.intrinsicLore(lore)));
 			}
 		}
 		if (chances.isEmpty()) {

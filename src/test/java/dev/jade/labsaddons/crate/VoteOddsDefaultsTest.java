@@ -7,7 +7,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -49,27 +48,42 @@ class VoteOddsDefaultsTest {
 	}
 
 	@Test
-	void theDuplicateNameSurvivesIntoTheFileAndIsDeclinedByTheTable() {
-		// The file must keep both Enhanced Farming Access rows — collapsing them there would
-		// hide the ambiguity from the one thing that knows to decline it.
+	void bothEnhancedFarmingAccessesShipWithTheDurationThatTellsThemApart() {
 		List<VoteOddsEntry> voter = VoteOddsDefaults.get().get("Voter Crate");
 		assertEquals(2, voter.stream()
 				.filter(entry -> "Enhanced Farming Access".equals(entry.item)).count());
-		assertNull(VoteOdds.Table.of(voter).chance("Enhanced Farming Access"));
-		// Twenty-seven rewards under twenty-six distinct names, less the one name that is
-		// shared: twenty-five of the crate's rewards can still be named a figure.
-		assertEquals(25, VoteOdds.Table.of(voter).size());
+
+		VoteOdds.Table table = VoteOdds.Table.of(voter);
+		assertEquals(0.9d, table.chance("Enhanced Farming Access",
+				List.of("Info: /efarm", "", "Duration: 90 minutes")));
+		assertEquals(2.8d, table.chance("Enhanced Farming Access",
+				List.of("Info: /efarm", "", "Duration: 60 minutes")));
+		// All twenty-seven are reachable now that the lore separates the pair.
+		assertEquals(27, table.size());
+	}
+
+	@Test
+	void theDeluxeCrateShipsItsOwnHundredAndTwentyMinuteVersion() {
+		// Its name is unique in that crate, so nothing forces the duration out — which is
+		// exactly why the board shows it regardless of whether the name is ambiguous.
+		VoteOddsEntry deluxe = VoteOddsDefaults.get().get("Deluxe Voter Crate").stream()
+				.filter(entry -> "Enhanced Farming Access".equals(entry.item))
+				.findFirst().orElseThrow();
+		assertEquals("120 minutes", VoteOdds.duration(deluxe.lore()));
+		assertEquals(4d, deluxe.chance);
 	}
 
 	@Test
 	void aRealThreeWayDrawResolvesWithNothingScraped() {
 		// The draw from the screenshot: no crate had been punched, and all three still read.
 		VoteOdds.Table table = VoteOdds.Table.of(VoteOddsDefaults.get().get("Voter Crate"));
-		List<String> drawn = List.of("Voter Armour Set", "Mount Rental Coupon (15m)",
-				"Crate Scrap x3");
-		assertEquals(2.8d, table.chance(drawn.get(0)));
-		assertEquals(3.8d, table.chance(drawn.get(1)));
-		assertEquals(5.7d, table.chance(drawn.get(2)));
+		List<VoteOdds.Draw> drawn = List.of(
+				new VoteOdds.Draw("Voter Armour Set", List.of("Protection III", "Unbreaking II")),
+				new VoteOdds.Draw("Mount Rental Coupon (15m)", List.of()),
+				new VoteOdds.Draw("Crate Scrap x3", List.of()));
+		assertEquals(2.8d, table.chance(drawn.get(0).item(), drawn.get(0).lore()));
+		assertEquals(3.8d, table.chance(drawn.get(1).item(), drawn.get(1).lore()));
+		assertEquals(5.7d, table.chance(drawn.get(2).item(), drawn.get(2).lore()));
 		assertEquals(0, VoteOdds.rarest(table, drawn));
 	}
 

@@ -64,12 +64,16 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int REEL_Y = 62;
 	private static final int TAG_Y = REEL_Y - 24;
 	private static final int NAME_Y = REEL_Y + 22;
-	/** Below both name lines whether or not the second is used, so the figures stay aligned. */
-	private static final int CHANCE_Y = NAME_Y + NAME_LINES * LINE_H + 2;
+	/**
+	 * Below both name lines whether or not the second is used, and below the duration whether
+	 * or not the reward has one, so the three reels' figures stay on the same baselines.
+	 */
+	private static final int DURATION_Y = NAME_Y + NAME_LINES * LINE_H + 1;
+	private static final int CHANCE_Y = DURATION_Y + 11;
 	private static final int ONE_IN_Y = CHANCE_Y + 10;
-	private static final int FOOT_Y = 134;
+	private static final int FOOT_Y = 145;
 	/** Sized to the three reels and their figures, not to a chest. */
-	private static final int PANEL_HEIGHT = 150;
+	private static final int PANEL_HEIGHT = 161;
 	private static final int PICK_W = 72;
 	private static final int PICK_H = 62;
 
@@ -167,7 +171,7 @@ public final class VoteRollBoard extends CasinoPanel {
 			String title, float deviceScale) {
 		long now = Util.getMeasuringTimeMs();
 		choosing = CrateTitles.isVoteChoice(title);
-		List<String> drawn = track(slots, now);
+		List<VoteOdds.Draw> drawn = track(slots, now);
 
 		VoteOdds.Table table = tableFor(drawn);
 		int rarest = choosing ? VoteOdds.rarest(table, drawn) : -1;
@@ -180,16 +184,24 @@ public final class VoteRollBoard extends CasinoPanel {
 		foot(context, font, table, drawn);
 	}
 
-	/** Remembers what each reel shows and when it last changed, so a stop can be seen. */
-	private List<String> track(List<SlotView> slots, long now) {
-		List<String> drawn = new ArrayList<>(REEL_COUNT);
+	/**
+	 * Remembers what each reel shows and when it last changed, so a stop can be seen.
+	 *
+	 * <p>The lore comes along because the name alone does not always identify the reward: three
+	 * of the rewards across the two crates are called Enhanced Farming Access and differ only
+	 * in how long they last.
+	 */
+	private List<VoteOdds.Draw> track(List<SlotView> slots, long now) {
+		List<VoteOdds.Draw> drawn = new ArrayList<>(REEL_COUNT);
 		for (int i = 0; i < REEL_COUNT; i++) {
-			String name = SlotView.nameAt(slots, REELS[i]);
+			SlotView slot = SlotView.at(slots, REELS[i]);
+			String name = slot == null ? "" : slot.name();
 			if (!name.equals(showing[i])) {
 				showing[i] = name;
 				changedAtMs[i] = now;
 			}
-			drawn.add(name);
+			drawn.add(new VoteOdds.Draw(name,
+					VoteOdds.intrinsicLore(slot == null ? List.of() : slot.lore())));
 		}
 		return drawn;
 	}
@@ -198,8 +210,9 @@ public final class VoteRollBoard extends CasinoPanel {
 		return choosing || (changedAtMs[reel] > 0L && now - changedAtMs[reel] >= LOCK_MS);
 	}
 
-	private void reel(DrawContext context, TextRenderer font, int index, String name,
+	private void reel(DrawContext context, TextRenderer font, int index, VoteOdds.Draw draw,
 			VoteOdds.Table table, boolean rarest, long now) {
+		String name = draw.item();
 		int cx = CENTRE_X + (index - 1) * REEL_GAP;
 		boolean settled = locked(index, now);
 		// A reel still cycling shivers by a pixel, which reads as motion at a cadence too fast
@@ -237,7 +250,14 @@ public final class VoteRollBoard extends CasinoPanel {
 		if (!settled) {
 			return;
 		}
-		Double chance = table.chance(name);
+		// The one thing a voter reward's name can leave out and still change what it is worth.
+		String duration = VoteOdds.duration(draw.lore());
+		if (!duration.isEmpty()) {
+			CrateChamber.centred(context, font, font.trimToWidth(duration, NAME_W), cx,
+					DURATION_Y, TEXT_DIM);
+		}
+
+		Double chance = table.chance(name, draw.lore());
 		if (chance == null) {
 			CrateChamber.centred(context, font, "odds unknown", cx, CHANCE_Y, TEXT_FAINT);
 			return;
@@ -247,7 +267,7 @@ public final class VoteRollBoard extends CasinoPanel {
 	}
 
 	private void foot(DrawContext context, TextRenderer font, VoteOdds.Table table,
-			List<String> drawn) {
+			List<VoteOdds.Draw> drawn) {
 		if (choosing && VoteOdds.rarest(table, drawn) < 0) {
 			// Worth saying only because the absence of a flag would otherwise look like the
 			// odds failed to load. Everything else this line used to say — that there are
@@ -265,15 +285,15 @@ public final class VoteRollBoard extends CasinoPanel {
 	 * voter crates share only a handful of rewards, so this is usually decisive — and where it
 	 * is not, an empty table shows no figures rather than the wrong crate's.
 	 */
-	private static VoteOdds.Table tableFor(List<String> drawn) {
+	private static VoteOdds.Table tableFor(List<VoteOdds.Draw> drawn) {
 		VoteOdds.Table best = VoteOdds.Table.EMPTY;
 		int bestHits = 0;
 		boolean tied = false;
 		for (String crate : crates()) {
 			VoteOdds.Table table = tableFor(crate);
 			int hits = 0;
-			for (String name : drawn) {
-				if (table.chance(name) != null) {
+			for (VoteOdds.Draw draw : drawn) {
+				if (table.chance(draw.item(), draw.lore()) != null) {
 					hits++;
 				}
 			}

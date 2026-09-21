@@ -510,7 +510,10 @@ public class LabsAddonsConfig {
 				// reward, which is worse here than showing none.
 				if (entry != null && entry.crate != null && !entry.crate.isBlank()
 						&& entry.item != null && !entry.item.isBlank() && entry.chance > 0d) {
-					clean.voteCrateOdds.add(entry);
+					// A null lore list from a hand-edited file would throw on the first lookup
+					// of a reward whose name another shares.
+					clean.voteCrateOdds.add(new dev.jade.labsaddons.crate.VoteOddsEntry(
+							entry.crate, entry.item, entry.chance, entry.lore()));
 				}
 			}
 		}

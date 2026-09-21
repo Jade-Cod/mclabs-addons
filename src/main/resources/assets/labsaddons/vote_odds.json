@@ -14,7 +14,12 @@
   },
   {
    "item": "Enhanced Farming Access",
-   "chance": 0.9
+   "chance": 0.9,
+   "lore": [
+    "Info: /efarm",
+    "",
+    "Duration: 90 minutes"
+   ]
   },
   {
    "item": "mcMMO Credit x20",
@@ -30,23 +35,44 @@
   },
   {
    "item": "Voter Armour Set",
-   "chance": 2.8
+   "chance": 2.8,
+   "lore": [
+    "Protection III",
+    "Unbreaking II"
+   ]
   },
   {
    "item": "Voter Shovel",
-   "chance": 2.8
+   "chance": 2.8,
+   "lore": [
+    "Efficiency IV",
+    "Unbreaking II"
+   ]
   },
   {
    "item": "Voter Pickaxe",
-   "chance": 2.8
+   "chance": 2.8,
+   "lore": [
+    "Efficiency IV",
+    "Unbreaking II"
+   ]
   },
   {
    "item": "Voter Axe",
-   "chance": 2.8
+   "chance": 2.8,
+   "lore": [
+    "Efficiency IV",
+    "Unbreaking II"
+   ]
   },
   {
    "item": "Enhanced Farming Access",
-   "chance": 2.8
+   "chance": 2.8,
+   "lore": [
+    "Info: /efarm",
+    "",
+    "Duration: 60 minutes"
+   ]
   },
   {
    "item": "Vote Token x3",
@@ -106,7 +132,10 @@
   },
   {
    "item": "Potion of Invisibility",
-   "chance": 7.6
+   "chance": 7.6,
+   "lore": [
+    "Invisibility (12:00)"
+   ]
   }
  ],
  "Deluxe Voter Crate": [
@@ -120,27 +149,62 @@
   },
   {
    "item": "Deluxe Voter Armour Set",
-   "chance": 1.0
+   "chance": 1.0,
+   "lore": [
+    "Protection IV",
+    "Unbreaking III"
+   ]
   },
   {
    "item": "Deluxe Voter Sword",
-   "chance": 2.0
+   "chance": 2.0,
+   "lore": [
+    "Sharpness V",
+    "Fire Aspect II",
+    "Unbreaking III",
+    "Mending"
+   ]
   },
   {
    "item": "Deluxe Voter Pickaxe",
-   "chance": 2.0
+   "chance": 2.0,
+   "lore": [
+    "Fortune III",
+    "Efficiency V",
+    "Unbreaking III",
+    "Mending"
+   ]
   },
   {
    "item": "Deluxe Voter Shovel",
-   "chance": 2.0
+   "chance": 2.0,
+   "lore": [
+    "Fortune III",
+    "Efficiency V",
+    "Unbreaking III",
+    "Mending"
+   ]
   },
   {
    "item": "Deluxe Voter Axe",
-   "chance": 2.0
+   "chance": 2.0,
+   "lore": [
+    "Fortune III",
+    "Efficiency V",
+    "Unbreaking III",
+    "Mending"
+   ]
   },
   {
    "item": "Deluxe Voter Bow",
-   "chance": 2.0
+   "chance": 2.0,
+   "lore": [
+    "Power V",
+    "Punch II",
+    "Unbreaking III",
+    "Infinity",
+    "Mending"
+   ]
   },
   {
    "item": "Mount Rental Coupon (60m)",
@@ -184,7 +248,12 @@
   },
   {
    "item": "Enhanced Farming Access",
-   "chance": 4.0
+   "chance": 4.0,
+   "lore": [
+    "Info: /efarm",
+    "",
+    "Duration: 120 minutes"
+   ]
   },
   {
    "item": "Tag Key Crate Key",

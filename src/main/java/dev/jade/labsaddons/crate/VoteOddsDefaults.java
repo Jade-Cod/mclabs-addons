@@ -69,7 +69,19 @@ final class VoteOddsDefaults {
 		for (JsonElement element : rewards) {
 			JsonObject reward = element.getAsJsonObject();
 			out.add(new VoteOddsEntry(crate, reward.get("item").getAsString(),
-					reward.get("chance").getAsDouble()));
+					reward.get("chance").getAsDouble(), lore(reward)));
+		}
+		return out;
+	}
+
+	/** A reward's own lore, absent from the file for the many rewards that have none. */
+	private static List<String> lore(JsonObject reward) {
+		if (!reward.has("lore")) {
+			return List.of();
+		}
+		List<String> out = new ArrayList<>();
+		for (JsonElement line : reward.getAsJsonArray("lore")) {
+			out.add(line.getAsString());
 		}
 		return out;
 	}
