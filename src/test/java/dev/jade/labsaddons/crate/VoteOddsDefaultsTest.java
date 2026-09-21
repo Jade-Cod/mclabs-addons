@@ -87,6 +87,17 @@ class VoteOddsDefaultsTest {
 		assertEquals(0, VoteOdds.rarest(table, drawn));
 	}
 
+	@Test
+	void theFiftyThousandKeepsTheServersOwnSpacedSpelling() {
+		// Every other cash reward is written with a comma. This one is "$50 000", with a space,
+		// in the odds menu and on the roll screen alike — measured byte for byte in both dumps.
+		// Tidying it to "$50,000" would make the lookup miss, and the reward would show "odds
+		// unknown" on the one screen where the figure decides what a player clicks.
+		VoteOdds.Table table =
+				VoteOdds.Table.of(VoteOddsDefaults.get().get("Deluxe Voter Crate"));
+		assertEquals(5.0d, table.chance("$50 000"));
+	}
+
 	private static double total(String crate) {
 		return VoteOddsDefaults.get().get(crate).stream()
 				.mapToDouble(entry -> entry.chance).sum();

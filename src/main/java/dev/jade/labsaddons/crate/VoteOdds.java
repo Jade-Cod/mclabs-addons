@@ -221,14 +221,37 @@ public final class VoteOdds {
 	}
 
 	/**
+	 * Whether every one of the draws has a figure in this table.
+	 *
+	 * <p>What {@link #rarest} rests on, and the difference between "these are equally rare" and
+	 * "the odds are not in hand" — which look identical from the outside and mean the opposite.
+	 */
+	public static boolean allKnown(Table table, List<Draw> drawn) {
+		if (table == null || drawn == null || drawn.isEmpty()) {
+			return false;
+		}
+		for (Draw draw : drawn) {
+			if (table.chance(draw.item(), draw.lore()) == null) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Which of the drawn rewards is the rarest, or -1 when nothing is known about them or two
 	 * are equally rare.
 	 *
 	 * <p>Deliberately "rarest" and not "best": a $75,000 at 3% and a Mystery Crate Key at 1%
 	 * are not ranked by odds alone, and the mod has no business deciding which a player wants.
+	 *
+	 * <p>And only when <em>all</em> of them are known. An unknown draw used to be skipped, so a
+	 * 5% could be flagged the rarest of the three while the draw beside it was a 0.5% the table
+	 * had no figure for — the mod pointing confidently at the wrong one, which is worse than it
+	 * pointing at nothing.
 	 */
 	public static int rarest(Table table, List<Draw> drawn) {
-		if (table == null || drawn == null) {
+		if (!allKnown(table, drawn)) {
 			return -1;
 		}
 		int found = -1;

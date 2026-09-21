@@ -106,6 +106,9 @@ public abstract class CasinoPanel {
 	private long predictedAtMs;
 	private float hoverX;
 	private float hoverY;
+	/** The cursor in screen coordinates, which is the only place a tooltip can be drawn. */
+	private int screenMouseX;
+	private int screenMouseY;
 	private int panelX;
 	private int panelY;
 	private float panelScale = 1f;
@@ -290,6 +293,8 @@ public abstract class CasinoPanel {
 		panelY = Math.round((h - panelH * panelScale) / 2f);
 		hoverX = (mouseX - panelX) / panelScale;
 		hoverY = (mouseY - panelY) / panelScale;
+		screenMouseX = mouseX;
+		screenMouseY = mouseY;
 
 		context.getMatrices().pushMatrix();
 		context.getMatrices().translate(panelX, panelY);
@@ -428,6 +433,24 @@ public abstract class CasinoPanel {
 	/** Whether the cursor is over this rectangle, in panel coordinates. */
 	protected final boolean hovered(int x, int y, int w, int h) {
 		return hoverX >= x && hoverX < x + w && hoverY >= y && hoverY < y + h;
+	}
+
+	/**
+	 * Shows the item's own tooltip, exactly as the container it replaces would have.
+	 *
+	 * <p>Worth having wherever a board asks the player to choose between real items: a Deluxe
+	 * Voter Sword's four enchantments are nowhere in its name, and the board suppresses the
+	 * vanilla tooltip that would have shown them.
+	 *
+	 * <p>Takes the cursor in <em>screen</em> coordinates rather than the panel ones every hit
+	 * test uses, because {@code DrawContext} defers tooltips to the end of the frame and keeps
+	 * no copy of the matrix — by the time it draws, the panel's transform is long popped.
+	 */
+	protected final void tooltip(DrawContext context, TextRenderer font, ItemStack stack) {
+		if (stack == null || stack.isEmpty()) {
+			return;
+		}
+		context.drawItemTooltip(font, stack, screenMouseX, screenMouseY);
 	}
 
 	/** Registers a clickable rectangle that forwards an ordinary click to {@code slot}. */

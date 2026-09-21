@@ -10,7 +10,9 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.util.Util;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The voter crate: three reels, then a choice.
@@ -74,8 +76,18 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int FOOT_Y = 145;
 	/** Sized to the three reels and their figures, not to a chest. */
 	private static final int PANEL_HEIGHT = 161;
-	private static final int PICK_W = 72;
-	private static final int PICK_H = 62;
+	/**
+	 * The clickable card, which is the whole of a reel's column and not merely its icon.
+	 *
+	 * <p>A box around the item alone stopped just under the first line of the name, so clicking
+	 * the reward's second line, its duration or its odds — the three things a player is reading
+	 * when they decide — did nothing at all, and the hover highlight cut off mid-name. Spans the
+	 * rarest tag down to the last figure, and stays inside {@link #REEL_GAP} so two cards never
+	 * overlap.
+	 */
+	private static final int CARD_W = NAME_W;
+	private static final int CARD_TOP = TAG_Y - 4;
+	private static final int CARD_H = ONE_IN_Y + LINE_H - CARD_TOP;
 
 	/**
 	 * How long a reel must hold the same reward before it reads as stopped.
@@ -92,6 +104,17 @@ public final class VoteRollBoard extends CasinoPanel {
 	private final String[] showing = new String[REEL_COUNT];
 	private final long[] changedAtMs = new long[REEL_COUNT];
 	private boolean choosing;
+	/**
+	 * Which crate this roll is, once the rewards have said so.
+	 *
+	 * <p>Held for the whole roll rather than inferred per frame. The reels cycle through a
+	 * hundred rewards on the way down, and a frame whose three happen to sit in both crates'
+	 * tables is not decisive — so re-deciding every frame let a settled reel's figure flicker
+	 * between the two crates' numbers while its neighbours were still moving. One decisive frame
+	 * is enough: everything a reel shows comes from the crate actually being opened, so a table
+	 * that accounts for strictly more of them is that crate.
+	 */
+	private VoteOdds.Table crate = VoteOdds.Table.EMPTY;
 
 	private VoteRollBoard() {
 	}
@@ -164,6 +187,7 @@ public final class VoteRollBoard extends CasinoPanel {
 			showing[i] = null;
 			changedAtMs[i] = 0L;
 		}
+		crate = VoteOdds.Table.EMPTY;
 	}
 
 	@Override
@@ -173,7 +197,10 @@ public final class VoteRollBoard extends CasinoPanel {
 		choosing = CrateTitles.isVoteChoice(title);
 		List<VoteOdds.Draw> drawn = track(slots, now);
 
-		VoteOdds.Table table = tableFor(drawn);
+		if (crate.isEmpty()) {
+			crate = tableFor(drawn);
+		}
+		VoteOdds.Table table = crate;
 		int rarest = choosing ? VoteOdds.rarest(table, drawn) : -1;
 
 		header(context, font, "VOTER CRATE", choosing ? "keep one" : "rolling", TEXT_DIM);
@@ -182,6 +209,7 @@ public final class VoteRollBoard extends CasinoPanel {
 			reel(context, font, i, drawn.get(i), table, i == rarest, now);
 		}
 		foot(context, font, table, drawn);
+		hoveredTooltip(context, font);
 	}
 
 	/**
@@ -218,14 +246,14 @@ public final class VoteRollBoard extends CasinoPanel {
 		// A reel still cycling shivers by a pixel, which reads as motion at a cadence too fast
 		// to follow otherwise.
 		int jitter = settled ? 0 : (((int) (now / 60L) + index) % 2 == 0 ? SHIVER : -SHIVER);
-		boolean hot = choosing && hovered(cx - PICK_W / 2, REEL_Y - PICK_H / 2, PICK_W, PICK_H);
+		int cardX = cardX(index);
+		boolean hot = choosing && hovered(cardX, CARD_TOP, CARD_W, CARD_H);
 
 		if (choosing) {
 			if (hot) {
-				context.fill(cx - PICK_W / 2, REEL_Y - PICK_H / 2, cx + PICK_W / 2,
-						REEL_Y + PICK_H / 2, ROW_HOVER);
+				context.fill(cardX, CARD_TOP, cardX + CARD_W, CARD_TOP + CARD_H, ROW_HOVER);
 			}
-			clickable(cx - PICK_W / 2, REEL_Y - PICK_H / 2, PICK_W, PICK_H, REELS[index]);
+			clickable(cardX, CARD_TOP, CARD_W, CARD_H, REELS[index]);
 		}
 
 		int accent = rarest ? accent() : (hot ? 0xFFFFFFFF : TEXT_FAINT);
@@ -266,9 +294,34 @@ public final class VoteRollBoard extends CasinoPanel {
 		CrateChamber.centred(context, font, VoteOdds.oneIn(chance), cx, ONE_IN_Y, TEXT_FAINT);
 	}
 
+	/**
+	 * The hovered card's real item tooltip. Last, so it is queued after everything drawn under
+	 * it, and only while choosing — during the roll it would follow the cursor through a reward
+	 * a second later, and the choice is where a player needs to read the enchantments.
+	 */
+	private void hoveredTooltip(DrawContext context, TextRenderer font) {
+		if (!choosing) {
+			return;
+		}
+		for (int i = 0; i < REEL_COUNT; i++) {
+			if (hovered(cardX(i), CARD_TOP, CARD_W, CARD_H)) {
+				tooltip(context, font, stackAt(REELS[i]));
+				return;
+			}
+		}
+	}
+
+	/** The left edge of a reel's card. Shared so the hit test and the tooltip cannot drift. */
+	private static int cardX(int index) {
+		return CENTRE_X + (index - 1) * REEL_GAP - CARD_W / 2;
+	}
+
 	private void foot(DrawContext context, TextRenderer font, VoteOdds.Table table,
 			List<VoteOdds.Draw> drawn) {
-		if (choosing && VoteOdds.rarest(table, drawn) < 0) {
+		// Only when every draw's figure is in hand, so this says "these are equally rare" and
+		// never "the odds did not load" — which is what it said before, under the same words,
+		// and which reads as all three being level when in fact nothing is known.
+		if (choosing && VoteOdds.allKnown(table, drawn) && VoteOdds.rarest(table, drawn) < 0) {
 			// Worth saying only because the absence of a flag would otherwise look like the
 			// odds failed to load. Everything else this line used to say — that there are
 			// three draws, that rarest is not the same as best — the screen already shows.
@@ -289,8 +342,7 @@ public final class VoteRollBoard extends CasinoPanel {
 		VoteOdds.Table best = VoteOdds.Table.EMPTY;
 		int bestHits = 0;
 		boolean tied = false;
-		for (String crate : crates()) {
-			VoteOdds.Table table = tableFor(crate);
+		for (VoteOdds.Table table : tables().values()) {
 			int hits = 0;
 			for (VoteOdds.Draw draw : drawn) {
 				if (table.chance(draw.item(), draw.lore()) != null) {
@@ -309,6 +361,42 @@ public final class VoteRollBoard extends CasinoPanel {
 	}
 
 	/**
+	 * Every crate's table, by crate: everything the mod shipped with, plus anything seen since.
+	 *
+	 * <p>Built once and kept. Grouping twenty-seven rewards into a table is not free, and this
+	 * used to happen for both crates on every frame of a five-second animation — two tables,
+	 * four maps and fifty-odd lowercased strings, sixty to two hundred and forty times a second,
+	 * to reach an answer that had not changed.
+	 *
+	 * <p>Keyed on the remembered list by identity, which is the whole of the invalidation: a
+	 * scrape publishes a fresh list rather than editing the old one in place, so a table the
+	 * server has changed is rebuilt the moment the crate is next punched.
+	 */
+	private static Map<String, VoteOdds.Table> tables;
+	private static List<VoteOddsEntry> tablesFrom;
+
+	private static Map<String, VoteOdds.Table> tables() {
+		List<VoteOddsEntry> known = LabsAddonsConfig.get().voteCrateOdds;
+		if (tables != null && tablesFrom == known) {
+			return tables;
+		}
+		Map<String, VoteOdds.Table> built = new LinkedHashMap<>();
+		for (String crate : VoteOddsDefaults.get().keySet()) {
+			built.put(crate, tableFor(crate));
+		}
+		if (known != null) {
+			for (VoteOddsEntry entry : known) {
+				if (entry != null && entry.crate != null && !built.containsKey(entry.crate)) {
+					built.put(entry.crate, tableFor(entry.crate));
+				}
+			}
+		}
+		tables = built;
+		tablesFrom = known;
+		return built;
+	}
+
+	/**
 	 * One crate's table: what was scraped from it if anything, otherwise what shipped.
 	 *
 	 * <p>Not merged. A scrape is the whole of that crate's current table, so mixing it with the
@@ -321,20 +409,6 @@ public final class VoteRollBoard extends CasinoPanel {
 			return VoteOdds.Table.of(scraped);
 		}
 		return VoteOdds.Table.of(VoteOddsDefaults.get().get(crate));
-	}
-
-	/** Every crate either shipped with the mod or seen since. */
-	private static List<String> crates() {
-		List<String> out = new ArrayList<>(VoteOddsDefaults.get().keySet());
-		List<VoteOddsEntry> known = LabsAddonsConfig.get().voteCrateOdds;
-		if (known != null) {
-			for (VoteOddsEntry entry : known) {
-				if (entry != null && entry.crate != null && !out.contains(entry.crate)) {
-					out.add(entry.crate);
-				}
-			}
-		}
-		return out;
 	}
 
 	/**
