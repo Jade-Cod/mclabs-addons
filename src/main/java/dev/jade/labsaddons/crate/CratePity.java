@@ -4,6 +4,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeMap;
 
 /**
  * The server's pity ladder: how likely each rarity is on your next crate roll, and how many
@@ -35,9 +37,6 @@ public final class CratePity {
 	 */
 	public static final List<CrateRarity> TRACKED = List.of(
 			CrateRarity.EXCEEDINGLY_RARE, CrateRarity.SUPER_RARE, CrateRarity.VERY_RARE);
-
-	/** Rolls to a page of the server's odds menu. */
-	public static final int PAGE = 9;
 
 	/**
 	 * How long after a roll another signal for one is taken to be the same roll.
@@ -121,10 +120,8 @@ public final class CratePity {
 	// --- the counters --------------------------------------------------------
 
 	/**
-	 * Which roll the next spin will be for this rarity, or 0 if the odds menu has never been
-	 * opened for it and there is therefore nothing to count from.
-	 *
-	 * <p>A lower bound, never an overstatement: see {@link #anchored}.
+	 * Which roll the next spin will be for this rarity — how long it has been dry — or 0 if the
+	 * odds menu has never been opened for it and there is therefore nothing to count from.
 	 */
 	public static int roll(Map<String, Integer> rolls, CrateRarity rarity) {
 		if (rolls == null || rarity == null) {
@@ -157,28 +154,62 @@ public final class CratePity {
 	}
 
 	/**
-	 * The counters after the odds menu opened on the page beginning at {@code firstOnPage},
-	 * or null if it told us nothing new.
+	 * Which roll the player is on, read off a page of the odds menu, or 0 if this page cannot
+	 * say.
 	 *
-	 * <p>The menu opens on the page holding your current roll and marks none of the nine, so
-	 * this can only pin the count to a window that wide. It takes the bottom of the window,
-	 * which makes every count here a floor and every chance drawn from one an understatement —
-	 * the right direction to be wrong in, and worth at most 0.01% anywhere past roll 30.
+	 * <p>The menu draws a roll already spent with a different head from one still ahead — the
+	 * spent ones an opened crate, the rest a closed one — so the page marks the boundary even
+	 * though it labels nothing. The spent rolls are a prefix, and the first head past them is
+	 * the roll about to happen.
 	 *
-	 * <p>A count already inside the page is left alone: it is as good as anything the page
-	 * could say, and better, since it has real rolls behind it.
+	 * <p>Which side is which never has to be decided: only the change matters. A page with no
+	 * change on it is one the player has walked back or forward to, or the rare case of their
+	 * being on its very first roll, and it says nothing rather than guessing. So does a page
+	 * showing three kinds of head, which is not the shape this reads and is the only way a
+	 * server change could turn this into a wrong number instead of no number.
+	 *
+	 * @param page each head's roll number against a key for how that head is drawn; anything
+	 *             that differs between a spent roll and one ahead will do, since the keys are
+	 *             only ever compared with each other
+	 */
+	public static int currentRoll(Map<Integer, ?> page) {
+		if (page == null || page.size() < 2) {
+			return 0;
+		}
+		TreeMap<Integer, ?> byRoll = new TreeMap<>(page);
+		Object spent = byRoll.firstEntry().getValue();
+		Object ahead = null;
+		int current = 0;
+		for (Map.Entry<Integer, ?> head : byRoll.entrySet()) {
+			Object mark = head.getValue();
+			if (Objects.equals(mark, spent)) {
+				// A spent head after an unspent one: not the two runs this reads.
+				if (ahead != null) {
+					return 0;
+				}
+				continue;
+			}
+			if (ahead == null) {
+				ahead = mark;
+				current = head.getKey();
+			} else if (!Objects.equals(mark, ahead)) {
+				return 0;
+			}
+		}
+		return current;
+	}
+
+	/**
+	 * The counters after the odds menu said the player is on {@code roll}, or null if that is
+	 * where they already were.
 	 */
 	public static Map<String, Integer> anchored(Map<String, Integer> rolls, CrateRarity rarity,
-			int firstOnPage) {
-		if (rarity == null || firstOnPage < 1) {
-			return null;
-		}
-		int at = roll(rolls, rarity);
-		if (at >= firstOnPage && at <= firstOnPage + PAGE - 1) {
+			int roll) {
+		if (rarity == null || roll < 1 || roll(rolls, rarity) == roll) {
 			return null;
 		}
 		Map<String, Integer> next = copy(rolls);
-		next.put(rarity.name(), firstOnPage);
+		next.put(rarity.name(), roll);
 		return next;
 	}
 

@@ -150,19 +150,56 @@ class CratePityTest {
 
 	// --- anchoring off the odds menu -----------------------------------------
 
+	/**
+	 * The odds page states where you are exactly: a roll already spent is drawn as an opened
+	 * crate and one still ahead as a closed one, so the first head past the opened ones is the
+	 * roll about to happen. The figures here are the page as captured in-game — rolls #216 to
+	 * #224 with #219 current, which is three spent and six ahead.
+	 */
 	@Test
-	void anchoringTakesTheBottomOfThePageAndOnlyWhenItSaysSomethingNew() {
+	void theBoundaryBetweenSpentAndUnspentHeadsIsTheCurrentRoll() {
+		assertEquals(219, CratePity.currentRoll(page(216, 3)));
+		// The first roll of a page: eight ahead and one spent behind it.
+		assertEquals(217, CratePity.currentRoll(page(216, 1)));
+		// And the last: everything before it is gone.
+		assertEquals(224, CratePity.currentRoll(page(216, 8)));
+	}
+
+	/**
+	 * A page with nothing to mark cannot say where you are, and saying so is the whole point:
+	 * paging back through the menu walks over pages that are entirely spent, and anchoring to
+	 * the top of one of those would throw away a count with hundreds of rolls behind it.
+	 */
+	@Test
+	void aPageWithNoBoundaryOnItSaysNothing() {
+		assertEquals(0, CratePity.currentRoll(page(216, 9)));
+		assertEquals(0, CratePity.currentRoll(page(216, 0)));
+		assertEquals(0, CratePity.currentRoll(Map.of()));
+		assertEquals(0, CratePity.currentRoll(null));
+	}
+
+	/** Two runs and no more. Three kinds of head is not this shape, and is read as nothing. */
+	@Test
+	void aPageThatIsNotTwoRunsSaysNothing() {
+		Map<Integer, String> scrambled = new LinkedHashMap<>(page(216, 4));
+		scrambled.put(217, "a third kind");
+		assertEquals(0, CratePity.currentRoll(scrambled));
+		Map<Integer, String> spentAgain = new LinkedHashMap<>(page(216, 4));
+		spentAgain.put(222, "spent");
+		assertEquals(0, CratePity.currentRoll(spentAgain));
+	}
+
+	@Test
+	void anchoringTakesTheRollTheMenuNamesAndOnlyWhenItIsNews() {
 		Map<String, Integer> anchored =
-				CratePity.anchored(new LinkedHashMap<>(), CrateRarity.EXCEEDINGLY_RARE, 190);
-		assertEquals(190, CratePity.roll(anchored, CrateRarity.EXCEEDINGLY_RARE));
-		// A count already inside the same page of nine has real rolls behind it; leave it.
-		assertNull(CratePity.anchored(anchored, CrateRarity.EXCEEDINGLY_RARE, 190));
-		Map<String, Integer> walked = counts(198, 19, 4);
-		assertNull(CratePity.anchored(walked, CrateRarity.EXCEEDINGLY_RARE, 190));
-		// One page on, and the count has to follow.
-		Map<String, Integer> moved =
-				CratePity.anchored(walked, CrateRarity.EXCEEDINGLY_RARE, 199);
-		assertEquals(199, CratePity.roll(moved, CrateRarity.EXCEEDINGLY_RARE));
+				CratePity.anchored(new LinkedHashMap<>(), CrateRarity.EXCEEDINGLY_RARE, 219);
+		assertEquals(219, CratePity.roll(anchored, CrateRarity.EXCEEDINGLY_RARE));
+		assertNull(CratePity.anchored(anchored, CrateRarity.EXCEEDINGLY_RARE, 219));
+		assertNull(CratePity.anchored(anchored, CrateRarity.EXCEEDINGLY_RARE, 0));
+		// A count that has drifted — rolls opened on another client, say — is corrected.
+		Map<String, Integer> corrected =
+				CratePity.anchored(anchored, CrateRarity.EXCEEDINGLY_RARE, 231);
+		assertEquals(231, CratePity.roll(corrected, CrateRarity.EXCEEDINGLY_RARE));
 	}
 
 	@Test
@@ -231,6 +268,15 @@ class CratePityTest {
 					Math.round(CratePity.chance(rarity, roll) * 1000d),
 					rarity + " roll #" + roll);
 		}
+	}
+
+	/** One page of nine heads from roll {@code first}, the first {@code spent} of them used. */
+	private static Map<Integer, String> page(int first, int spent) {
+		Map<Integer, String> heads = new LinkedHashMap<>();
+		for (int i = 0; i < 9; i++) {
+			heads.put(first + i, i < spent ? "spent" : "ahead");
+		}
+		return heads;
 	}
 
 	private static Map<String, Integer> counts(int exceedingly, int superRare, int veryRare) {
