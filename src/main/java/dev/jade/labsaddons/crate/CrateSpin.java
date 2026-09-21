@@ -250,8 +250,9 @@ public final class CrateSpin {
 	}
 
 	/**
-	 * Visible for testing: how many candidates have been eliminated. Nothing drawn uses it,
-	 * but it is how a test sees that the winner's walk to the centre added none.
+	 * How many candidates have been eliminated, which is how far through the spin this is.
+	 *
+	 * <p>Also how a test sees that the winner's walk to the centre added none.
 	 */
 	int culls() {
 		return culls;

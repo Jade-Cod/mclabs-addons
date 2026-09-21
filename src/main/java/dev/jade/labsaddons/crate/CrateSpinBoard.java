@@ -202,10 +202,16 @@ public final class CrateSpinBoard extends CasinoPanel {
 		return cells;
 	}
 
-	/** How narrow the field has become, 0 with all nine up and 1 with one left. */
+	/**
+	 * How narrow the field has become: 0 until the first candidate dies, 1 once one is left.
+	 *
+	 * <p>Counted off the eliminations rather than off how many are alive. Alive starts at nought
+	 * too — for the second before the first candidate lands — so reading it that way had the
+	 * chamber at its very darkest over an empty screen, then brightening as the nine arrived.
+	 * Exactly backwards, and the first thing a player sees.
+	 */
 	private float tightness() {
-		int alive = Math.max(1, spin.aliveCount());
-		return 1f - (alive - 1f) / (CrateSpin.COLUMNS - 1f);
+		return spin.culls() / (float) CrateSpin.TOTAL_CULLS;
 	}
 
 	// --- the chamber ---------------------------------------------------------

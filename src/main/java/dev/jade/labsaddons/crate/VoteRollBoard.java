@@ -28,9 +28,10 @@ import java.util.Map;
  * draw — the single most useful thing the mod can do here, since the whole decision is
  * otherwise made blind.
  *
- * <p>It says <em>rarest</em> and never <em>best</em>. A $75,000 at 3% against a Mystery Crate
- * Key at 1% is not a ranking the odds can settle, and picking for the player would be the mod
- * overstepping.
+ * <p>It states the figures and stops there. It used to flag the rarest of the three as well,
+ * which was one judgement too many on a screen already showing three percentages: a $75,000 at
+ * 3% against a Mystery Crate Key at 1% is not a ranking the odds can settle, so the ranking was
+ * never worth as much as the room it took.
  */
 public final class VoteRollBoard extends CasinoPanel {
 	public static final VoteRollBoard INSTANCE = new VoteRollBoard();
@@ -64,7 +65,6 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int NAME_LINES = 2;
 	private static final int LINE_H = 10;
 	private static final int REEL_Y = 62;
-	private static final int TAG_Y = REEL_Y - 24;
 	private static final int NAME_Y = REEL_Y + 22;
 	/**
 	 * Below both name lines whether or not the second is used, and below the duration whether
@@ -73,20 +73,19 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int DURATION_Y = NAME_Y + NAME_LINES * LINE_H + 1;
 	private static final int CHANCE_Y = DURATION_Y + 11;
 	private static final int ONE_IN_Y = CHANCE_Y + 10;
-	private static final int FOOT_Y = 145;
 	/** Sized to the three reels and their figures, not to a chest. */
-	private static final int PANEL_HEIGHT = 161;
+	private static final int PANEL_HEIGHT = 144;
 	/**
 	 * The clickable card, which is the whole of a reel's column and not merely its icon.
 	 *
 	 * <p>A box around the item alone stopped just under the first line of the name, so clicking
 	 * the reward's second line, its duration or its odds — the three things a player is reading
 	 * when they decide — did nothing at all, and the hover highlight cut off mid-name. Spans the
-	 * rarest tag down to the last figure, and stays inside {@link #REEL_GAP} so two cards never
-	 * overlap.
+	 * whole column down to the last figure, and stays inside {@link #REEL_GAP} so two cards
+	 * never overlap.
 	 */
 	private static final int CARD_W = NAME_W;
-	private static final int CARD_TOP = TAG_Y - 4;
+	private static final int CARD_TOP = 34;
 	private static final int CARD_H = ONE_IN_Y + LINE_H - CARD_TOP;
 
 	/**
@@ -98,11 +97,29 @@ public final class VoteRollBoard extends CasinoPanel {
 	 * a frame optimistic here costs a flicker, not a wrong reading.
 	 */
 	private static final long LOCK_MS = 260L;
-	/** How far a still-spinning reward shivers, in pixels. */
-	private static final int SHIVER = 1;
+	/**
+	 * One step of the belt: how far a reward travels between the server swapping the slot and
+	 * swapping it again, and equally the height of the window it travels through. The two are
+	 * the same number so exactly one reward is ever fully in view.
+	 */
+	private static final int REEL_STEP = 30;
+	/**
+	 * How long that step takes. A shade longer than the server's own hundred-millisecond
+	 * cadence, so a reel still spinning is always mid-step and the belt never appears to stop
+	 * between rewards — and the last step, which has no successor to interrupt it, lands the
+	 * final reward in the middle.
+	 */
+	private static final long SLIDE_MS = 120L;
+	private static final float ROLL_SCALE = 1.2f;
+	private static final float PICK_SCALE = 1.5f;
+	/** A spinning reward is dimmer than a settled one, which is most of what says it is moving. */
+	private static final float ROLL_ALPHA = 0.75f;
 
 	private final String[] showing = new String[REEL_COUNT];
 	private final long[] changedAtMs = new long[REEL_COUNT];
+	/** What each reel is showing, and what it showed a step ago — the two halves of the belt. */
+	private final ItemStack[] shown = new ItemStack[REEL_COUNT];
+	private final ItemStack[] previous = new ItemStack[REEL_COUNT];
 	private boolean choosing;
 	/**
 	 * Which crate this roll is, once the rewards have said so.
@@ -186,6 +203,8 @@ public final class VoteRollBoard extends CasinoPanel {
 		for (int i = 0; i < REEL_COUNT; i++) {
 			showing[i] = null;
 			changedAtMs[i] = 0L;
+			shown[i] = null;
+			previous[i] = null;
 		}
 		crate = VoteOdds.Table.EMPTY;
 	}
@@ -200,15 +219,12 @@ public final class VoteRollBoard extends CasinoPanel {
 		if (crate.isEmpty()) {
 			crate = tableFor(drawn);
 		}
-		VoteOdds.Table table = crate;
-		int rarest = choosing ? VoteOdds.rarest(table, drawn) : -1;
 
-		header(context, font, "VOTER CRATE", choosing ? "keep one" : "rolling", TEXT_DIM);
+		header(context, font, "VOTER CRATE", choosing ? "Choose One" : "rolling", TEXT_DIM);
 
 		for (int i = 0; i < REEL_COUNT; i++) {
-			reel(context, font, i, drawn.get(i), table, i == rarest, now);
+			reel(context, font, i, drawn.get(i), crate, now);
 		}
-		foot(context, font, table, drawn);
 		hoveredTooltip(context, font);
 	}
 
@@ -225,9 +241,11 @@ public final class VoteRollBoard extends CasinoPanel {
 			SlotView slot = SlotView.at(slots, REELS[i]);
 			String name = slot == null ? "" : slot.name();
 			if (!name.equals(showing[i])) {
+				previous[i] = shown[i];
 				showing[i] = name;
 				changedAtMs[i] = now;
 			}
+			shown[i] = stackAt(REELS[i]);
 			drawn.add(new VoteOdds.Draw(name,
 					VoteOdds.intrinsicLore(slot == null ? List.of() : slot.lore())));
 		}
@@ -239,13 +257,10 @@ public final class VoteRollBoard extends CasinoPanel {
 	}
 
 	private void reel(DrawContext context, TextRenderer font, int index, VoteOdds.Draw draw,
-			VoteOdds.Table table, boolean rarest, long now) {
+			VoteOdds.Table table, long now) {
 		String name = draw.item();
 		int cx = CENTRE_X + (index - 1) * REEL_GAP;
 		boolean settled = locked(index, now);
-		// A reel still cycling shivers by a pixel, which reads as motion at a cadence too fast
-		// to follow otherwise.
-		int jitter = settled ? 0 : (((int) (now / 60L) + index) % 2 == 0 ? SHIVER : -SHIVER);
 		int cardX = cardX(index);
 		boolean hot = choosing && hovered(cardX, CARD_TOP, CARD_W, CARD_H);
 
@@ -256,17 +271,11 @@ public final class VoteRollBoard extends CasinoPanel {
 			clickable(cardX, CARD_TOP, CARD_W, CARD_H, REELS[index]);
 		}
 
-		int accent = rarest ? accent() : (hot ? 0xFFFFFFFF : TEXT_FAINT);
-		// A voter crate has no rarities, so the frame carries the one thing worth marking.
-		CrateChamber.mote(context, stackAt(REELS[index]),
-				rarest ? accent() : CrateChamber.NEUTRAL, cx, REEL_Y + jitter,
-				choosing ? 1.5f : 1.2f, settled ? 1f : 0.75f);
-
-		if (rarest) {
-			String tag = "rarest of the three";
-			context.fill(cx - font.getWidth(tag) / 2 - 3, TAG_Y - 2,
-					cx + font.getWidth(tag) / 2 + 3, TAG_Y + font.fontHeight, shade(accent(), 40));
-			CrateChamber.centred(context, font, tag, cx, TAG_Y, accent());
+		if (settled) {
+			CrateChamber.mote(context, stackAt(REELS[index]), CrateChamber.NEUTRAL, cx, REEL_Y,
+					choosing ? PICK_SCALE : ROLL_SCALE, 1f);
+		} else {
+			belt(context, index, cx, now);
 		}
 
 		List<String> label = wrap(font, name, NAME_W);
@@ -290,8 +299,32 @@ public final class VoteRollBoard extends CasinoPanel {
 			CrateChamber.centred(context, font, "odds unknown", cx, CHANCE_Y, TEXT_FAINT);
 			return;
 		}
-		CrateChamber.centred(context, font, trim(chance) + "%", cx, CHANCE_Y, accent);
+		CrateChamber.centred(context, font, trim(chance) + "%", cx, CHANCE_Y,
+				hot ? 0xFFFFFFFF : TEXT);
 		CrateChamber.centred(context, font, VoteOdds.oneIn(chance), cx, ONE_IN_Y, TEXT_FAINT);
+	}
+
+	/**
+	 * A reel mid-spin: the outgoing reward sliding down out of the window as the new one drops
+	 * in behind it, clipped so neither escapes into the name underneath.
+	 *
+	 * <p>The server swaps the slot about every hundred milliseconds and never says what is
+	 * coming, so there is no strip to scroll — but two rewards moving one step apart is what a
+	 * strip looks like through a window this size, and the steps run together into one belt at
+	 * that cadence. It stops the way a real reel does, because the last step still has to finish
+	 * after the server has stopped sending: the final reward slides to the middle and stays.
+	 */
+	private void belt(DrawContext context, int index, int cx, long now) {
+		float step = Math.clamp((now - changedAtMs[index]) / (float) SLIDE_MS, 0f, 1f);
+		context.enableScissor(cx - CARD_W / 2, REEL_Y - REEL_STEP / 2,
+				cx + CARD_W / 2, REEL_Y + REEL_STEP / 2);
+		if (previous[index] != null) {
+			CrateChamber.mote(context, previous[index], CrateChamber.NEUTRAL, cx,
+					REEL_Y + REEL_STEP * step, ROLL_SCALE, ROLL_ALPHA);
+		}
+		CrateChamber.mote(context, stackAt(REELS[index]), CrateChamber.NEUTRAL, cx,
+				REEL_Y - REEL_STEP * (1f - step), ROLL_SCALE, ROLL_ALPHA);
+		context.disableScissor();
 	}
 
 	/**
@@ -314,20 +347,6 @@ public final class VoteRollBoard extends CasinoPanel {
 	/** The left edge of a reel's card. Shared so the hit test and the tooltip cannot drift. */
 	private static int cardX(int index) {
 		return CENTRE_X + (index - 1) * REEL_GAP - CARD_W / 2;
-	}
-
-	private void foot(DrawContext context, TextRenderer font, VoteOdds.Table table,
-			List<VoteOdds.Draw> drawn) {
-		// Only when every draw's figure is in hand, so this says "these are equally rare" and
-		// never "the odds did not load" — which is what it said before, under the same words,
-		// and which reads as all three being level when in fact nothing is known.
-		if (choosing && VoteOdds.allKnown(table, drawn) && VoteOdds.rarest(table, drawn) < 0) {
-			// Worth saying only because the absence of a flag would otherwise look like the
-			// odds failed to load. Everything else this line used to say — that there are
-			// three draws, that rarest is not the same as best — the screen already shows.
-			CrateChamber.centred(context, font, "no single rarest draw", CENTRE_X, FOOT_Y,
-					TEXT_FAINT);
-		}
 	}
 
 	/**

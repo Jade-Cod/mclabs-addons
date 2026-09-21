@@ -84,7 +84,6 @@ class VoteOddsDefaultsTest {
 		assertEquals(2.8d, table.chance(drawn.get(0).item(), drawn.get(0).lore()));
 		assertEquals(3.8d, table.chance(drawn.get(1).item(), drawn.get(1).lore()));
 		assertEquals(5.7d, table.chance(drawn.get(2).item(), drawn.get(2).lore()));
-		assertEquals(0, VoteOdds.rarest(table, drawn));
 	}
 
 	@Test

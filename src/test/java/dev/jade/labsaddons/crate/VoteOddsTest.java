@@ -49,49 +49,6 @@ class VoteOddsTest {
 	}
 
 	@Test
-	void theRarestOfThreeIsTheLowestChance() {
-		// The real draw captured in votecrate-roll.jsonl: one 1.9% beside two 7.6%.
-		VoteOdds.Table table = VoteOdds.Table.of(table(
-				"mcMMO Credit x20", 1.9d,
-				"$3,000", 7.6d));
-		assertEquals(0, VoteOdds.rarest(table, drawn("mcMMO Credit x20", "$3,000", "$3,000")));
-	}
-
-	@Test
-	void anUnknownDrawStopsAnythingBeingCalledTheRarest() {
-		// The dangerous case: a 5% flagged "rarest of the three" while the draw beside it is a
-		// 0.5% the table has no figure for. Pointing at the wrong one is worse than pointing at
-		// nothing, so nothing is pointed at until all three are known.
-		VoteOdds.Table table = VoteOdds.Table.of(table("$3,000", 7.6d, "Insta-Grow x2", 5.0d));
-		assertEquals(1, VoteOdds.rarest(table, drawn("$3,000", "Insta-Grow x2")));
-		assertEquals(-1, VoteOdds.rarest(table, drawn("$3,000", "Insta-Grow x2", "Mystery Key")));
-		assertFalse(VoteOdds.allKnown(table, drawn("$3,000", "Mystery Key")));
-		assertTrue(VoteOdds.allKnown(table, drawn("$3,000", "Insta-Grow x2")));
-		// Nothing drawn is not "everything known": it is the case the footer must stay quiet on.
-		assertFalse(VoteOdds.allKnown(table, List.of()));
-	}
-
-	@Test
-	void twoEquallyRareDrawsFlagNeither() {
-		// Flagging one of a tie would read as a recommendation the odds cannot support.
-		VoteOdds.Table table = VoteOdds.Table.of(table("$3,000", 7.6d, "Insta-Grow x2", 7.6d));
-		assertEquals(-1, VoteOdds.rarest(table, drawn("$3,000", "Insta-Grow x2")));
-	}
-
-	@Test
-	void aTieAboveSomethingRarerStillFlagsTheRareOne() {
-		VoteOdds.Table table =
-				VoteOdds.Table.of(table("$3,000", 7.6d, "mcMMO Credit x20", 1.9d));
-		assertEquals(2, VoteOdds.rarest(table, drawn("$3,000", "$3,000", "mcMMO Credit x20")));
-	}
-
-	@Test
-	void nothingIsFlaggedWhenTheCratesOddsWereNeverRead() {
-		assertEquals(-1, VoteOdds.rarest(VoteOdds.Table.EMPTY, drawn("$3,000", "Hopper x2", "EXP x150")));
-		assertEquals(-1, VoteOdds.rarest(null, null));
-	}
-
-	@Test
 	void aTableNormalisesWhateverItIsBuiltFrom() {
 		// The footgun this type exists to close: a raw map of original-case names used to miss
 		// every lookup, because the reader lowercased its keys and callers did not.
