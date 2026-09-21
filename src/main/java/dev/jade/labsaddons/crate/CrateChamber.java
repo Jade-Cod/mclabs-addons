@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.crate;
 
 import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.editor.EditorTheme;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -93,8 +94,7 @@ final class CrateChamber {
 			return;
 		}
 		for (int band = 0; band < VIGNETTE_BAND; band++) {
-			int step = alpha * (VIGNETTE_BAND - band) / VIGNETTE_BAND;
-			int shade = tint(0x000000, step / VIGNETTE_BAND);
+			int shade = tint(0x000000, alpha * (VIGNETTE_BAND - band) / VIGNETTE_BAND);
 			context.fill(x, y + band, x + w, y + band + 1, shade);
 			context.fill(x, y + h - band - 1, x + w, y + h - band, shade);
 			context.fill(x + band, y, x + band + 1, y + h, shade);
@@ -144,6 +144,15 @@ final class CrateChamber {
 		context.getMatrices().scale(iconScale, iconScale);
 		context.drawItem(stack, 0, 0);
 		context.getMatrices().popMatrix();
+
+		// drawItem has no alpha either — it goes through the item renderer, which ignores
+		// anything on the matrix. So a fading candidate's frame faded and its icon did not,
+		// then popped out whole. Veiling it in the panel's own background is the same result
+		// from the front, and is the only way to dim an item icon at all.
+		if (alpha < 1f) {
+			HudObject.drawRoundedRect(context, left, top, box, box,
+					tint(EditorTheme.PANEL_BG, Math.round((1f - alpha) * 255)));
+		}
 	}
 
 	/** A label centred on {@code cx}, which is how everything in the chamber is placed. */

@@ -217,6 +217,34 @@ class CrateSpinTest {
 	}
 
 	@Test
+	void aColumnTheWinnerWalksOutOfIsNotACasualty() {
+		// The vent animation draws any column that is CULLED and changed recently. The winner
+		// changes column four times on its way to the centre, about 100ms apart — so calling
+		// those columns culled dropped a second copy of the winning item out of every one of
+		// them, chasing it across the chamber.
+		CrateSpin spin = new CrateSpin();
+		long at = 0L;
+		spin.observe(frame("xxxxxxxxx", "ccccccccc"), at += 100);
+		String items = "xxxxxxxxx";
+		for (int i = 0; i < 8; i++) {
+			items = items.substring(0, i) + '.' + items.substring(i + 1);
+			spin.observe(frame(items, "ccccccccc"), at += 100);
+		}
+		assertEquals(8, spin.winnerColumn());
+
+		// Two steps of the walk. The first leaves column 8, the second leaves column 7 — and it
+		// is the second that matters: column 7 became the winner's a tick ago, so a CULLED there
+		// is inside the vent window and would be drawn.
+		spin.observe(frame(".......x.", "ccccccccc"), at += 100);
+		spin.observe(frame("......x..", "ccccccccc"), at += 100);
+		assertEquals(6, spin.winnerColumn());
+		assertSame(CrateSpin.ColumnState.UNSEEN, spin.column(7).state(),
+				"the column the winner stepped out of, one tick after it stepped in");
+		assertSame(CrateSpin.ColumnState.UNSEEN, spin.column(8).state());
+		assertEquals(CrateSpin.TOTAL_CULLS, spin.culls(), "the walk kills nothing");
+	}
+
+	@Test
 	void aCulledColumnRemembersWhatDiedInIt() {
 		// The vent animation needs the candidate's rarity after the server has taken it away.
 		CrateSpin spin = replay(FAVOURITES, 4300);

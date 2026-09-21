@@ -151,8 +151,12 @@ public final class CrateSpin {
 	}
 
 	/**
-	 * Beat four: the survivor is walking left. Its old column is not a casualty, so it is
-	 * left showing what it held rather than being marked culled.
+	 * Beat four: the survivor is walking left.
+	 *
+	 * <p>The column it steps out of goes back to {@link ColumnState#UNSEEN} rather than being
+	 * marked culled, because nothing died there — the thing that was in it moved. Calling it a
+	 * cull drew a second copy of the winner falling out of every column it passed through, since
+	 * the vent animation keys off exactly that state and the column had only just changed.
 	 */
 	private void follow(List<Cell> cells, long nowMs) {
 		int found = soleAlive(cells);
@@ -166,7 +170,7 @@ public final class CrateSpin {
 			// its own remembered rarity is the candidate that died there.
 			to.rarity = from.rarity;
 			to.name = from.name;
-			from.state = ColumnState.CULLED;
+			from.state = ColumnState.UNSEEN;
 		}
 		to.state = ColumnState.ALIVE;
 		to.changedAtMs = nowMs;
