@@ -232,18 +232,13 @@ public final class VoteRollBoard extends CasinoPanel {
 					TEXT_FAINT);
 			return;
 		}
-		if (!choosing) {
-			CrateChamber.centred(context, font, "three draws, one to keep", CENTRE_X, FOOT_Y,
-					TEXT_FAINT);
-			return;
-		}
-		if (VoteOdds.rarest(table, drawn) < 0) {
+		if (choosing && VoteOdds.rarest(table, drawn) < 0) {
+			// Worth saying only because the absence of a flag would otherwise look like the
+			// odds failed to load. Everything else this line used to say — that there are
+			// three draws, that rarest is not the same as best — the screen already shows.
 			CrateChamber.centred(context, font, "no single rarest draw", CENTRE_X, FOOT_Y,
 					TEXT_FAINT);
-			return;
 		}
-		CrateChamber.centred(context, font, "rarest is not the same as best — your call",
-				CENTRE_X, FOOT_Y, TEXT_FAINT);
 	}
 
 	/**

@@ -12,7 +12,6 @@ import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The crate opening, drawn as a chamber the candidates are vented out of.
@@ -41,20 +40,23 @@ public final class CrateSpinBoard extends CasinoPanel {
 	private static final int CANDIDATE_ROW = 9;
 
 	private static final int CENTRE_X = PANEL_W / 2;
-	private static final int CHAMBER_Y = 21;
-	private static final int CHAMBER_H = 92;
+	/**
+	 * Shorter than a chest board, because there is nothing under the chamber but the reward's
+	 * name. What used to sit there — a count, the best rarity in words, a line explaining the
+	 * wait — was the picture's own content restated, and five seconds of animation is not long
+	 * enough to read any of it.
+	 */
+	private static final int PANEL_HEIGHT = 128;
+	private static final int CHAMBER_Y = 20;
+	private static final int CHAMBER_H = 78;
 	/** Where the candidates hang. Above centre, to leave the name room underneath. */
 	private static final int ARC_Y = CHAMBER_Y + 38;
 	private static final int ARC_W = 214;
 	/** How far the arc sags in the middle. Enough to read as a curve, not as a bowl. */
 	private static final int ARC_SAG = 13;
-
-	private static final int TENSION_Y = CHAMBER_Y + CHAMBER_H + 4;
-	private static final int TENSION_H = 2;
-	private static final int LADDER_Y = TENSION_Y + 9;
-	private static final int STATUS_Y = LADDER_Y + 1;
-	private static final int NAME_Y = LADDER_Y + 16;
-	private static final int SUB_Y = NAME_Y + 12;
+	private static final int NAME_Y = 106;
+	/** The name fades up rather than appearing, so it does not fight the landing flash. */
+	private static final long NAME_FADE_MS = 240L;
 
 	/** How long a vented candidate takes to fade and fall out of the chamber. */
 	private static final long VENT_MS = 340L;
@@ -88,6 +90,11 @@ public final class CrateSpinBoard extends CasinoPanel {
 	@Override
 	protected boolean enabled() {
 		return LabsAddonsConfig.get().crateOverlay;
+	}
+
+	@Override
+	protected int panelHeight() {
+		return PANEL_HEIGHT;
 	}
 
 	@Override
@@ -151,23 +158,19 @@ public final class CrateSpinBoard extends CasinoPanel {
 		long now = Util.getMeasuringTimeMs();
 		spin.observe(read(), now);
 
-		CrateRarity best = spin.bestAlive();
 		CrateSpin.Column winner = spin.winner();
-		CrateRarity shown = winner != null ? winner.rarity() : best;
+		CrateRarity shown = winner != null ? winner.rarity() : spin.bestAlive();
 		float tightness = tightness();
 
-		header(context, font, "CRATE", CrateTitles.crateName(title), TEXT_DIM);
+		// The crate's own name and nothing else. Which rarity is still in play is what the
+		// light is for; saying it in words as well only gave the eye somewhere else to go.
+		header(context, font, CrateTitles.crateName(title), null, TEXT_DIM);
 
 		CrateChamber.glow(context, CENTRE_X, ARC_Y, shown, tightness);
 		CrateChamber.vignette(context, 0, CHAMBER_Y, PANEL_W, CHAMBER_H, tightness * 0.8f);
 		candidates(context, now);
 		flash(context, now, shown);
-
-		CrateChamber.tension(context, PAD, TENSION_Y, PANEL_W - PAD * 2, TENSION_H,
-				spin.tension(now), shown == null ? accent() : shown.color());
-		CrateChamber.ladder(context, PAD, LADDER_Y, spin);
-		status(context, font, best);
-		reward(context, font, winner);
+		name(context, font, now);
 	}
 
 	// --- reading the container ----------------------------------------------
@@ -301,62 +304,23 @@ public final class CrateSpinBoard extends CasinoPanel {
 
 	// --- the readout ---------------------------------------------------------
 
-	private void status(DrawContext context, TextRenderer font, CrateRarity best) {
-		int left = PAD + CrateChamber.ladderWidth() + 8;
-		String text;
-		int colour;
-		switch (spin.phase()) {
-			case FILLING -> {
-				text = "loading the chamber";
-				colour = TEXT_FAINT;
-			}
-			case HOLDING -> {
-				text = CrateSpin.COLUMNS + " in play";
-				colour = TEXT_DIM;
-			}
-			case CULLING -> {
-				text = spin.aliveCount() + " left";
-				colour = TEXT;
-			}
-			case SETTLING -> {
-				text = "locking in";
-				colour = accent();
-			}
-			case LANDED -> {
-				text = "unboxed";
-				colour = TEXT_DIM;
-			}
-			default -> {
-				text = "";
-				colour = TEXT_FAINT;
-			}
-		}
-		context.drawText(font, text, left, STATUS_Y, colour, false);
-
-		// The reading the vanilla screen makes you take off nine pane colours by eye.
-		if (best != null && spin.phase() != CrateSpin.Phase.LANDED) {
-			String label = "best " + best.label().toLowerCase(Locale.ROOT);
-			context.drawText(font, label, PANEL_W - PAD - font.getWidth(label), STATUS_Y,
-					best.color(), false);
-		}
-	}
-
-	private void reward(DrawContext context, TextRenderer font, CrateSpin.Column winner) {
-		if (winner == null) {
-			CrateChamber.centred(context, font,
-					"the winner is not on the wire until the last cull", CENTRE_X, SUB_Y,
-					TEXT_FAINT);
+	/**
+	 * The reward's name, under where it landed, in its own rarity's colour.
+	 *
+	 * <p>The colour is the only thing naming the rarity now, and that is deliberate: it used to
+	 * be printed over a spelled-out rarity as well, which is the same fact twice. Held back
+	 * until the screen has landed, so the animation plays out with nothing to read.
+	 */
+	private void name(DrawContext context, TextRenderer font, long now) {
+		CrateSpin.Column winner = spin.winner();
+		if (winner == null || spin.phase() != CrateSpin.Phase.LANDED
+				|| spin.landedAtMs() == 0L) {
 			return;
 		}
-		CrateRarity rarity = winner.rarity();
+		float age = Math.clamp((now - spin.landedAtMs()) / (float) NAME_FADE_MS, 0f, 1f);
 		CrateChamber.centred(context, font, winner.name(), CENTRE_X, NAME_Y,
-				rarity == null ? TEXT : rarity.color());
-		String sub = rarity == null ? "" : rarity.label().toLowerCase(Locale.ROOT);
-		if (rarity != null && rarity.isPitied()) {
-			// Only Rare and above carry the server's pity, and it resets on a win.
-			sub += " · pity reset";
-		}
-		CrateChamber.centred(context, font, sub, CENTRE_X, SUB_Y, TEXT_FAINT);
+				CrateChamber.tint(CrateChamber.colourOf(winner.rarity()),
+						Math.round(255 * age)));
 	}
 
 	// --- cheap stack tests ---------------------------------------------------

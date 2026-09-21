@@ -218,16 +218,6 @@ class CrateSpinTest {
 	}
 
 	@Test
-	void aRarityIsAliveOnlyWhileAColumnStillHoldsIt() {
-		CrateSpin mid = replay(FAVOURITES, 4300);
-		assertTrue(mid.aliveAt(CrateRarity.EXCEEDINGLY_RARE));
-		assertTrue(mid.aliveAt(CrateRarity.RARE));
-		// Both Commons and both Uncommons are already gone by here.
-		assertEquals(false, mid.aliveAt(CrateRarity.COMMON));
-		assertEquals(false, mid.aliveAt(CrateRarity.UNCOMMON));
-	}
-
-	@Test
 	void aCulledColumnRemembersWhatDiedInIt() {
 		// The vent animation needs the candidate's rarity after the server has taken it away.
 		CrateSpin spin = replay(FAVOURITES, 4300);
@@ -235,25 +225,6 @@ class CrateSpinTest {
 		assertSame(CrateSpin.ColumnState.CULLED, gone.state());
 		assertSame(CrateRarity.EXCEEDINGLY_RARE, gone.rarity());
 		assertEquals(4300L, gone.changedAtMs());
-	}
-
-	@Test
-	void theNextCullIsPredictedFromTheServersOwnRamp() {
-		// Field full at 1297, and the hold measured ~900ms across all ten captured crates.
-		CrateSpin held = replay(SUPPLY_II, 1297);
-		assertEquals(1297L + 900L, held.nextCullAtMs());
-		assertEquals(0f, held.tension(1297L));
-		assertEquals(1f, held.tension(9999L));
-
-		// After the first cull the gaps lengthen by 100ms each.
-		CrateSpin culling = replay(SUPPLY_II, 2148);
-		assertEquals(2148L + 200L, culling.nextCullAtMs());
-	}
-
-	@Test
-	void nothingIsPredictedOnceThereIsNothingLeftToCull() {
-		assertEquals(0L, replay(SUPPLY_II).nextCullAtMs());
-		assertEquals(0f, replay(SUPPLY_II).tension(9999L));
 	}
 
 	@Test

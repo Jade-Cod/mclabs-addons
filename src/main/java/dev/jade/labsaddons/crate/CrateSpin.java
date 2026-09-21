@@ -13,8 +13,9 @@ import java.util.List;
  *   <li><b>fill</b> — nine columns land left to right, one every ~100ms.</li>
  *   <li><b>hold</b> — ~900ms of nothing, the longest single pause in the spin.</li>
  *   <li><b>cull</b> — eight columns revert to grey one at a time, and the gaps
- *       <em>lengthen</em>: the k-th gap is about {@code 100·k} ms. That ramp is the reason
- *       {@link #nextCullAtMs} can be honest rather than a guess.</li>
+ *       <em>lengthen</em>: the k-th gap is about {@code 100·k} ms, measured the same across
+ *       all ten crates. Nothing here predicts from that ramp — the board draws each cull as
+ *       it lands — but it is why the spin feels like it is slowing down rather than stalling.</li>
  *   <li><b>settle</b> — the survivor walks left to the centre column.</li>
  *   <li><b>land</b> — every pane turns the winner's colour.</li>
  * </ol>
@@ -30,15 +31,6 @@ public final class CrateSpin {
 	public static final int CENTRE_COLUMN = 4;
 	/** Culls needed to get from nine candidates to one. */
 	public static final int TOTAL_CULLS = COLUMNS - 1;
-
-	/**
-	 * The k-th cull gap, in ms: the ramp measured across all ten captured spins, where the
-	 * gaps came out at roughly 100, 200, 300 … 700. Used only to draw how long is left, so
-	 * being a little out costs a bar that finishes early, not a wrong reading.
-	 */
-	private static final long CULL_STEP_MS = 100L;
-	/** The pause between the last column landing and the first cull. Measured 851–947ms. */
-	private static final long HOLD_MS = 900L;
 
 	public enum Phase {
 		/** Candidates still arriving. */
@@ -99,8 +91,6 @@ public final class CrateSpin {
 	private final Column[] columns = new Column[COLUMNS];
 	private Phase phase = Phase.FILLING;
 	private int culls;
-	private long lastCullAtMs;
-	private long filledAtMs;
 	private int winnerColumn = -1;
 	private long landedAtMs;
 
@@ -153,11 +143,7 @@ public final class CrateSpin {
 				column.state = ColumnState.CULLED;
 				column.changedAtMs = nowMs;
 				culls++;
-				lastCullAtMs = nowMs;
 			}
-		}
-		if (aliveNow >= COLUMNS && filledAtMs == 0L) {
-			filledAtMs = nowMs;
 		}
 		if (culls >= TOTAL_CULLS) {
 			winnerColumn = soleAlive(cells);
@@ -259,7 +245,11 @@ public final class CrateSpin {
 		return columns[index];
 	}
 
-	public int culls() {
+	/**
+	 * Visible for testing: how many candidates have been eliminated. Nothing drawn uses it,
+	 * but it is how a test sees that the winner's walk to the centre added none.
+	 */
+	int culls() {
 		return culls;
 	}
 
@@ -296,44 +286,5 @@ public final class CrateSpin {
 			}
 		}
 		return best;
-	}
-
-	/** Whether a rarity has any column left holding it. */
-	public boolean aliveAt(CrateRarity rarity) {
-		for (Column column : columns) {
-			if (column.alive() && column.rarity() == rarity) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * When the next cull is due, from the server's own ramp, or 0 when none is expected.
-	 * Predicted rather than waited for so the tension can be drawn while it builds; a cull
-	 * that lands early or late simply resets the bar.
-	 */
-	public long nextCullAtMs() {
-		if (culls >= TOTAL_CULLS) {
-			return 0L;
-		}
-		if (culls == 0) {
-			return filledAtMs == 0L ? 0L : filledAtMs + HOLD_MS;
-		}
-		return lastCullAtMs + CULL_STEP_MS * (culls + 1L);
-	}
-
-	/** How far along the wait for the next cull is, 0 to 1, or 0 when nothing is pending. */
-	public float tension(long nowMs) {
-		long due = nextCullAtMs();
-		if (due <= 0L) {
-			return 0f;
-		}
-		long from = culls == 0 ? filledAtMs : lastCullAtMs;
-		long span = due - from;
-		if (span <= 0L) {
-			return 0f;
-		}
-		return Math.clamp((nowMs - from) / (float) span, 0f, 1f);
 	}
 }

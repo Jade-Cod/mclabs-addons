@@ -116,6 +116,15 @@ public abstract class CasinoPanel {
 	protected abstract boolean enabled();
 
 	/**
+	 * How tall this board's panel is. The default is the chest-menu height every other board
+	 * fills; a board with less to say overrides it rather than leaving dead space under its
+	 * content, which reads as something failing to load.
+	 */
+	protected int panelHeight() {
+		return PANEL_H;
+	}
+
+	/**
 	 * The cheap probe, run against every container screen in the game twice a frame, so
 	 * it must read a couple of slot names and nothing more. Building all fifty-four slot
 	 * views here was a real performance regression on the Double² board.
@@ -275,9 +284,10 @@ public abstract class CasinoPanel {
 
 		// No dim of our own: Minecraft has already drawn one behind this, and a second
 		// on top of it reads as a doubled tint. Only ever shrink, never magnify.
-		panelScale = Math.min(1f, Math.min((w - 16f) / PANEL_W, (h - 16f) / PANEL_H));
+		int panelH = panelHeight();
+		panelScale = Math.min(1f, Math.min((w - 16f) / PANEL_W, (h - 16f) / panelH));
 		panelX = Math.round((w - PANEL_W * panelScale) / 2f);
-		panelY = Math.round((h - PANEL_H * panelScale) / 2f);
+		panelY = Math.round((h - panelH * panelScale) / 2f);
 		hoverX = (mouseX - panelX) / panelScale;
 		hoverY = (mouseY - panelY) / panelScale;
 
@@ -285,8 +295,8 @@ public abstract class CasinoPanel {
 		context.getMatrices().translate(panelX, panelY);
 		context.getMatrices().scale(panelScale, panelScale);
 
-		HudObject.drawRoundedRect(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BG);
-		EditorPainter.outline(context, 0, 0, PANEL_W, PANEL_H, EditorTheme.PANEL_BORDER);
+		HudObject.drawRoundedRect(context, 0, 0, PANEL_W, panelH, EditorTheme.PANEL_BG);
+		EditorPainter.outline(context, 0, 0, PANEL_W, panelH, EditorTheme.PANEL_BORDER);
 
 		draw(context, font, slots, title,
 				(float) client.getWindow().getScaleFactor() * panelScale);

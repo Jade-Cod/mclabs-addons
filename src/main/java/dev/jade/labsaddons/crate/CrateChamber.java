@@ -29,7 +29,6 @@ final class CrateChamber {
 	private static final int GLOW_ALPHA = 46;
 	private static final int VIGNETTE_MAX = 150;
 	private static final int VIGNETTE_BAND = 5;
-	private static final int DOT = 7;
 
 	private CrateChamber() {
 	}
@@ -117,39 +116,6 @@ final class CrateChamber {
 		context.getMatrices().scale(iconScale, iconScale);
 		context.drawItem(stack, 0, 0);
 		context.getMatrices().popMatrix();
-	}
-
-	/**
-	 * Six dots, one per rarity, lit while any candidate still holds it. This is the reading
-	 * the vanilla screen makes you take off pane colours by eye.
-	 */
-	static void ladder(DrawContext context, int x, int y, CrateSpin spin) {
-		CrateRarity[] all = CrateRarity.values();
-		for (int i = 0; i < all.length; i++) {
-			CrateRarity rarity = all[all.length - 1 - i];
-			boolean lit = spin.aliveAt(rarity);
-			int left = x + i * (DOT + 3);
-			context.fill(left, y, left + DOT, y + DOT,
-					lit ? rarity.color() : tint(rarity.color(), 38));
-		}
-	}
-
-	/** How wide the ladder is, so the caller can place what sits beside it. */
-	static int ladderWidth() {
-		return CrateRarity.values().length * (DOT + 3) - 3;
-	}
-
-	/**
-	 * The wait for the next cull, drawn as it builds. The server's gaps lengthen by about
-	 * 100ms each, so this is a real countdown rather than a spinner.
-	 */
-	static void tension(DrawContext context, int x, int y, int w, int h, float progress,
-			int colour) {
-		context.fill(x, y, x + w, y + h, 0xFF23262E);
-		int filled = Math.round(w * Math.clamp(progress, 0f, 1f));
-		if (filled > 0) {
-			context.fill(x, y, x + filled, y + h, colour);
-		}
 	}
 
 	/** A label centred on {@code cx}, which is how everything in the chamber is placed. */
