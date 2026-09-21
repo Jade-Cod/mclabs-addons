@@ -276,8 +276,15 @@ public final class CrateSpin {
 		return landedAtMs;
 	}
 
-	/** The best rarity still in play — the one thing the vanilla screen makes you squint for. */
-	public CrateRarity bestAlive() {
+	/**
+	 * Visible for testing: the best rarity still in play.
+	 *
+	 * <p>Nothing drawn asks for it any more — every candidate carries its own rarity's glow, so
+	 * the top of the field is something you see rather than something the board computes. It
+	 * stays because it is how a test watches that top fall at the right cull, which is the
+	 * behaviour the whole board is built on.
+	 */
+	CrateRarity bestAlive() {
 		CrateRarity best = null;
 		for (Column column : columns) {
 			if (column.alive() && column.rarity() != null

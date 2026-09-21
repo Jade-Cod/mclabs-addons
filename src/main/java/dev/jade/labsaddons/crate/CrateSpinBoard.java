@@ -19,9 +19,10 @@ import java.util.List;
  * <p>The server's own screen is three rows of nine stained glass panes that go grey one at a
  * time. Everything a player wants to know is already in it — each column's pane is coloured
  * for its candidate's rarity — but reading it means matching nine colours by eye while they
- * disappear. This draws the same eight eliminations as one light: the chamber glows whatever
- * the <em>best rarity still in play</em> is, so a field that still holds an Exceedingly Rare
- * is orange, and the moment that one dies you watch it fall.
+ * disappear. This draws the same eight eliminations as light: each candidate carries its own
+ * rarity's glow, and they all brighten as the field narrows — so a field that still holds an
+ * Exceedingly Rare has an orange light in it, and the moment that one dies you watch it go
+ * out while everything left gets brighter.
  *
  * <p>It runs entirely on the server's clock. The winner is not in any packet until the eighth
  * cull lands, around five seconds in, so there is nothing to reveal early and nothing to
@@ -65,8 +66,19 @@ public final class CrateSpinBoard extends CasinoPanel {
 	/** How long the winner takes to swell once it is the only thing left. */
 	private static final long SWELL_MS = 300L;
 	private static final float WINNER_SCALE = 1.75f;
-	/** The white-out on the landing frame. */
-	private static final long FLASH_MS = 220L;
+	/** The tint the whole chamber takes for a moment as the screen turns the winner's colour. */
+	private static final long FLASH_MS = 180L;
+	private static final int FLASH_ALPHA = 60;
+	/**
+	 * How far a candidate's glow reaches past its own box. Kept under one so the winner's,
+	 * which is nearly twice the size, still sits inside the chamber.
+	 */
+	private static final float GLOW_SPREAD = 0.9f;
+	/** The dimmest a candidate glows, with all nine still up. */
+	private static final float GLOW_FLOOR = 0.45f;
+	/** A short brightening as the winner lands, on top of everything else. */
+	private static final long PULSE_MS = 260L;
+	private static final float PULSE_LIFT = 0.5f;
 	/**
 	 * Smoothing constant for candidates sliding to their new places as the field narrows.
 	 * Applied against real elapsed time, so the glide is the same at any frame rate.
@@ -159,17 +171,17 @@ public final class CrateSpinBoard extends CasinoPanel {
 		spin.observe(read(), now);
 
 		CrateSpin.Column winner = spin.winner();
-		CrateRarity shown = winner != null ? winner.rarity() : spin.bestAlive();
 		float tightness = tightness();
 
 		// The crate's own name and nothing else. Which rarity is still in play is what the
 		// light is for; saying it in words as well only gave the eye somewhere else to go.
 		header(context, font, CrateTitles.crateName(title), null, TEXT_DIM);
 
-		CrateChamber.glow(context, CENTRE_X, ARC_Y, shown, tightness);
+		// The light belongs to the candidates, not to the middle of the panel: with two left at
+		// opposite ends of the arc, a glow in the centre was lighting nothing at all.
 		CrateChamber.vignette(context, 0, CHAMBER_Y, PANEL_W, CHAMBER_H, tightness * 0.8f);
 		candidates(context, now);
-		flash(context, now, shown);
+		flash(context, now, winner == null ? null : winner.rarity());
 		name(context, font, now);
 	}
 
@@ -208,6 +220,10 @@ public final class CrateSpinBoard extends CasinoPanel {
 		carryWinner();
 		glide(alive, now);
 
+		// As the field narrows the survivors brighten, so the same light says both what is
+		// still in play and how little of it is left.
+		float ambient = GLOW_FLOOR + (1f - GLOW_FLOOR) * tightness();
+
 		// The vented ones first, so a survivor is never drawn under something falling away.
 		for (int column = 0; column < CrateSpin.COLUMNS; column++) {
 			CrateSpin.Column state = spin.column(column);
@@ -218,21 +234,41 @@ public final class CrateSpinBoard extends CasinoPanel {
 			if (age >= 1f || age < 0f) {
 				continue;
 			}
-			CrateChamber.mote(context, held[column], CrateChamber.colourOf(state.rarity()),
-					atX[column], atY[column] + VENT_DROP * age, 1f - age * 0.4f, 1f - age);
+			float fade = 1f - age;
+			candidate(context, column, atX[column], atY[column] + VENT_DROP * age,
+					1f - age * 0.4f, fade, ambient * fade);
 		}
 
 		boolean swelling = spin.winner() != null;
 		for (int column : alive) {
 			CrateSpin.Column state = spin.column(column);
 			float scale = 1f;
+			float lift = 0f;
 			if (swelling && column == spin.winnerColumn()) {
 				float grown = Math.clamp((now - state.changedAtMs()) / (float) SWELL_MS, 0f, 1f);
 				scale = 1f + (WINNER_SCALE - 1f) * grown;
+				lift = pulse(now);
 			}
-			CrateChamber.mote(context, held[column], CrateChamber.colourOf(state.rarity()),
-					atX[column], atY[column], scale, 1f);
+			candidate(context, column, atX[column], atY[column], scale, 1f, ambient + lift);
 		}
+	}
+
+	/** One candidate: its own light, then the server's own icon on top of it. */
+	private void candidate(DrawContext context, int column, float x, float y, float scale,
+			float alpha, float glow) {
+		CrateSpin.Column state = spin.column(column);
+		int colour = CrateChamber.colourOf(state.rarity());
+		CrateChamber.glow(context, x, y, CrateChamber.MOTE * scale * GLOW_SPREAD, colour, glow);
+		CrateChamber.mote(context, held[column], colour, x, y, scale, alpha);
+	}
+
+	/** The winner's light swells for a moment as it lands, then settles back. */
+	private float pulse(long now) {
+		if (spin.landedAtMs() == 0L) {
+			return 0f;
+		}
+		float age = (now - spin.landedAtMs()) / (float) PULSE_MS;
+		return age < 0f || age >= 1f ? 0f : PULSE_LIFT * (1f - age);
 	}
 
 	/**
@@ -299,7 +335,7 @@ public final class CrateSpinBoard extends CasinoPanel {
 			return;
 		}
 		context.fill(0, CHAMBER_Y, PANEL_W, CHAMBER_Y + CHAMBER_H,
-				CrateChamber.tint(won.color(), Math.round(120 * (1f - age))));
+				CrateChamber.tint(won.color(), Math.round(FLASH_ALPHA * (1f - age))));
 	}
 
 	// --- the readout ---------------------------------------------------------

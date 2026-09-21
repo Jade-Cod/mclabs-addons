@@ -23,10 +23,15 @@ final class CrateChamber {
 	static final int ICON = 16;
 	/** The box a candidate sits in, a couple of pixels wider than its icon. */
 	static final int MOTE = 22;
-	private static final int GLOW_RINGS = 6;
-	private static final int GLOW_STEP = 9;
-	/** How opaque the innermost glow ring gets with the field at its narrowest. */
-	private static final int GLOW_ALPHA = 46;
+	/**
+	 * Rings and the alpha of each, not of the whole.
+	 *
+	 * <p>Twelve composite to about a third opaque at the centre, the same as six at fifteen
+	 * would — but at six the individual circles are visible as bands around anything as large
+	 * as the winner, and at twelve they are not.
+	 */
+	private static final int GLOW_RINGS = 12;
+	private static final int GLOW_ALPHA = 8;
 	private static final int VIGNETTE_MAX = 150;
 	private static final int VIGNETTE_BAND = 5;
 
@@ -34,24 +39,47 @@ final class CrateChamber {
 	}
 
 	/**
-	 * The chamber light. Brightens and tightens as the field narrows, so the same colour
-	 * says both "this is still the best thing in play" and "there is not much left".
+	 * A soft round glow, centred on whatever it belongs to.
 	 *
-	 * @param intensity 0 with the field wide open, 1 with one candidate left
+	 * <p>Built from concentric discs rather than rounded rectangles. The rounded-rect helper
+	 * has a fixed two-pixel radius, so nesting it at any useful size drew a stack of plain
+	 * rectangles with hard edges — which read as a rendering fault rather than as light, and
+	 * did so most visibly at the moment the winner landed.
+	 *
+	 * <p>Each ring is drawn at the same low alpha and they composite, so the falloff is
+	 * steepest at the centre without any one step being visible.
 	 */
-	static void glow(DrawContext context, int cx, int cy, CrateRarity best, float intensity) {
-		if (best == null) {
+	static void glow(DrawContext context, float cx, float cy, float radius, int colour,
+			float intensity) {
+		float strength = Math.clamp(intensity, 0f, 1f);
+		if (strength <= 0.01f || radius <= 1f) {
 			return;
 		}
+		int alpha = Math.round(GLOW_ALPHA * strength);
+		if (alpha <= 0) {
+			return;
+		}
+		int shade = tint(colour, alpha);
 		for (int ring = GLOW_RINGS; ring >= 1; ring--) {
-			int spread = ring * GLOW_STEP;
-			// Outer rings stay faint however tight it gets, or the whole panel washes out.
-			int alpha = Math.round(GLOW_ALPHA * intensity / (float) ring);
-			if (alpha <= 0) {
+			disc(context, cx, cy, radius * ring / GLOW_RINGS, shade);
+		}
+	}
+
+	/** A filled circle, one fill per scanline. */
+	private static void disc(DrawContext context, float cx, float cy, float radius, int colour) {
+		int centreX = Math.round(cx);
+		int top = Math.round(cy - radius);
+		int bottom = Math.round(cy + radius);
+		for (int y = top; y <= bottom; y++) {
+			double dy = y + 0.5d - cy;
+			double span = (double) radius * radius - dy * dy;
+			if (span <= 0d) {
 				continue;
 			}
-			HudObject.drawRoundedRect(context, cx - spread, cy - spread / 2,
-					spread * 2, spread, tint(best.color(), alpha));
+			int half = (int) Math.round(Math.sqrt(span));
+			if (half > 0) {
+				context.fill(centreX - half, y, centreX + half, y + 1, colour);
+			}
 		}
 	}
 
