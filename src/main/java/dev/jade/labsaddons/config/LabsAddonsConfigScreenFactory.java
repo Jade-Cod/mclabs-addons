@@ -128,6 +128,14 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.coinflipHoldResult = value)
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.crate"),
+						config.crateOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.crate.tooltip"))
+				.setSaveConsumer(value -> config.crateOverlay = value)
+				.build());
+
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);
 

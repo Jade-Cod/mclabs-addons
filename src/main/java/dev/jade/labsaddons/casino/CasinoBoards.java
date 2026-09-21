@@ -3,6 +3,8 @@ package dev.jade.labsaddons.casino;
 import dev.jade.labsaddons.blackjack.BjBoard;
 import dev.jade.labsaddons.coinflip.CfFlipBoard;
 import dev.jade.labsaddons.coinflip.CfLobbyBoard;
+import dev.jade.labsaddons.crate.CrateSpinBoard;
+import dev.jade.labsaddons.crate.VoteRollBoard;
 import dev.jade.labsaddons.double2.D2Screen;
 import dev.jade.labsaddons.mines.MinesBoard;
 import net.minecraft.client.gui.DrawContext;
@@ -13,7 +15,7 @@ import java.util.List;
 /**
  * The boards the screen hooks ask, in order.
  *
- * <p>Four games is well past the point at which the mixins should name one of them. Each
+ * <p>Six boards is well past the point at which the mixins should name one of them. Each
  * board recognises its own menu by a couple of slot names, so the order here only decides
  * who is asked first, never who wins.
  */
@@ -24,7 +26,9 @@ public final class CasinoBoards {
 			BjBoard.INSTANCE,
 			BetBoard.INSTANCE,
 			CfLobbyBoard.INSTANCE,
-			CfFlipBoard.INSTANCE);
+			CfFlipBoard.INSTANCE,
+			CrateSpinBoard.INSTANCE,
+			VoteRollBoard.INSTANCE);
 
 	/** The board currently standing in for a menu, or null. */
 	private static CasinoPanel current;

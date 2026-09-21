@@ -29,6 +29,7 @@ import dev.jade.labsaddons.coinflip.CfOpenHudObject;
 import dev.jade.labsaddons.coinflip.CfResultScreen;
 import dev.jade.labsaddons.coinflip.CfRecordHudObject;
 import dev.jade.labsaddons.coinflip.CfStats;
+import dev.jade.labsaddons.crate.VoteOddsReader;
 import dev.jade.labsaddons.double2.D2Chat;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
@@ -362,6 +363,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 							&& CfStats.shouldAsk()) {
 						sendChatCommand("cf stats");
 					}
+					// Out of the chain as well: a voter crate's odds menu is nobody
+					// else's screen, and it is the only place those figures are ever
+					// stated — the roll that follows shows three items and no odds.
+					VoteOddsReader.tryRead(handledScreen);
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);

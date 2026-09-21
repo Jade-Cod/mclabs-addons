@@ -97,6 +97,10 @@ public abstract class CasinoPanel {
 	private final List<Hit> hits = new ArrayList<>();
 	/** Which container this board is answering for, and whose slots it is drawing. */
 	private final ContainerHold container = new ContainerHold();
+	/** The stacks read this frame, before the hold has decided whether to use them. */
+	private List<ItemStack> liveStacks = List.of();
+	/** The stacks belonging to the slots actually being drawn. See {@link #stacks()}. */
+	private List<ItemStack> shownStacks = List.of();
 	private int predictedSlot = -1;
 	private SlotView predictedBefore;
 	private long predictedAtMs;
@@ -246,7 +250,14 @@ public abstract class CasinoPanel {
 			return false;
 		}
 		List<SlotView> read = slotViews(handler);
-		ContainerHold.Result held = container.offer(read, parses(read, title), syncId,
+		boolean fresh = parses(read, title);
+		// Only a frame the hold accepted may update the stacks, or a board drawing held
+		// slots through a re-send would pair them with the new container's icons — visible
+		// for up to REOPEN_MS at exactly the moment one menu hands over to the next.
+		if (fresh) {
+			shownStacks = liveStacks;
+		}
+		ContainerHold.Result held = container.offer(read, fresh, syncId,
 				holdKey(title), Util.getMeasuringTimeMs(), STALE_MS, REOPEN_MS);
 		List<SlotView> slots = held.slots();
 		if (slots == null) {
@@ -337,8 +348,10 @@ public abstract class CasinoPanel {
 	private List<SlotView> slotViews(ScreenHandler handler) {
 		int count = Math.min(containerSlots(), handler.slots.size());
 		List<SlotView> out = new ArrayList<>(count);
+		List<ItemStack> live = new ArrayList<>(count);
 		for (int i = 0; i < count; i++) {
 			ItemStack stack = handler.slots.get(i).getStack();
+			live.add(stack);
 			List<String> lore = List.of();
 			String name = "";
 			if (!stack.isEmpty()) {
@@ -354,7 +367,29 @@ public abstract class CasinoPanel {
 			}
 			out.add(new SlotView(i, name, lore, stack.getCount()));
 		}
+		liveStacks = live;
 		return unpredict(out);
+	}
+
+	/**
+	 * The stacks behind the slots being drawn, parallel to {@code draw}'s slot views.
+	 *
+	 * <p>{@link SlotView} is deliberately Minecraft-free so the readers stay testable, which
+	 * leaves no way to draw the server's own item icon. This is that way, for a board that
+	 * wants one — the crate chamber draws a Geo-Generator as a Geo-Generator rather than as a
+	 * stand-in a player would have to learn.
+	 *
+	 * <p>Not copied: these are the handler's own stacks, and the handler replaces rather than
+	 * mutates them on an update, so a held reference keeps pointing at the frame it came from.
+	 */
+	protected final List<ItemStack> stacks() {
+		return shownStacks;
+	}
+
+	/** That slot's stack, or an empty one — saves a bounds check at every call site. */
+	protected final ItemStack stackAt(int index) {
+		List<ItemStack> all = shownStacks;
+		return index >= 0 && index < all.size() ? all.get(index) : ItemStack.EMPTY;
 	}
 
 	/**

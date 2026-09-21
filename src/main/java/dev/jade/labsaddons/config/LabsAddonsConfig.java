@@ -249,6 +249,18 @@ public class LabsAddonsConfig {
 	 */
 	public boolean coinflipHoldResult = true;
 
+	// --- Crate chamber (drawn over the crate menus at /warp crates) ---
+	/** Covers both the supply-crate spin and the voter crate's three-way choice. */
+	public boolean crateOverlay = true;
+	/**
+	 * A voter crate's published odds, scraped from the menu punching one opens. Server-derived
+	 * and useless to a player editing a file, so it lives in state.json — and it is the only
+	 * place those figures exist once the roll has started.
+	 */
+	@Section(ConfigSection.STATE)
+	public java.util.List<dev.jade.labsaddons.crate.VoteOddsEntry> voteCrateOdds =
+			new java.util.ArrayList<>();
+
 	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat.
 	// Server-derived, so it lives with the timers in state.json rather than with the
 	// player's own preferences. ---
@@ -491,6 +503,17 @@ public class LabsAddonsConfig {
 		clean.blackjackOverlay = this.blackjackOverlay;
 		clean.coinflipOverlay = this.coinflipOverlay;
 		clean.coinflipHoldResult = this.coinflipHoldResult;
+		clean.crateOverlay = this.crateOverlay;
+		if (this.voteCrateOdds != null) {
+			for (dev.jade.labsaddons.crate.VoteOddsEntry entry : this.voteCrateOdds) {
+				// A hand-edited or part-written entry would show a figure against the wrong
+				// reward, which is worse here than showing none.
+				if (entry != null && entry.crate != null && !entry.crate.isBlank()
+						&& entry.item != null && !entry.item.isBlank() && entry.chance > 0d) {
+					clean.voteCrateOdds.add(entry);
+				}
+			}
+		}
 		clean.coinflipStatsSeeded = this.coinflipStatsSeeded;
 		clean.coinflipPlayed = Math.max(0, this.coinflipPlayed);
 		// Bounded by the games played, so the losses derived from the pair can never go

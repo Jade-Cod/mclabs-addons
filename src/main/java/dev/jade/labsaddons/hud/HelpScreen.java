@@ -60,6 +60,7 @@ public class HelpScreen extends Screen {
 			{"Confiscations", "Arrests and bounty chests advance police prestige and Patrol bars live."},
 			{"Chat reactions", "Wins and runner-ups advance your Mastery bars live."},
 			{"Vote on all 7 sites", "Every ‘Vote registered!’ counts toward your daily 7."},
+			{"Punch a voter crate", "Reads its odds once, so a three-way choice can name the rare draw."},
 	};
 
 	private final Screen parent;
