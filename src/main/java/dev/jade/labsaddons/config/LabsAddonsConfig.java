@@ -237,9 +237,65 @@ public class LabsAddonsConfig {
 	public int runnerAlarmThreshold = 1;
 	public String runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
 
+	// --- Double² board (drawn over the /double chest menu) ---
+	/** Off gives back the server's own chest menu, untouched. */
+	public boolean double2Overlay = true;
+	public boolean minesOverlay = true;
+	public boolean blackjackOverlay = true;
+	public boolean coinflipOverlay = true;
+	/**
+	 * Put a flip's result back up after the server closes the chest on it, which it does
+	 * about two seconds after the coin lands.
+	 */
+	public boolean coinflipHoldResult = true;
+
+	// --- Crate chamber (drawn over the crate menus at /warp crates) ---
+	/** Covers both the supply-crate spin and the voter crate's three-way choice. */
+	public boolean crateOverlay = true;
+	/**
+	 * A voter crate's published odds, scraped from the menu punching one opens. Server-derived
+	 * and useless to a player editing a file, so it lives in state.json — and it is the only
+	 * place those figures exist once the roll has started.
+	 */
+	@Section(ConfigSection.STATE)
+	public java.util.List<dev.jade.labsaddons.crate.VoteOddsEntry> voteCrateOdds =
+			new java.util.ArrayList<>();
+	/**
+	 * Which roll each rarity's pity ladder is on, keyed by {@code CrateRarity.name()}. Anchored
+	 * off the server's own odds menu and counted on from there; absent until that menu has been
+	 * opened for that rarity, because a count with nothing behind it would be invented.
+	 *
+	 * <p>Server-derived and shared across every crate, so it lives in state.json beside the
+	 * coinflip record rather than with anything a player would edit.
+	 */
+	@Section(ConfigSection.STATE)
+	public java.util.Map<String, Integer> cratePityRolls = new java.util.LinkedHashMap<>();
+
+	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat.
+	// Server-derived, so it lives with the timers in state.json rather than with the
+	// player's own preferences. ---
+	/** True once the server has stated the lifetime figures, so it is never asked twice. */
+	@Section(ConfigSection.STATE)
+	public boolean coinflipStatsSeeded = false;
+	@Section(ConfigSection.STATE)
+	public int coinflipPlayed = 0;
+	@Section(ConfigSection.STATE)
+	public int coinflipWon = 0;
+	@Section(ConfigSection.STATE)
+	public long coinflipWageredCents = 0L;
+	@Section(ConfigSection.STATE)
+	public long coinflipWinningsCents = 0L;
+	/** Your own last few flips, newest first, for the lobby's recent list. */
+	@Section(ConfigSection.STATE)
+	public java.util.List<dev.jade.labsaddons.coinflip.CfPlayed> coinflipRecent =
+			new java.util.ArrayList<>();
+
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;
 	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();
+	/** Cache behind {@link #itemUsesCornerValue()}. Transient, so Gson never writes it. */
+	private transient String cornerParsed;
+	private transient ItemUsesCorner cornerValue = ItemUsesCorner.TOP_LEFT;
 	public int itemUsesColor = DEFAULT_ITEM_USES_COLOR;
 	public float itemUsesScale = DEFAULT_ITEM_USES_SCALE;
 
@@ -455,6 +511,60 @@ public class LabsAddonsConfig {
 				}
 			});
 		}
+		clean.double2Overlay = this.double2Overlay;
+		clean.minesOverlay = this.minesOverlay;
+		clean.blackjackOverlay = this.blackjackOverlay;
+		clean.coinflipOverlay = this.coinflipOverlay;
+		clean.coinflipHoldResult = this.coinflipHoldResult;
+		clean.crateOverlay = this.crateOverlay;
+		if (this.voteCrateOdds != null) {
+			for (dev.jade.labsaddons.crate.VoteOddsEntry entry : this.voteCrateOdds) {
+				// A hand-edited or part-written entry would show a figure against the wrong
+				// reward, which is worse here than showing none.
+				if (entry != null && entry.crate != null && !entry.crate.isBlank()
+						&& entry.item != null && !entry.item.isBlank() && entry.chance > 0d) {
+					// A null lore list from a hand-edited file would throw on the first lookup
+					// of a reward whose name another shares.
+					clean.voteCrateOdds.add(new dev.jade.labsaddons.crate.VoteOddsEntry(
+							entry.crate, entry.item, entry.chance, entry.lore()));
+				}
+			}
+		}
+		if (this.cratePityRolls != null) {
+			this.cratePityRolls.forEach((rarity, roll) -> {
+				// A hand-edited file is the one way a roll below one gets in, and every curve
+				// here is undefined there.
+				if (rarity != null && !rarity.isBlank() && roll != null && roll >= 1) {
+					clean.cratePityRolls.put(rarity, roll);
+				}
+			});
+		}
+		clean.coinflipStatsSeeded = this.coinflipStatsSeeded;
+		clean.coinflipPlayed = Math.max(0, this.coinflipPlayed);
+		// Bounded by the games played, so the losses derived from the pair can never go
+		// negative on a hand-edited file.
+		clean.coinflipWon = Math.clamp(this.coinflipWon, 0, clean.coinflipPlayed);
+		clean.coinflipWageredCents = Math.max(0L, this.coinflipWageredCents);
+		clean.coinflipWinningsCents = Math.max(0L, this.coinflipWinningsCents);
+		if (this.coinflipRecent != null) {
+			for (dev.jade.labsaddons.coinflip.CfPlayed flip : this.coinflipRecent) {
+				// The list is written under this ceiling, but the file is not: a state.json
+				// from a future version, a hand-edit or a bad merge is the one way a longer
+				// one arrives, and every frame the lobby is open copies whatever it finds.
+				if (clean.coinflipRecent.size()
+						>= dev.jade.labsaddons.coinflip.CfStats.RECENT_KEPT) {
+					break;
+				}
+				if (flip != null) {
+					flip.opponent = flip.opponent == null ? "" : flip.opponent;
+					clean.coinflipRecent.add(flip);
+				}
+			}
+		}
+		if (this.hiddenRaidMineCodes != null) {
+			this.hiddenRaidMineCodes.stream().filter(java.util.Objects::nonNull)
+					.forEach(clean.hiddenRaidMineCodes::add);
+		}
 		if (this.hudObjects != null) {
 			this.hudObjects.forEach((id, settings) -> {
 				if (id != null && settings != null) {
@@ -486,6 +596,22 @@ public class LabsAddonsConfig {
 			clean.hudObjects.put("chum_timer", chum);
 		}
 		return clean;
+	}
+
+	/**
+	 * The corner as an enum, resolved once per change rather than once per slot drawn.
+	 *
+	 * <p>The overlay's hook runs for every slot of every open container, every frame, and it
+	 * used to parse this string there — behind a {@code catch} for a value {@link #sanitized}
+	 * has already replaced with one the enum knows. One place to fall back from, and the hot
+	 * path reads a field.
+	 */
+	public ItemUsesCorner itemUsesCornerValue() {
+		if (!java.util.Objects.equals(this.itemUsesCorner, this.cornerParsed)) {
+			this.cornerParsed = this.itemUsesCorner;
+			this.cornerValue = parseCorner(this.itemUsesCorner);
+		}
+		return this.cornerValue;
 	}
 
 	private static ItemUsesCorner parseCorner(String value) {

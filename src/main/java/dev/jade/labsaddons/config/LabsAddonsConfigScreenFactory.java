@@ -90,6 +90,51 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.double2"), config.double2Overlay)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.double2.tooltip"))
+				.setSaveConsumer(value -> config.double2Overlay = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.mines"), config.minesOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.mines.tooltip"))
+				.setSaveConsumer(value -> config.minesOverlay = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.blackjack"),
+						config.blackjackOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.blackjack.tooltip"))
+				.setSaveConsumer(value -> config.blackjackOverlay = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.coinflip"),
+						config.coinflipOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.coinflip.tooltip"))
+				.setSaveConsumer(value -> config.coinflipOverlay = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.coinflip_hold"),
+						config.coinflipHoldResult)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.coinflip_hold.tooltip"))
+				.setSaveConsumer(value -> config.coinflipHoldResult = value)
+				.build());
+
+		general.addEntry(entries
+				.startBooleanToggle(Component.translatable("labsaddons.config.crate"),
+						config.crateOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Component.translatable("labsaddons.config.crate.tooltip"))
+				.setSaveConsumer(value -> config.crateOverlay = value)
+				.build());
 
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Component.translatable("labsaddons.config.category.item_uses")), config);
@@ -110,7 +155,7 @@ public final class LabsAddonsConfigScreenFactory {
 
 		category.addEntry(entries
 				.startEnumSelector(Component.translatable(prefix + ".corner"),
-						ItemUsesCorner.class, ItemUsesCorner.valueOf(config.itemUsesCorner))
+						ItemUsesCorner.class, config.itemUsesCornerValue())
 				.setDefaultValue(ItemUsesCorner.TOP_LEFT)
 				.setEnumNameProvider(value -> Component.translatable(
 						prefix + ".corner." + ((ItemUsesCorner) value).name().toLowerCase(java.util.Locale.ROOT)))

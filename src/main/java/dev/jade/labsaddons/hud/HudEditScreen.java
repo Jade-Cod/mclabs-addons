@@ -153,6 +153,9 @@ public class HudEditScreen extends Screen {
 
 	private final List<AbilityRow> abilityRows = new ArrayList<>();
 
+	/** The rail's rows as they currently stand; rebuilt by {@link #rebuildRail()}. */
+	private List<HudRail.Row> railEntries = List.of();
+
 	public HudEditScreen(Screen parent) {
 		super(Component.translatable("labsaddons.hud.editor.title"));
 		this.parent = parent;
@@ -177,6 +180,8 @@ public class HudEditScreen extends Screen {
 	protected void init() {
 		this.panel = null;
 		builtForProfile = LabsAddonsConfig.get().activeProfile;
+		// Before the inspector, which docks itself against railWidth().
+		rebuildRail();
 		buildToolbar();
 		HudObject one = singleSelected();
 		if (one != null) {
@@ -793,20 +798,32 @@ public class HudEditScreen extends Screen {
 		}
 
 		context.enableScissor(r[0], r[1] + EditorTheme.RAIL_HEADER_H, r[0] + r[2], r[1] + r[3]);
-		List<HudObject> objects = HudObjects.all();
-		for (int i = 0; i < objects.size(); i++) {
-			HudObject obj = objects.get(i);
+		for (int i = 0; i < railEntries.size(); i++) {
+			HudRail.Row entry = railEntries.get(i);
 			int[] row = layerRowRect(i);
-			if (selection.contains(obj)) {
+			// A folded group is highlighted for whichever of its widgets is selected, so a
+			// collapsed header still says the selection is in there somewhere.
+			boolean selected = entry.isHeader()
+					? entry.members().stream().anyMatch(selection::contains)
+					: selection.contains(entry.widget());
+			if (selected) {
 				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], fade(EditorTheme.ROW_SELECTED));
 			} else if (contains(row, mouseX, mouseY) && contains(r, mouseX, mouseY)) {
 				context.fill(row[0], row[1], row[0] + row[2], row[1] + row[3], fade(EditorTheme.ROW_HOVER));
 			}
 
-			boolean enabled = obj.settings().enabled;
-			int textMaxW = row[2] - EditorTheme.RAIL_TOGGLE - 10;
-			String name = elide(obj.displayName().getString(), textMaxW);
-			context.text(this.font, Component.literal(name), row[0] + 4,
+			// A header's tick reports the whole group, so it only reads on with every
+			// widget in it on — the same thing its click then flips.
+			boolean enabled = entry.isHeader()
+					? allEnabled(entry.members())
+					: entry.widget().settings().enabled;
+			int indent = railIndent(entry);
+			int textMaxW = row[2] - EditorTheme.RAIL_TOGGLE - 10 - indent;
+			String label = entry.isHeader()
+					? groupHeaderLabel(entry.group(), isExpanded(entry.group())).getString()
+					: entry.widget().displayName().getString();
+			context.text(this.font, Component.literal(elide(label, textMaxW)),
+					row[0] + 4 + indent,
 					row[1] + (row[3] - this.font.lineHeight) / 2 + 1,
 					fade(enabled ? EditorTheme.TEXT : EditorTheme.TEXT_HIDDEN), false);
 
@@ -904,7 +921,14 @@ public class HudEditScreen extends Screen {
 		if (railWidthCache == 0) {
 			int widest = 0;
 			for (HudObject obj : HudObjects.all()) {
-				widest = Math.max(widest, this.font.width(obj.displayName()));
+				Component group = obj.group();
+				widest = Math.max(widest, this.font.width(obj.displayName())
+						+ (group == null ? 0 : GROUP_INDENT));
+				if (group != null) {
+					// Both arrows, because the header is measured once and then expands.
+					widest = Math.max(widest, this.font.width(groupHeaderLabel(group, true)));
+					widest = Math.max(widest, this.font.width(groupHeaderLabel(group, false)));
+				}
 			}
 			int cap = Math.max(EditorTheme.RAIL_W, this.width / RAIL_MAX_SHARE);
 			railWidthCache = Math.clamp(widest + RAIL_TEXT_INSET, EditorTheme.RAIL_W, cap);
@@ -928,9 +952,45 @@ public class HudEditScreen extends Screen {
 				: this.font.plainSubstrByWidth(text, budget) + ellipsis;
 	}
 
+	private void rebuildRail() {
+		railEntries = HudRail.rows(HudObjects.all(), this::isExpanded);
+	}
+
+	/**
+	 * {@link #expandedGroups} is shared with the inspector's own collapsible groups, so a
+	 * rail group's key is prefixed rather than trusting two unrelated sets of labels never
+	 * to collide.
+	 */
+	private static String railGroupKey(Component group) {
+		return "rail:" + group.getString();
+	}
+
+	private boolean isExpanded(Component group) {
+		return expandedGroups.contains(railGroupKey(group));
+	}
+
+	/** Whether every widget in a group is switched on, which is what its tick reports. */
+	private static boolean allEnabled(List<HudObject> widgets) {
+		for (HudObject widget : widgets) {
+			if (!widget.settings().enabled) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * How far in a row's label sits. Read off the row rather than off the widget's group: a
+	 * group holding a single widget is listed plainly, so naming a group is not the same
+	 * thing as sitting under a header.
+	 */
+	private static int railIndent(HudRail.Row entry) {
+		return entry.indented() ? GROUP_INDENT : 0;
+	}
+
 	/** Height of the rows block below the header when the rail is fully rolled down. */
 	private int railRowsHeight() {
-		return HudObjects.all().size() * EditorTheme.RAIL_ROW_H + EditorTheme.PAD;
+		return railEntries.size() * EditorTheme.RAIL_ROW_H + EditorTheme.PAD;
 	}
 
 	/**
@@ -965,6 +1025,28 @@ public class HudEditScreen extends Screen {
 		railRoll.retarget(collapse ? 0.0 : 1.0, System.currentTimeMillis());
 		LabsAddonsConfig.get().hudEditorRailCollapsed = collapse;
 		LabsAddonsConfig.get().save();
+	}
+
+	/**
+	 * A click on a folded group's row: its tick switches every widget in the group at once,
+	 * and its label rolls the group open or shut.
+	 */
+	private void clickGroupRow(HudRail.Row entry, boolean onToggle) {
+		if (onToggle) {
+			boolean turnOn = !allEnabled(entry.members());
+			for (HudObject member : entry.members()) {
+				member.settings().enabled = turnOn;
+			}
+			// The inspector shows the enabled state of whatever is selected, which may be
+			// one of the widgets just switched.
+			rebuildWidgets();
+			return;
+		}
+		String key = railGroupKey(entry.group());
+		if (!expandedGroups.remove(key)) {
+			expandedGroups.add(key);
+		}
+		rebuildWidgets();
 	}
 
 	private int[] layerRowRect(int index) {
@@ -1111,24 +1193,30 @@ public class HudEditScreen extends Screen {
 				toggleRail();
 				return true;
 			}
-			for (int i = 0; i < objects.size(); i++) {
+			for (int i = 0; i < railEntries.size(); i++) {
 				int[] row = layerRowRect(i);
-				if (contains(row, mx, my)) {
-					HudObject obj = objects.get(i);
-					int[] tb = toggleRect(row);
-					if (contains(tb, mx, my)) {
-						HudObjectSettings settings = obj.settings();
-						settings.enabled = !settings.enabled;
-						if (selection.contains(obj)) {
-							rebuildWidgets();
-						}
-					} else if (shift) {
-						toggleSelection(obj);
-					} else {
-						selectOnly(obj);
-					}
+				if (!contains(row, mx, my)) {
+					continue;
+				}
+				HudRail.Row entry = railEntries.get(i);
+				boolean onToggle = contains(toggleRect(row), mx, my);
+				if (entry.isHeader()) {
+					clickGroupRow(entry, onToggle);
 					return true;
 				}
+				HudObject obj = entry.widget();
+				if (onToggle) {
+					HudObjectSettings settings = obj.settings();
+					settings.enabled = !settings.enabled;
+					if (selection.contains(obj)) {
+						rebuildWidgets();
+					}
+				} else if (shift) {
+					toggleSelection(obj);
+				} else {
+					selectOnly(obj);
+				}
+				return true;
 			}
 			return true;
 		}

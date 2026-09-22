@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.personal;
 
 import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.Minecraft;
@@ -24,6 +25,11 @@ public class PersonalBoosterHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Component group() {
+		return HudObjects.BOOSTS;
 	}
 
 	@Override

@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.event;
 
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.world.item.ItemStack;
@@ -16,6 +17,11 @@ public class PitHudObject extends LabeledTimerHudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Component group() {
+		return HudObjects.EVENTS;
 	}
 
 	@Override

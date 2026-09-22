@@ -1,13 +1,18 @@
 package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.hud.GuiExtractorBridge;
 import dev.jade.labsaddons.item.ItemUses;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.state.gui.GuiElementRenderState;
+import net.minecraft.client.renderer.state.gui.GuiRenderState;
 import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3x2fStack;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -19,7 +24,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * any container screen) funnels through, so one hook covers all of them.
  */
 @Mixin(GuiGraphicsExtractor.class)
-public abstract class GuiGraphicsExtractorMixin {
+public abstract class GuiGraphicsExtractorMixin implements GuiExtractorBridge {
+	// Private and final, exactly as GuiGraphicsExtractor declares it. Mixin only warns on a
+	// mismatch, but a shadow that misstates the target drifts quietly, and writing to a
+	// field Mixin has not been told is final fails outright.
+	@Shadow
+	@Final
+	private GuiRenderState guiRenderState;
+
+	@Override
+	public void labsaddons$addGuiElement(GuiElementRenderState element) {
+		this.guiRenderState.addGuiElement(element);
+	}
+
 	private static final int SLOT_SIZE = 16;
 	private static final int INSET = 2;
 

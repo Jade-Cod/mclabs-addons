@@ -3,6 +3,9 @@
 	"package": "dev.jade.labsaddons.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"AbstractContainerScreenMixin",
+		"ClientPacketListenerMixin",
+		"ContainerScreenMixin",
 		"FishingHookAccessor",
 		"GuiGraphicsExtractorMixin",
 		"HudMixin",

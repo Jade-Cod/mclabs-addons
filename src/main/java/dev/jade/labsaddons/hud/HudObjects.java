@@ -1,5 +1,7 @@
 package dev.jade.labsaddons.hud;
 
+import net.minecraft.network.chat.Component;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,6 +14,24 @@ import java.util.List;
  * widgets survive client overlays such as Feather.
  */
 public final class HudObjects {
+	/**
+	 * The editor-rail groups, so a set of related widgets costs the rail one row rather
+	 * than one each. See {@link HudObject#group()}.
+	 *
+	 * <p>Rates and rentals running down: the Chum Bucket, server and personal boosters,
+	 * Lab Wars revenue, and the rental mount.
+	 */
+	public static final Component BOOSTS = Component.translatable("labsaddons.hud.group.boosts");
+	/** What the server is running right now: mini-events, the Pit, Raid Mine, bounties. */
+	public static final Component EVENTS = Component.translatable("labsaddons.hud.group.events");
+	/**
+	 * What is still owed today. Not "Dailies" — that is the name of one of the two widgets
+	 * inside it, and a header repeating its own child reads as a mistake.
+	 */
+	public static final Component REMINDERS = Component.translatable("labsaddons.hud.group.reminders");
+	/** The casino widgets. */
+	public static final Component GAMBLING = Component.translatable("labsaddons.hud.group.gambling");
+
 	private static final List<HudObject> OBJECTS = new ArrayList<>();
 
 	private HudObjects() {

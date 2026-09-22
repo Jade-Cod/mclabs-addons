@@ -24,6 +24,18 @@ public abstract class HudObject {
 		return net.minecraft.network.chat.Component.translatable("labsaddons.hud." + id() + ".name");
 	}
 
+	/**
+	 * The group this widget is folded under in the editor's Widgets rail, or null to sit
+	 * on a row of its own.
+	 *
+	 * <p>Widgets naming the same group share one collapsible row, so a set of related
+	 * widgets costs the rail one line rather than one each. Only the listing is folded:
+	 * each widget keeps its own position, scale, colours and on/off state.
+	 */
+	public net.minecraft.network.chat.Component group() {
+		return null;
+	}
+
 	public abstract int contentWidth(boolean preview);
 
 	public abstract int contentHeight(boolean preview);
@@ -125,7 +137,10 @@ public abstract class HudObject {
 	/** Renders background + content. {@code preview} forces visibility (editor). */
 	public final void render(GuiGraphicsExtractor context, boolean preview) {
 		HudObjectSettings settings = settings();
-		if (!preview && (!settings.enabled || !shouldRender() || !McLabsSession.isActive())) {
+		// MCLabs before the widget's own condition: off the network nothing draws either
+		// way, and asking first means no widget does its per-frame work on a server this
+		// mod has nothing to say about.
+		if (!preview && (!settings.enabled || !McLabsSession.isActive() || !shouldRender())) {
 			return;
 		}
 

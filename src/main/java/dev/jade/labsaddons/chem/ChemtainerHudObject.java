@@ -71,7 +71,16 @@ public class ChemtainerHudObject extends HudObject {
 	private record Row(ItemStack icon, String text, int color) {
 	}
 
+	/** Rebuilt at most once a frame; every caller below asks for it two or three times. */
+	private final dev.jade.labsaddons.hud.FrameValue<List<Row>> rowCache =
+			new dev.jade.labsaddons.hud.FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return rowCache.get(net.minecraft.util.Util.getMillis(), preview,
+				() -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		if (preview && !ChemtainerTracker.hasSnapshot()) {
 			return sampleRows();
 		}

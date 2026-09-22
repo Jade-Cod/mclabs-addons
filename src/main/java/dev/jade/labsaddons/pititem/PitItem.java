@@ -16,7 +16,9 @@ public enum PitItem {
 	BODY_SLAM("Body Slam", 15, null),
 	SCYTHE_SWEEP("Scythe Sweep", 30, null),
 	BLINK_BOOTS("Blink Boots", 10, "You blink forward"),
-	EXCALIBUR("Excalibur", 30, "Excalibur channels divine power");
+	EXCALIBUR("Excalibur", 30, "Excalibur channels divine power"),
+	/** Right-click to shoot a fireball. Announces itself on the actionbar only. */
+	FIREBALL_STAFF("Fireball Staff", 6, null);
 
 	private final String displayName;
 	private final int cooldownSeconds;

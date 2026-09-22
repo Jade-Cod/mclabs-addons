@@ -2,6 +2,7 @@ package dev.jade.labsaddons.booster;
 
 import dev.jade.labsaddons.chem.ChemIcons;
 import dev.jade.labsaddons.hud.HudObject;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -24,6 +25,11 @@ public class BoosterHudObject extends HudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Component group() {
+		return HudObjects.BOOSTS;
 	}
 
 	@Override

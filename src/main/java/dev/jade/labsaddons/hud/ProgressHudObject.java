@@ -7,6 +7,7 @@ import dev.jade.labsaddons.mastery.MasteryGains;
 import dev.jade.labsaddons.mastery.MasteryQuest;
 import dev.jade.labsaddons.mastery.MasteryStore;
 import dev.jade.labsaddons.mastery.MasteryTracker;
+import dev.jade.labsaddons.police.PoliceContraband;
 import dev.jade.labsaddons.prestige.PrestigeChem;
 import dev.jade.labsaddons.prestige.PrestigeStore;
 import dev.jade.labsaddons.prestige.PrestigeTracker;
@@ -167,8 +168,17 @@ public class ProgressHudObject extends HudObject {
 		String figures = chem.hasFigures()
 				? figures(chem.current(), chem.target(), chem.percent())
 				: Component.translatable("labsaddons.hud.progress.complete").getString();
-		return new Row(ChemIcons.iconFor(chem.chem()), chem.chem(), figures, chem.fraction(),
+		return new Row(prestigeIcon(chem.chem()), chem.chem(), figures, chem.fraction(),
 				MasteryGains.delta(chem.chem()), alpha);
+	}
+
+	/**
+	 * Chem tracks are named after a base chem {@link ChemIcons} knows; the police
+	 * contraband ladder is not, and gets the baton the server hands out with its own
+	 * Patrol challenges rather than the unknown-chem fallback.
+	 */
+	private static ItemStack prestigeIcon(String name) {
+		return PoliceContraband.isTrack(name) ? new ItemStack(Items.STICK) : ChemIcons.iconFor(name);
 	}
 
 	private static String figures(double current, double target, int percent) {
@@ -184,9 +194,20 @@ public class ProgressHudObject extends HudObject {
 	 * pinning it. Anything already shown as a pin is skipped in the second pass so a
 	 * gaining pin is not drawn twice.
 	 */
+	/**
+	 * Rebuilt at most once a frame. {@code shouldRender} asks, then the width, then the
+	 * height, then the draw — four builds of the same list, each copying both trackers'
+	 * backing collections and normalising every pinned name.
+	 */
+	private static final FrameValue<List<Row>> VISIBLE = new FrameValue<>();
+
 	private static List<Row> visibleRows() {
-		// Snapshotted once: this runs several times a frame (measure, then draw), and both
-		// accessors copy their backing collection on every call.
+		return VISIBLE.get(net.minecraft.util.Util.getMillis(), false,
+				ProgressHudObject::buildVisibleRows);
+	}
+
+	private static List<Row> buildVisibleRows() {
+		// Snapshotted once: both accessors copy their backing collection on every call.
 		List<MasteryQuest> quests = MasteryTracker.quests();
 		List<PrestigeChem> chems = PrestigeTracker.chems();
 

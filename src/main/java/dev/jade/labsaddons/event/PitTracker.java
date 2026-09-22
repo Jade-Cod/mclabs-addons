@@ -13,10 +13,14 @@ import java.util.regex.Pattern;
 public final class PitTracker {
 	// "open for another <time>" is authoritative (covers status + extend messages);
 	// a bare "sponsored ... for <time>" only raises the floor.
+	// The sentence ends on "!" or "." followed by a space or the end of the line:
+	// Pit week hands out fractions ("37.5 minutes"), and a bare [!.] would stop
+	// the capture dead on the decimal point.
+	private static final String END = "\\s*[!.](?=\\s|$)";
 	private static final Pattern OPEN = Pattern.compile(
-			"open for another\\s+(.+?)\\s*[!.]", Pattern.CASE_INSENSITIVE);
+			"open for another\\s+(.+?)" + END, Pattern.CASE_INSENSITIVE);
 	private static final Pattern SPONSOR = Pattern.compile(
-			"sponsored The Pit for\\s+(.+?)\\s*[!.]", Pattern.CASE_INSENSITIVE);
+			"sponsored The Pit for\\s+(.+?)" + END, Pattern.CASE_INSENSITIVE);
 
 	private PitTracker() {
 	}

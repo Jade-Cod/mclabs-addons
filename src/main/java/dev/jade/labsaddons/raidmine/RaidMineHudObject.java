@@ -2,7 +2,9 @@ package dev.jade.labsaddons.raidmine;
 
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.TimeFormat;
+import dev.jade.labsaddons.server.McLabsSession;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -31,6 +33,11 @@ public class RaidMineHudObject extends HudObject {
 	}
 
 	@Override
+	public Component group() {
+		return HudObjects.EVENTS;
+	}
+
+	@Override
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
 		defaults.x = 0.012f;
@@ -43,7 +50,7 @@ public class RaidMineHudObject extends HudObject {
 	public boolean shouldRender() {
 		// Gated on the raid: outside it the session totals are history, and the
 		// double-drops buff cannot be running anyway.
-		return RaidMineScoreboard.isInRaid()
+		return McLabsSession.isInRaid()
 				&& (RaidMineTracker.isActive() || RaidMineSession.hasActivity());
 	}
 

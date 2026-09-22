@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.daily;
 
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.LabeledTimerHudObject;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -18,6 +19,11 @@ public class VoteReminderHudObject extends LabeledTimerHudObject {
 	@Override
 	public String id() {
 		return ID;
+	}
+
+	@Override
+	public Component group() {
+		return HudObjects.REMINDERS;
 	}
 
 	@Override
