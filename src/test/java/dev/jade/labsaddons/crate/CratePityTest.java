@@ -201,6 +201,80 @@ class CratePityTest {
 		assertEquals(218, CratePity.dry(219));
 	}
 
+	// --- Crate Roll Boosters -------------------------------------------------
+
+	/**
+	 * The voucher's own line, which is the only place its size is stated plainly. Four tiers of
+	 * it exist — {@code crate-roll-booster-0} through {@code -3}, one per amethyst bud in the
+	 * server's resource pack — so the number is read off the line rather than kept in a table
+	 * that would need a row per tier and a capture of each to fill.
+	 */
+	@Test
+	void aBoosterSaysHowManyRollsItIsWorth() {
+		assertEquals(5, CratePity.boostedRolls("MCLabs » Your odds have been increased by 5 "
+				+ "rolls. Left-click a crate to see your new increased odds."));
+		assertEquals(1, CratePity.boostedRolls(
+				"MCLabs » Your odds have been increased by 1 roll."));
+		assertEquals(250, CratePity.boostedRolls(
+				"MCLabs » Your odds have been increased by 250 rolls."));
+		assertEquals(1500, CratePity.boostedRolls(
+				"MCLabs » Your odds have been increased by 1,500 rolls."));
+	}
+
+	/**
+	 * Anchored to the server's prefix, so a player quoting the line cannot move anyone's count.
+	 * The same goes for the odds-went-up line, which the server sends with nothing in front of
+	 * it while a player's message always carries their rank and name first.
+	 */
+	@Test
+	void aPlayerRepeatingTheLineMovesNothing() {
+		assertEquals(0, CratePity.boostedRolls("[S] [VIP+] Zemperus: MCLabs » Your odds have "
+				+ "been increased by 500 rolls."));
+		assertFalse(CratePity.isPityTick("[S] [VIP+] Zemperus: [⚡ Your Exceedingly Rare odds "
+				+ "have been JACKED-UP! ⚡]"));
+		assertEquals(0, CratePity.boostedRolls("MCLabs » Your odds have been increased."));
+		assertEquals(0, CratePity.boostedRolls("MCLabs » You opened a Supply Crate II!"));
+		assertEquals(0, CratePity.boostedRolls(null));
+	}
+
+	/** Absurd figures move nothing: this is chat, applied to a count worth hundreds of keys. */
+	@Test
+	void aBoosterBeyondAnySizeTheServerSellsIsIgnored() {
+		assertEquals(0, CratePity.boostedRolls(
+				"MCLabs » Your odds have been increased by 999,999,999 rolls."));
+		assertEquals(0, CratePity.boostedRolls(
+				"MCLabs » Your odds have been increased by 0 rolls."));
+		assertNull(CratePity.boosted(counts(190, 19, 4), 0));
+		assertNull(CratePity.boosted(counts(190, 19, 4), -5));
+	}
+
+	/**
+	 * A booster moves every ladder forward together and resets none of them — the voucher's own
+	 * lore says it jacks up "your Rare+ crate odds", not one rarity's. It is not a roll either:
+	 * no key is spent and the server sends no odds-went-up line after it.
+	 */
+	@Test
+	void aBoosterMovesEveryLadderForwardAndIsNotARoll() {
+		Map<String, Integer> next = CratePity.boosted(counts(190, 19, 4), 5);
+		assertEquals(195, CratePity.roll(next, CrateRarity.EXCEEDINGLY_RARE));
+		assertEquals(24, CratePity.roll(next, CrateRarity.SUPER_RARE));
+		assertEquals(9, CratePity.roll(next, CrateRarity.VERY_RARE));
+		// Which is the whole point of one: five rolls forward is a better next key.
+		assertTrue(CratePity.chance(CrateRarity.EXCEEDINGLY_RARE, 195)
+				> CratePity.chance(CrateRarity.EXCEEDINGLY_RARE, 190));
+	}
+
+	/** A ladder with no anchor behind it has nothing to move forward from. */
+	@Test
+	void aBoosterDoesNotInventAnUnanchoredLadder() {
+		assertNull(CratePity.boosted(new LinkedHashMap<>(), 5));
+		Map<String, Integer> onlyOne = new LinkedHashMap<>();
+		onlyOne.put(CrateRarity.SUPER_RARE.name(), 19);
+		Map<String, Integer> next = CratePity.boosted(onlyOne, 5);
+		assertEquals(24, CratePity.roll(next, CrateRarity.SUPER_RARE));
+		assertEquals(0, CratePity.roll(next, CrateRarity.EXCEEDINGLY_RARE));
+	}
+
 	// --- anchoring off the odds menu -----------------------------------------
 
 	/**

@@ -574,6 +574,18 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// "[⚡ Your Exceedingly Rare odds have been JACKED-UP! ⚡]" — one per crate roll, in
 		// every capture, including the ones that won a Rare. It is the only signal for a crate
 		// opened with the board off, so it counts the roll whenever the board has not already.
+		// A Crate Roll Booster is not a roll — no key is spent and no odds-went-up line follows
+		// it — but it moves every ladder forward by whatever the voucher was worth.
+		int boost = CratePity.boostedRolls(text);
+		if (boost > 0) {
+			LabsAddonsConfig boosted = LabsAddonsConfig.get();
+			java.util.Map<String, Integer> next =
+					CratePity.boosted(boosted.cratePityRolls, boost);
+			if (next != null) {
+				boosted.cratePityRolls = next;
+				boosted.save();
+			}
+		}
 		if (CratePity.isPityTick(text)) {
 			long now = net.minecraft.util.Util.getMeasuringTimeMs();
 			if (CratePity.isNewRoll(now)) {

@@ -6,6 +6,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The server's pity ladder: how likely each rarity is on your next crate roll, and how many
@@ -48,6 +50,22 @@ public final class CratePity {
 	 * short of the next spin, which cannot start until the player has opened another crate.
 	 */
 	private static final long SAME_ROLL_MS = 6_000L;
+
+	/**
+	 * A Crate Roll Booster's own words. The server ships four tiers of the voucher
+	 * ({@code crate-roll-booster-0} through {@code -3}, one per amethyst bud in its resource
+	 * pack) and the line is the only place the count is stated in a form worth parsing, so the
+	 * number is read rather than looked up per tier.
+	 */
+	private static final Pattern BOOSTER = Pattern.compile(
+			"^MCLabs » Your odds have been increased by ([0-9,]+) rolls?\\b",
+			Pattern.CASE_INSENSITIVE);
+	/**
+	 * Most a booster may be believed to grant. No tier comes near it; the cap is here because
+	 * this is a number read off chat and applied to a count the player has spent hundreds of
+	 * keys building, and a line that says something absurd should move nothing.
+	 */
+	private static final int MAX_BOOST = 10_000;
 
 	/** Where the Exceedingly Rare curve changes shape. See {@link #exceedingly}. */
 	private static final int ER_EARLY_END = 11;
@@ -144,6 +162,55 @@ public final class CratePity {
 	 */
 	public static int dry(int roll) {
 		return Math.max(0, roll - 1);
+	}
+
+	/**
+	 * How many rolls a Crate Roll Booster just granted, or 0 for any other line.
+	 *
+	 * <p>Anchored to the server's prefix rather than found anywhere in the line, so a player
+	 * quoting the message in chat cannot move anybody's counters.
+	 */
+	public static int boostedRolls(String line) {
+		if (line == null) {
+			return 0;
+		}
+		Matcher booster = BOOSTER.matcher(line.trim());
+		if (!booster.find()) {
+			return 0;
+		}
+		try {
+			int rolls = Integer.parseInt(booster.group(1).replace(",", ""));
+			return rolls > 0 && rolls <= MAX_BOOST ? rolls : 0;
+		} catch (NumberFormatException absurd) {
+			return 0;
+		}
+	}
+
+	/**
+	 * The counters after a booster granting {@code rolls}, or null if none of them moved.
+	 *
+	 * <p>Every ladder goes forward together — the voucher's own lore says it jacks up "your
+	 * Rare+ crate odds", not one rarity's — and it is not a roll: no key was spent, nothing was
+	 * unboxed, and the server sends no odds-went-up line after it. It simply puts each counter
+	 * where it would have been that many crates later, which is what the odds menu will say the
+	 * next time it is opened.
+	 */
+	public static Map<String, Integer> boosted(Map<String, Integer> rolls, int granted) {
+		if (granted <= 0 || granted > MAX_BOOST) {
+			return null;
+		}
+		Map<String, Integer> next = copy(rolls);
+		boolean moved = false;
+		for (CrateRarity rarity : TRACKED) {
+			Integer at = next.get(rarity.name());
+			// Never anchored, so there is nothing for the booster to move forward from.
+			if (at == null || at < 1) {
+				continue;
+			}
+			next.put(rarity.name(), at + granted);
+			moved = true;
+		}
+		return moved ? next : null;
 	}
 
 	/**
@@ -264,17 +331,21 @@ public final class CratePity {
 	 *
 	 * <p>{@code "[⚡ Your Exceedingly Rare odds have been JACKED-UP! ⚡]"}, about half a second
 	 * after the unbox line, in all ten captured spins — including the two that won a Rare, so
-	 * it is fired by the roll rather than by the result. Matched on the words rather than the
-	 * whole line so the brackets and the symbols either side can change without silencing it.
+	 * it is fired by the roll rather than by the result. The server sends it as the whole line
+	 * with the bolt leading, and it is checked that way: a player message always carries their
+	 * rank and name first — bracketed too, which is why the bracket alone is not enough — so
+	 * quoting it in chat cannot count somebody a roll.
 	 *
 	 * <p>No voter crate capture has it, which is why a voter roll counts toward nothing here.
+	 * Nor does a Crate Roll Booster, which sends no such line — see {@link #boostedRolls}.
 	 */
 	public static boolean isPityTick(String line) {
 		if (line == null) {
 			return false;
 		}
-		String lower = line.toLowerCase(Locale.ROOT);
-		return lower.contains("odds have been jacked-up")
+		String lower = line.trim().toLowerCase(Locale.ROOT);
+		return lower.startsWith("[\u26a1")
+				&& lower.contains("odds have been jacked-up")
 				&& lower.contains(CrateRarity.EXCEEDINGLY_RARE.label().toLowerCase(Locale.ROOT));
 	}
 
