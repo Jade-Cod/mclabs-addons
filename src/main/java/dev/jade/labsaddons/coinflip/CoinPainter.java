@@ -1,6 +1,5 @@
 package dev.jade.labsaddons.coinflip;
 
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.entity.player.SkinTextures;
@@ -24,21 +23,25 @@ public final class CoinPainter {
 	private static final int BODY = 0xFFE8B04B;
 	private static final int SHEEN = 0xFFF7D98A;
 	private static final int BEZEL = 0xFF5A3C0E;
-	private static final int LEGEND = 0xFF4A320F;
 	private static final int BLANK_FACE = 0xFFC89A48;
 	private static final int SHADOW = 0x59000000;
 
 	/** Below this the portrait is too distorted to be worth drawing. */
 	private static final float FACE_VISIBLE = 0.34f;
-	/** And below this a squeezed word is unreadable, so the legend is simply not there. */
-	private static final float LEGEND_VISIBLE = 0.80f;
 	/** Past this the coin is edge-on enough to be worth lighting its rim. */
 	private static final float EDGE_LIT = 0.55f;
 	/** The coin is never thinner than this many pixels: a vanished coin reads as a bug. */
 	private static final int MIN_THICKNESS = 2;
 
-	private static final float FACE_SIZE = 0.46f;
-	private static final int LEGEND_INSET = 5;
+	/**
+	 * How much of the coin the portrait takes.
+	 *
+	 * <p>The face used to share the disc with "HEADS"/"TAILS" struck under it, and had to be
+	 * small enough to leave room. The word said nothing the seats below the coin do not
+	 * already say, so it is gone and the face has the disc to itself. Its corners reach a
+	 * little into the rim band, which is what a real coin's portrait does.
+	 */
+	private static final float FACE_SIZE = 0.62f;
 
 	private CoinPainter() {
 	}
@@ -46,11 +49,10 @@ public final class CoinPainter {
 	/**
 	 * @param squeeze 1 face-on, 0 edge-on, and above 1 for the squash as it lands
 	 * @param skin    the face to strike into it, or null while a name is still unknown
-	 * @param legend  "HEADS" or "TAILS", drawn only while the coin is flat enough to read
 	 * @param flash   0 to 1, a white bloom over the whole coin at the moment it settles
 	 */
-	public static void draw(DrawContext context, TextRenderer font, int cx, int cy, int d,
-			float squeeze, SkinTextures skin, String legend, float flash) {
+	public static void draw(DrawContext context, int cx, int cy, int d,
+			float squeeze, SkinTextures skin, float flash) {
 		int radius = d / 2;
 		float flat = Math.clamp(squeeze, MIN_THICKNESS / (float) radius, 1.45f);
 		int rim = Math.max(3, d / 12);
@@ -69,12 +71,7 @@ public final class CoinPainter {
 		disc(context, cx - radius / 3, cy - radius / 3, Math.max(2, radius / 5), SHEEN);
 
 		if (flat >= FACE_VISIBLE) {
-			portrait(context, cx, cy, d, legend, skin);
-		}
-		if (flat >= LEGEND_VISIBLE && legend != null && !legend.isEmpty()) {
-			int width = font.getWidth(legend);
-			context.drawText(font, legend, cx - width / 2, cy + d / LEGEND_INSET, LEGEND,
-					false);
+			portrait(context, cx, cy, d, skin);
 		}
 		thickness(context, cx, cy, radius, flat);
 		if (flash > 0f) {
@@ -109,12 +106,11 @@ public final class CoinPainter {
 	}
 
 	/** The player's face, bezelled so its square edge reads as a strike and not a sticker. */
-	private static void portrait(DrawContext context, int cx, int cy, int d, String legend,
+	private static void portrait(DrawContext context, int cx, int cy, int d,
 			SkinTextures skin) {
 		int size = Math.max(8, Math.round(d * FACE_SIZE));
 		int x = cx - size / 2;
-		// Lifted by the legend's own height when there is one, so both stay inside the disc.
-		int y = cy - size / 2 - (legend == null || legend.isEmpty() ? 0 : d / LEGEND_INSET / 2);
+		int y = cy - size / 2;
 		context.fill(x - 1, y - 1, x + size + 1, y + size + 1, BEZEL);
 		if (skin != null) {
 			PlayerSkinDrawer.draw(context, skin, x, y, size);

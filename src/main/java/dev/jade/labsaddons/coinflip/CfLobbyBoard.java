@@ -43,6 +43,13 @@ public final class CfLobbyBoard extends CasinoPanel {
 	/** Wide enough for "$100.0m", which is the widest the server allows. */
 	private static final int WAGER_W = 42;
 	private static final int FACE_W = 10;
+	/**
+	 * Breathing room between the money column and the rail divider.
+	 *
+	 * <p>The list is exactly as wide as the gap to the divider, so a right-aligned figure
+	 * ended flush against the line with no gutter at all.
+	 */
+	private static final int LIST_GUTTER = 5;
 	private static final int FOOTER_Y = CONTENT_Y + VISIBLE_ROWS * ROW_H + 3;
 	private static final int REFRESH_W = 54;
 	private static final int REFRESH_H = 13;
@@ -158,16 +165,17 @@ public final class CfLobbyBoard extends CasinoPanel {
 				HEAD);
 
 		String wager = Money.compact(row.wagerCents());
-		int nameW = LIST_W - NAME_X - WAGER_W - FACE_W - 4;
+		int nameW = LIST_W - LIST_GUTTER - NAME_X - WAGER_W - FACE_W - 4;
 		context.drawText(font, font.trimToWidth(row.player(), nameW), LIST_X + NAME_X, y + 2,
 				hot ? TEXT : TEXT_DIM, false);
 		// One letter for the side you would be taking: the full word does not fit, and the
 		// side is the one thing about a flip that changes nothing about its price.
 		String side = row.yourFace().isEmpty() ? "" : row.yourFace().substring(0, 1)
 				.toUpperCase(Locale.ROOT);
-		context.drawText(font, side, LIST_X + LIST_W - WAGER_W - FACE_W, y + 2,
+		int right = LIST_X + LIST_W - LIST_GUTTER;
+		context.drawText(font, side, right - WAGER_W - FACE_W, y + 2,
 				hot ? accent() : TEXT_FAINT, false);
-		context.drawText(font, wager, LIST_X + LIST_W - font.getWidth(wager), y + 2,
+		context.drawText(font, wager, right - font.getWidth(wager), y + 2,
 				hot ? TEXT : TEXT_DIM, false);
 
 		clickable(LIST_X, y, LIST_W, ROW_H, row.slot());

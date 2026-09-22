@@ -165,4 +165,37 @@ class D2ReaderTest {
 		assertEquals(0L, state.potTotal());
 		assertEquals(28, state.eolDrought());
 	}
+
+	/**
+	 * The chips are sent once, when you invest, and never again — so a round later they are
+	 * still advertising money that has long since been settled. Captured on 2026-09-18:
+	 * slot 31 went back to "Invest!" at the new round and slots 11-15 were never re-sent.
+	 */
+	@Test
+	void lastRoundsChipsDoNotCountAsThisRoundsStake() {
+		List<SlotView> slots = frame();
+		for (int i = D2Reader.CHIP_FIRST; i <= D2Reader.CHIP_LAST; i++) {
+			set(slots, i, "+$100", "Current Investment: $100,000");
+		}
+		for (int i = 27; i <= 35; i++) {
+			set(slots, i, "Invest!");
+		}
+		set(slots, 40, "Investing Open!", "Market closing in 60 seconds");
+		D2State state = D2Reader.read(slots);
+		assertEquals(D2State.Phase.BETTING, state.phase());
+		assertEquals(0L, state.stake(), "betting is open and nothing is staked yet");
+		assertFalse(state.hasBet());
+	}
+
+	/** While the wheel turns, slot 31 is buried and the chips are the only source left. */
+	@Test
+	void theChipsAreBelievedOnceBettingHasClosed() {
+		List<SlotView> slots = betting();
+		for (int i = 27; i <= 35; i++) {
+			set(slots, i, "Simulating market...", "1 Player Investing", "CQL: $0", "MSL: $0",
+					"ADL: $0", "RDL: $0", "EOL: $100,000", "Total: $100,000");
+		}
+		set(slots, 40, "Simulating market...");
+		assertEquals(100_000L, D2Reader.read(slots).stake());
+	}
 }

@@ -87,7 +87,7 @@ public final class D2Reader {
 		Lab settled = settledLab(slots);
 		D2State.Phase phase = phase(slots, settled);
 
-		return new D2State(phase, seconds(slots), selected(slots), stake(slots),
+		return new D2State(phase, seconds(slots), selected(slots), stake(slots, phase),
 				betLab(slots, phase), betAmount(slots, phase), pot(slots), investors(slots),
 				window(slots), settled, drought(slots));
 	}
@@ -142,8 +142,20 @@ public final class D2Reader {
 		return null;
 	}
 
-	/** The staked figure, which the server repeats on all five chips. */
-	private static long stake(List<SlotView> slots) {
+	/**
+	 * The staked figure, which the server repeats on all five chips.
+	 *
+	 * <p>The chips are <em>not</em> reset when a round ends: the server sends them once, when
+	 * you invest, and never sends them again — so "Current Investment: $1,000" is still sitting
+	 * on them a round later, long after the money has been settled. Slot 31 is the honest
+	 * source while betting is open, and it goes back to "Invest!" the moment a new round
+	 * starts. During the spin and the result that slot is buried under the banner, and the
+	 * chips are telling the truth about the round in progress, so they are read then.
+	 */
+	private static long stake(List<SlotView> slots, D2State.Phase phase) {
+		if (phase == D2State.Phase.BETTING) {
+			return betAmount(slots, phase);
+		}
 		for (int i = CHIP_FIRST; i <= CHIP_LAST; i++) {
 			SlotView slot = SlotView.at(slots, i);
 			if (slot == null || slot.lore() == null) {

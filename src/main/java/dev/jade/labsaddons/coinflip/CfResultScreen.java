@@ -92,13 +92,11 @@ public class CfResultScreen extends Screen {
 	private void panel(DrawContext context, long age) {
 		int colour = landed.won() ? WIN : LOSS;
 		String winner = landed.won() ? landed.you() : landed.them();
-		String face = landed.won() ? landed.yourFace() : landed.theirFace();
 
 		int coinCy = PAD + COIN_D / 2;
 		CoinPainter.shadow(context, PAD + COIN_D / 2 + 2, coinCy + COIN_D / 2 + 4, COIN_D, 0f);
-		CoinPainter.draw(context, this.textRenderer, PAD + COIN_D / 2 + 2, coinCy, COIN_D, 1f,
-				winner == null ? null : PlayerSkinCache.skin(winner),
-				face == null ? "" : face.toUpperCase(Locale.ROOT), 0f);
+		CoinPainter.draw(context, PAD + COIN_D / 2 + 2, coinCy, COIN_D, 1f,
+				winner == null ? null : PlayerSkinCache.skin(winner), 0f);
 
 		int textX = PAD + COIN_D + 12;
 		context.getMatrices().pushMatrix();
@@ -112,12 +110,10 @@ public class CfResultScreen extends Screen {
 			long net = landed.won()
 					? CfOdds.winProfitCents(landed.wagerCents())
 					: -landed.wagerCents();
-			String amount = (net >= 0 ? "+" : "") + Money.format(net);
+			// Compact, like every other figure in the coinflip UI: a win worth
+			// "+$1,872,327.28" spelled out is unreadable at a glance and overruns the panel.
+			String amount = (net >= 0 ? "+" : "") + Money.compact(net);
 			context.drawText(this.textRenderer, amount, textX, PAD + 26, colour, false);
-			String detail = landed.won()
-					? "collected " + Money.format(CfOdds.winReturnCents(landed.wagerCents()))
-					: "staked " + Money.format(landed.wagerCents());
-			context.drawText(this.textRenderer, detail, textX, PAD + 38, TEXT_DIM, false);
 		}
 
 		int rowY = PAD + COIN_D + 12;

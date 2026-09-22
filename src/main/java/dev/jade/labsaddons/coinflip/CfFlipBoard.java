@@ -302,9 +302,8 @@ public final class CfFlipBoard extends CasinoPanel {
 				: 0f;
 		boolean yours = faceUp == YOUR_SIDE;
 		String name = yours ? you : them;
-		CoinPainter.draw(context, font, COIN_CX, cy, COIN_D, squeeze,
-				name == null ? null : PlayerSkinCache.skin(name),
-				(yours ? yourFace : theirFace).toUpperCase(Locale.ROOT), flash);
+		CoinPainter.draw(context, COIN_CX, cy, COIN_D, squeeze,
+				name == null ? null : PlayerSkinCache.skin(name), flash);
 
 		if (landed) {
 			// Two rings, out of the coin and gone. Long enough to register the result,
