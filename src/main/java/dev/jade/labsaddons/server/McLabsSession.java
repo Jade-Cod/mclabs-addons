@@ -51,7 +51,8 @@ public final class McLabsSession {
 	 */
 	private static Text lastSidebarTitle;
 	/** Last title reported, so the sidebar is logged when it changes and not every tick. */
-	private static String lastLoggedTitle;
+	/** The last pair of answers logged, so a live sidebar heading cannot flood the log. */
+	private static String lastLoggedAnswers;
 
 	private McLabsSession() {
 	}
@@ -96,11 +97,25 @@ public final class McLabsSession {
 	 * is what makes that readable from a log instead of another round of testing. A menu that
 	 * hides the sidebar is not worth a line.
 	 */
+	/**
+	 * One line per change of answer, not per change of title.
+	 *
+	 * <p>This is read every tick, and it keyed off the title text — so a sidebar with anything
+	 * live in its heading (a countdown, a player count, a cycling banner) is a different string
+	 * every tick, and that was a log line every tick: twenty a second of synchronous file and
+	 * console I/O on the client thread, for a string whose only job is to answer two booleans.
+	 * Precautionary rather than observed — MCLabs' headings look static — but the line is about
+	 * the answers and nothing is lost by saying so only when one of them moves.
+	 */
 	private static void log(String title) {
-		if (title.isEmpty() || title.equals(lastLoggedTitle)) {
+		if (title.isEmpty()) {
 			return;
 		}
-		lastLoggedTitle = title;
+		String answers = onMcLabs + "/" + inRaid;
+		if (answers.equals(lastLoggedAnswers)) {
+			return;
+		}
+		lastLoggedAnswers = answers;
 		LOGGER.info("[labsaddons] Sidebar: \"{}\" (mclabs={} raid={})", title, onMcLabs, inRaid);
 	}
 
@@ -123,7 +138,7 @@ public final class McLabsSession {
 		onMcLabs = false;
 		inRaid = false;
 		lastSidebarTitle = null;
-		lastLoggedTitle = null;
+		lastLoggedAnswers = null;
 	}
 
 	public static boolean isActive() {
