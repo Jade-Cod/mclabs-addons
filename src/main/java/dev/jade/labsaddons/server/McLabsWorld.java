@@ -24,11 +24,8 @@ import org.slf4j.LoggerFactory;
  * wander. The banners do not share one shape either — The Pit's omits "MCLabs"
  * entirely — so each world carries its own literal.
  *
- * <p>{@link McLabsSession} reads the sidebar, which answers "are we on MCLabs" and "are we
- * in a raid"; this answers "which world", which is what a profile keys off. It stays on the
- * banner rather than joining them, because the sidebar spells the same world several ways —
- * the Underworld alone appears as {@code Underworld-A}, {@code Underworld-B}, {@code UW-A}
- * and {@code UW-B} — whereas the banner names it once.
+ * <p>{@link McLabsSession} answers "are we on MCLabs" from the sidebar; this answers
+ * "which world", which is what a profile keys off.
  */
 public enum McLabsWorld {
 	SPAWN("spawn", "Welcome to MCLabs Spawn"),

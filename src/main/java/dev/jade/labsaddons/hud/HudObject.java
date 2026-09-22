@@ -137,10 +137,7 @@ public abstract class HudObject {
 	/** Renders background + content. {@code preview} forces visibility (editor). */
 	public final void render(DrawContext context, boolean preview) {
 		HudObjectSettings settings = settings();
-		// MCLabs before the widget's own condition: off the network nothing draws either
-		// way, and asking first means no widget does its per-frame work on a server this
-		// mod has nothing to say about.
-		if (!preview && (!settings.enabled || !McLabsSession.isActive() || !shouldRender())) {
+		if (!preview && (!settings.enabled || !shouldRender() || !McLabsSession.isActive())) {
 			return;
 		}
 
