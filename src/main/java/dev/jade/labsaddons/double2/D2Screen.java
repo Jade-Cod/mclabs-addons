@@ -138,7 +138,7 @@ public final class D2Screen extends CasinoPanel {
 			HubDisplay hub = hubDisplay(state, font);
 			D2Wheel.draw(context, font, wheelCx, wheelCy, OUTER_R, INNER_R,
 					D2Ring.segments(), drawPos, accent, hub.lines(), hub.noteColor(),
-					deviceScale, pointerAngle, settledLab, winningIndex, settledPulse);
+					pointerAngle, settledLab, winningIndex, settledPulse);
 
 			if (!D2Ring.isComplete()) {
 				// Say why part of it is grey, so it does not read as a fault.

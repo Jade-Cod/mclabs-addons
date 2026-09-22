@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.crate;
 
+import dev.jade.labsaddons.hud.GuiElements;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import net.minecraft.client.font.TextRenderer;
@@ -15,9 +16,9 @@ import net.minecraft.item.ItemStack;
  *
  * <p>Two things are deliberate. The candidates are drawn as the server's own item icons
  * rather than as glyphs, because a player already recognises a Geo-Generator by its texture
- * and would have to learn a stand-in. And the glow is built from stacked translucent rounded
- * rectangles rather than a real radial gradient, which Minecraft's {@code DrawContext} has
- * no primitive for — six rings is plenty at this size and costs nothing.
+ * and would have to learn a stand-in. And the glow is a real radial gradient, which
+ * {@code DrawContext} has no primitive for, so it goes in as an element of its own — see
+ * {@link GlowRenderState}.
  */
 final class CrateChamber {
 	/** Native item icon size. Everything here is sized off it. */
@@ -25,13 +26,11 @@ final class CrateChamber {
 	/** The box a candidate sits in, a couple of pixels wider than its icon. */
 	static final int MOTE = 22;
 	/**
-	 * Rings and the alpha of each, not of the whole.
+	 * The weight of one of the twelve layers the glow's curve is built from, not of the whole.
 	 *
-	 * <p>Twelve composite to about a third opaque at the centre, the same as six at fifteen
-	 * would — but at six the individual circles are visible as bands around anything as large
-	 * as the winner, and at twelve they are not.
+	 * <p>Twelve of these composite to about a third opaque at the centre, which is the light
+	 * the chamber is tuned to. See {@link GlowRenderState#alphaAt}.
 	 */
-	private static final int GLOW_RINGS = 12;
 	private static final int GLOW_ALPHA = 8;
 	private static final int VIGNETTE_MAX = 150;
 	private static final int VIGNETTE_BAND = 5;
@@ -42,13 +41,14 @@ final class CrateChamber {
 	/**
 	 * A soft round glow, centred on whatever it belongs to.
 	 *
-	 * <p>Built from concentric discs rather than rounded rectangles. The rounded-rect helper
-	 * has a fixed two-pixel radius, so nesting it at any useful size drew a stack of plain
-	 * rectangles with hard edges — which read as a rendering fault rather than as light, and
-	 * did so most visibly at the moment the winner landed.
+	 * <p>Rounded rectangles were the first attempt: the helper has a fixed two-pixel radius, so
+	 * nesting it at any useful size drew a stack of plain rectangles with hard edges, which read
+	 * as a rendering fault rather than as light. Concentric discs replaced them and looked right,
+	 * but drew one rectangle per scanline of each of twelve rings — 258 fills for a glow this
+	 * size, and nine candidates to 2,322 a frame, each its own render-state object.
 	 *
-	 * <p>Each ring is drawn at the same low alpha and they composite, so the falloff is
-	 * steepest at the centre without any one step being visible.
+	 * <p>So the light is now a single GUI element with the falloff on its vertices; see
+	 * {@link GlowRenderState}, which reproduces that same twelve-layer curve.
 	 */
 	static void glow(DrawContext context, float cx, float cy, float radius, int colour,
 			float intensity) {
@@ -56,32 +56,12 @@ final class CrateChamber {
 		if (strength <= 0.01f || radius <= 1f) {
 			return;
 		}
-		int alpha = Math.round(GLOW_ALPHA * strength);
-		if (alpha <= 0) {
+		float layerAlpha = GLOW_ALPHA * strength / 255f;
+		if (layerAlpha <= 0f) {
 			return;
 		}
-		int shade = tint(colour, alpha);
-		for (int ring = GLOW_RINGS; ring >= 1; ring--) {
-			disc(context, cx, cy, radius * ring / GLOW_RINGS, shade);
-		}
-	}
-
-	/** A filled circle, one fill per scanline. */
-	private static void disc(DrawContext context, float cx, float cy, float radius, int colour) {
-		int centreX = Math.round(cx);
-		int top = Math.round(cy - radius);
-		int bottom = Math.round(cy + radius);
-		for (int y = top; y <= bottom; y++) {
-			double dy = y + 0.5d - cy;
-			double span = (double) radius * radius - dy * dy;
-			if (span <= 0d) {
-				continue;
-			}
-			int half = (int) Math.round(Math.sqrt(span));
-			if (half > 0) {
-				context.fill(centreX - half, y, centreX + half, y + 1, colour);
-			}
-		}
+		GuiElements.submit(context, new GlowRenderState(context.getMatrices(), cx, cy, radius,
+				colour, layerAlpha));
 	}
 
 	/**

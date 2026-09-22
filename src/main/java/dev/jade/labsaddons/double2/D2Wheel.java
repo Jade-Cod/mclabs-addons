@@ -1,21 +1,20 @@
 package dev.jade.labsaddons.double2;
 
+import dev.jade.labsaddons.hud.GuiElements;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
 /**
  * Paints the 25-segment ring, pointer at the top.
  *
- * <p>Two things keep it smooth. First it is rasterised at <b>device</b> resolution
- * rather than GUI units: the matrix is counter-scaled and every radius multiplied up,
- * so one fill is one screen pixel instead of a GUI-scale-sized block. Drawing at GUI
- * scale and letting Minecraft magnify it was what made the edges look doubled.
+ * <p>The ring itself is geometry rather than fills: {@link D2WheelRenderState} hands the GUI
+ * one element holding every segment, peg, hub disc and the needle, so the whole wheel is a
+ * single render-state object and the GPU does the rasterising. An earlier version drew it by
+ * software-rasterising at device resolution, one fill per scanline, with per-pixel coverage at
+ * the rim and the spokes; it looked right and cost hundreds of rectangles a frame.
  *
- * <p>Second, edges carry coverage. A pixel near the rim fades by how much of it the
- * ring covers, and a pixel near a segment boundary is mixed between the two segments,
- * so the spokes and the rim antialias themselves. That needs per-pixel work, but runs
- * of identical colour are emitted as a single fill, so the interior of a segment costs
- * one rectangle per scanline rather than one per pixel.
+ * <p>What stays here is what wants the font: the lab glyphs around the band, and the hub. Both
+ * are drawn in GUI units, because the font is already sharp at any scale.
  */
 final class D2Wheel {
 	static final double SEG_RAD = Math.PI * 2 / D2Ring.SIZE;
@@ -29,34 +28,23 @@ final class D2Wheel {
 	}
 
 	/**
-	 * @param segments      the wheel as far as it is known; a null has not been seen yet
-	 * @param offset        the tweened ring position of the window's first segment
-	 * @param unitsToPixels screen pixels per GUI unit (preserved for compatibility)
-	 * @param hubText       lines for the middle, any of which may be null
+	 * @param segments the wheel as far as it is known; a null has not been seen yet
+	 * @param offset   the tweened ring position of the window's first segment
+	 * @param hubText  lines for the middle, any of which may be null
 	 */
 	static void draw(DrawContext context, TextRenderer font, int cx, int cy,
 			int outerR, int innerR, Lab[] segments, float offset, int accent,
-			String[] hubText, int hubNoteColor, float unitsToPixels, float pointerAngle,
+			String[] hubText, int hubNoteColor, float pointerAngle,
 			Lab settledLab, int winningIndex, float settledPulse) {
-		if (context instanceof DrawContextBridge bridge) {
-			bridge.labsaddons$addSimpleElement(new D2WheelRenderState(
-					context.getMatrices(), cx, cy, outerR, innerR, segments, offset, accent,
-					settledLab, winningIndex, settledPulse, pointerAngle));
-		}
+		GuiElements.submit(context, new D2WheelRenderState(
+				context.getMatrices(), cx, cy, outerR, innerR, segments, offset, accent,
+				settledLab, winningIndex, settledPulse, pointerAngle));
 
 		if (outerR - innerR >= GLYPH_MIN_THICKNESS) {
 			glyphs(context, font, segments, cx, cy, (innerR + outerR) / 2, offset,
 					settledLab, winningIndex);
 		}
 		hub(context, font, cx, cy, innerR, hubText, hubNoteColor);
-	}
-
-	/** Overload for compatibility. */
-	static void draw(DrawContext context, TextRenderer font, int cx, int cy,
-			int outerR, int innerR, Lab[] segments, float offset, int accent,
-			String[] hubText, float unitsToPixels) {
-		draw(context, font, cx, cy, outerR, innerR, segments, offset, accent,
-				hubText, 0xFF9AA3AD, unitsToPixels, 0f, null, -1, 0f);
 	}
 
 	/** Lab glyphs, upright, in GUI units — the font is already sharp at any scale. */

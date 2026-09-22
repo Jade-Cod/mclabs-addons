@@ -155,7 +155,7 @@ public final class LabsAddonsConfigScreenFactory {
 
 		category.addEntry(entries
 				.startEnumSelector(Text.translatable(prefix + ".corner"),
-						ItemUsesCorner.class, ItemUsesCorner.valueOf(config.itemUsesCorner))
+						ItemUsesCorner.class, config.itemUsesCornerValue())
 				.setDefaultValue(ItemUsesCorner.TOP_LEFT)
 				.setEnumNameProvider(value -> Text.translatable(
 						prefix + ".corner." + ((ItemUsesCorner) value).name().toLowerCase(java.util.Locale.ROOT)))

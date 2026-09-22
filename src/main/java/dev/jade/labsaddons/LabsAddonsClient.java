@@ -236,6 +236,12 @@ public class LabsAddonsClient implements ClientModInitializer {
 			McLabsWorld.reset();
 			// Likewise a daily spin left part-way through.
 			DailySpin.reset();
+			// The menus remembered for the once-per-open scrape belong to the world we just
+			// left, and each is a live reference to a screen handler and every stack in it.
+			// They are the only Minecraft objects this class holds across a disconnect.
+			lastRatesScreen = null;
+			scrapeWaitScreen = null;
+			scrapeWaits = 0;
 			// Saves are coalesced onto a background thread, so leaving a server is one
 			// of the points that has to wait for them to actually land.
 			LabsAddonsConfig.get().saveNow();
@@ -560,6 +566,33 @@ public class LabsAddonsClient implements ClientModInitializer {
 		RunnerTracker.onMessage(text);
 		McmmoCooldownTracker.onMessage(text);
 		PitItemCooldownTracker.onMessage(text);
+		// Only on MCLabs: this block writes the lifetime coinflip record and the pity
+		// ladders into the config, and a line shaped like one of these on some other server
+		// would be written there for good. The trackers above stay ungated deliberately —
+		// they catch join-time announcements, which can land before the sidebar this flag
+		// reads off has arrived.
+		if (McLabsSession.isActive()) {
+			dispatchCasinoChat(text);
+		}
+		if (MasteryChatTracker.onMessage(text)) {
+			// A chat reaction moved an active challenge; keep it across a restart.
+			MasteryStore.save();
+		}
+		if (PoliceContraband.onMessage(text)) {
+			// A confiscation moves the police prestige tier and every patrol challenge it
+			// counted toward, so both boards are written back.
+			PrestigeStore.save();
+			MasteryStore.save();
+		}
+	}
+
+	/**
+	 * The casino and crate readers, which only ever have anything to say on MCLabs.
+	 *
+	 * <p>Its own method rather than another nesting level in {@link #dispatchChat}, which is
+	 * already a long flat list and reads best as one.
+	 */
+	private static void dispatchCasinoChat(String text) {
 		// The casino boards show the server's own payout figures rather than computing
 		// one: the menus stop stating a result the moment a game ends.
 		D2Chat.onMessage(text);
@@ -609,16 +642,6 @@ public class LabsAddonsClient implements ClientModInitializer {
 					config.save();
 				}
 			}
-		}
-		if (MasteryChatTracker.onMessage(text)) {
-			// A chat reaction moved an active challenge; keep it across a restart.
-			MasteryStore.save();
-		}
-		if (PoliceContraband.onMessage(text)) {
-			// A confiscation moves the police prestige tier and every patrol challenge it
-			// counted toward, so both boards are written back.
-			PrestigeStore.save();
-			MasteryStore.save();
 		}
 	}
 }

@@ -293,6 +293,9 @@ public class LabsAddonsConfig {
 	// --- Item Uses overlay (remaining charges shown on inventory slots) ---
 	public boolean itemUsesEnabled = true;
 	public String itemUsesCorner = ItemUsesCorner.TOP_LEFT.name();
+	/** Cache behind {@link #itemUsesCornerValue()}. Transient, so Gson never writes it. */
+	private transient String cornerParsed;
+	private transient ItemUsesCorner cornerValue = ItemUsesCorner.TOP_LEFT;
 	public int itemUsesColor = DEFAULT_ITEM_USES_COLOR;
 	public float itemUsesScale = DEFAULT_ITEM_USES_SCALE;
 
@@ -593,6 +596,22 @@ public class LabsAddonsConfig {
 			clean.hudObjects.put("chum_timer", chum);
 		}
 		return clean;
+	}
+
+	/**
+	 * The corner as an enum, resolved once per change rather than once per slot drawn.
+	 *
+	 * <p>The overlay's hook runs for every slot of every open container, every frame, and it
+	 * used to parse this string there — behind a {@code catch} for a value {@link #sanitized}
+	 * has already replaced with one the enum knows. One place to fall back from, and the hot
+	 * path reads a field.
+	 */
+	public ItemUsesCorner itemUsesCornerValue() {
+		if (!java.util.Objects.equals(this.itemUsesCorner, this.cornerParsed)) {
+			this.cornerParsed = this.itemUsesCorner;
+			this.cornerValue = parseCorner(this.itemUsesCorner);
+		}
+		return this.cornerValue;
 	}
 
 	private static ItemUsesCorner parseCorner(String value) {

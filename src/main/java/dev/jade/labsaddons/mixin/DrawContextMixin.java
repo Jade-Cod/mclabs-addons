@@ -1,7 +1,7 @@
 package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
-import dev.jade.labsaddons.double2.DrawContextBridge;
+import dev.jade.labsaddons.hud.DrawContextBridge;
 import dev.jade.labsaddons.item.ItemUses;
 import dev.jade.labsaddons.item.ItemUsesCorner;
 import net.minecraft.client.font.TextRenderer;
@@ -56,12 +56,7 @@ public abstract class DrawContextMixin implements DrawContextBridge {
 		}
 		String text = String.valueOf(uses);
 		float scale = config.itemUsesScale;
-		ItemUsesCorner corner;
-		try {
-			corner = ItemUsesCorner.valueOf(config.itemUsesCorner);
-		} catch (Exception e) {
-			corner = ItemUsesCorner.TOP_LEFT;
-		}
+		ItemUsesCorner corner = config.itemUsesCornerValue();
 		boolean right = corner == ItemUsesCorner.TOP_RIGHT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		boolean bottom = corner == ItemUsesCorner.BOTTOM_LEFT || corner == ItemUsesCorner.BOTTOM_RIGHT;
 		int textX = right
