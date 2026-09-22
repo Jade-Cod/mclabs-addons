@@ -30,6 +30,7 @@ import dev.jade.labsaddons.coinflip.CfResultScreen;
 import dev.jade.labsaddons.coinflip.CfRecordHudObject;
 import dev.jade.labsaddons.coinflip.CfStats;
 import dev.jade.labsaddons.crate.CratePity;
+import dev.jade.labsaddons.crate.DailySpin;
 import dev.jade.labsaddons.crate.CratePityReader;
 import dev.jade.labsaddons.crate.VoteOddsReader;
 import dev.jade.labsaddons.double2.D2Chat;
@@ -233,6 +234,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 			RaidMineHologramReader.reset();
 			// The world we remember belongs to the server we just left.
 			McLabsWorld.reset();
+			// Likewise a daily spin left part-way through.
+			DailySpin.reset();
 			// Saves are coalesced onto a background thread, so leaving a server is one
 			// of the points that has to wait for them to actually land.
 			LabsAddonsConfig.get().saveNow();
@@ -379,6 +382,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// Out of the chain as well: a voter crate's odds menu is nobody
 					// else's screen, and it is the only place those figures are ever
 					// stated — the roll that follows shows three items and no odds.
+					// Before the readers: /daily's spin and a voter crate's are the same
+					// screen down to the slot, and the only thing that tells them apart is
+					// the menu that handed over to it.
+					DailySpin.onScreen(handledScreen.getTitle().getString(),
+							net.minecraft.util.Util.getMeasuringTimeMs());
 					VoteOddsReader.tryRead(handledScreen);
 					// And out of it too: "Your Exceedingly Rare odds" is the only place the
 					// server says which roll of the pity ladder you are on.
@@ -571,6 +579,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 			}
 		}
 		CfStats.onMessage(text);
+		// The server saying what you took ends the daily spin, so a voter crate rolled
+		// afterwards is not mistaken for another one.
+		DailySpin.onMessage(text);
 		// "[⚡ Your Exceedingly Rare odds have been JACKED-UP! ⚡]" — one per crate roll, in
 		// every capture, including the ones that won a Rare. It is the only signal for a crate
 		// opened with the board off, so it counts the roll whenever the board has not already.

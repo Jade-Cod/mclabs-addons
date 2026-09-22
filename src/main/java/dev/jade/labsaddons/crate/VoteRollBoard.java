@@ -7,6 +7,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
+import net.minecraft.text.OrderedText;
 import net.minecraft.util.Util;
 
 import java.util.ArrayList;
@@ -63,6 +64,13 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int REEL_GAP = 92;
 	private static final int NAME_W = REEL_GAP - 6;
 	private static final int NAME_LINES = 2;
+	/**
+	 * A daily reward gets a third line, because a daily reel has no figures under it to make
+	 * room for and its names are the longest of any roll — "120-minute Enhanced Farming
+	 * Voucher" does not fit two lines this narrow, and a cut reward name is the one thing on
+	 * this screen a player cannot work out for themselves.
+	 */
+	private static final int DAILY_NAME_LINES = 3;
 	private static final int LINE_H = 10;
 	private static final int REEL_Y = 62;
 	private static final int NAME_Y = REEL_Y + 22;
@@ -75,6 +83,9 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int ONE_IN_Y = CHANCE_Y + 10;
 	/** Sized to the three reels and their figures, not to a chest. */
 	private static final int PANEL_HEIGHT = 144;
+	/** The same minus the two figures a daily has none of, plus its extra name line. */
+	private static final int DAILY_PANEL_HEIGHT =
+			NAME_Y + DAILY_NAME_LINES * LINE_H + 8;
 	/**
 	 * The clickable card, which is the whole of a reel's column and not merely its icon.
 	 *
@@ -87,6 +98,7 @@ public final class VoteRollBoard extends CasinoPanel {
 	private static final int CARD_W = NAME_W;
 	private static final int CARD_TOP = 34;
 	private static final int CARD_H = ONE_IN_Y + LINE_H - CARD_TOP;
+	private static final int DAILY_CARD_H = NAME_Y + DAILY_NAME_LINES * LINE_H - CARD_TOP;
 
 	/**
 	 * How long a reel must hold the same reward before it reads as stopped.
@@ -121,6 +133,8 @@ public final class VoteRollBoard extends CasinoPanel {
 	private final ItemStack[] shown = new ItemStack[REEL_COUNT];
 	private final ItemStack[] previous = new ItemStack[REEL_COUNT];
 	private boolean choosing;
+	/** Whether this roll is {@code /daily}'s rather than a voter crate's; see {@link DailySpin}. */
+	private boolean daily;
 	/**
 	 * Which crate this roll is, once the rewards have said so.
 	 *
@@ -143,7 +157,9 @@ public final class VoteRollBoard extends CasinoPanel {
 
 	@Override
 	protected int panelHeight() {
-		return PANEL_HEIGHT;
+		// Asked before draw() runs, so it reads the flag at source rather than the field.
+		return DailySpin.isSpinning(Util.getMeasuringTimeMs()) ? DAILY_PANEL_HEIGHT
+				: PANEL_HEIGHT;
 	}
 
 	@Override
@@ -214,18 +230,30 @@ public final class VoteRollBoard extends CasinoPanel {
 			String title, float deviceScale) {
 		long now = Util.getMeasuringTimeMs();
 		choosing = CrateTitles.isVoteChoice(title);
+		daily = DailySpin.isSpinning(now);
 		List<VoteOdds.Draw> drawn = track(slots, now);
 
-		if (crate.isEmpty()) {
+		// MCLabs publishes the daily's odds nowhere, and its pool overlaps the voter crates'
+		// in three rewards — so asking the voter tables about it would put a figure under a
+		// daily reward that is simply another crate's.
+		if (!daily && crate.isEmpty()) {
 			crate = tableFor(drawn);
 		}
 
-		header(context, font, "VOTER CRATE", choosing ? "Choose One" : "rolling", TEXT_DIM);
+		header(context, font, daily ? "DAILY SPIN" : "VOTER CRATE", status(), TEXT_DIM);
 
 		for (int i = 0; i < REEL_COUNT; i++) {
 			reel(context, font, i, drawn.get(i), crate, now);
 		}
 		hoveredTooltip(context, font);
+	}
+
+	/** What the header says on the right: the streak for a daily, the phase for a crate. */
+	private String status() {
+		if (daily) {
+			return DailySpin.streak() > 0 ? "Streak: " + DailySpin.streak() : "daily";
+		}
+		return choosing ? "Choose One" : "rolling";
 	}
 
 	/**
@@ -262,13 +290,14 @@ public final class VoteRollBoard extends CasinoPanel {
 		int cx = CENTRE_X + (index - 1) * REEL_GAP;
 		boolean settled = locked(index, now);
 		int cardX = cardX(index);
-		boolean hot = choosing && hovered(cardX, CARD_TOP, CARD_W, CARD_H);
+		int cardH = cardHeight();
+		boolean hot = choosing && hovered(cardX, CARD_TOP, CARD_W, cardH);
 
 		if (choosing) {
 			if (hot) {
-				context.fill(cardX, CARD_TOP, cardX + CARD_W, CARD_TOP + CARD_H, ROW_HOVER);
+				context.fill(cardX, CARD_TOP, cardX + CARD_W, CARD_TOP + cardH, ROW_HOVER);
 			}
-			clickable(cardX, CARD_TOP, CARD_W, CARD_H, REELS[index]);
+			clickable(cardX, CARD_TOP, CARD_W, cardH, REELS[index]);
 		}
 
 		if (settled) {
@@ -278,13 +307,11 @@ public final class VoteRollBoard extends CasinoPanel {
 			belt(context, index, cx, now);
 		}
 
-		List<String> label = wrap(font, name, NAME_W);
-		for (int line = 0; line < label.size(); line++) {
-			CrateChamber.centred(context, font, label.get(line), cx, NAME_Y + line * LINE_H,
-					settled ? TEXT : TEXT_FAINT);
-		}
+		name(context, font, index, name, cx, settled);
 
-		if (!settled) {
+		if (!settled || daily) {
+			// Nothing is published about a daily reward beyond its name, and a caption
+			// saying so would be the same nothing taking up a line.
 			return;
 		}
 		// The one thing a voter reward's name can leave out and still change what it is worth.
@@ -302,6 +329,45 @@ public final class VoteRollBoard extends CasinoPanel {
 		CrateChamber.centred(context, font, trim(chance) + "%", cx, CHANCE_Y,
 				hot ? 0xFFFFFFFF : TEXT);
 		CrateChamber.centred(context, font, VoteOdds.oneIn(chance), cx, ONE_IN_Y, TEXT_FAINT);
+	}
+
+	/**
+	 * A reel's reward, named the way the server names it.
+	 *
+	 * <p>The server's own colours once the reel has stopped: every reward is coloured and
+	 * five of them are two-tone — "Mega Millions" gold against "Cash Roll" grey — which is
+	 * the crate's own shorthand for what a reward is, and flattening it to one grey threw it
+	 * away. The colour passed is only what an unstyled name falls back to, so a plain reward
+	 * still reads as the rest of the board does.
+	 *
+	 * <p>Still moving, it stays grey. That dimming is as much of what says a reel has not
+	 * settled as the sliding icon is, and the colour arriving is itself the moment it stops.
+	 */
+	private void name(DrawContext context, TextRenderer font, int index, String plain, int cx,
+			boolean settled) {
+		if (!settled) {
+			List<String> label = wrap(font, plain, NAME_W);
+			for (int line = 0; line < label.size(); line++) {
+				CrateChamber.centred(context, font, label.get(line), cx,
+						NAME_Y + line * LINE_H, TEXT_FAINT);
+			}
+			return;
+		}
+		ItemStack stack = stackAt(REELS[index]);
+		if (stack == null || stack.isEmpty()) {
+			return;
+		}
+		List<OrderedText> lines = font.wrapLines(stack.getName(), NAME_W);
+		int room = daily ? DAILY_NAME_LINES : NAME_LINES;
+		for (int line = 0; line < Math.min(lines.size(), room); line++) {
+			OrderedText text = lines.get(line);
+			context.drawText(font, text, cx - font.getWidth(text) / 2,
+					NAME_Y + line * LINE_H, TEXT, false);
+		}
+	}
+
+	private int cardHeight() {
+		return daily ? DAILY_CARD_H : CARD_H;
 	}
 
 	/**
@@ -337,7 +403,7 @@ public final class VoteRollBoard extends CasinoPanel {
 			return;
 		}
 		for (int i = 0; i < REEL_COUNT; i++) {
-			if (hovered(cardX(i), CARD_TOP, CARD_W, CARD_H)) {
+			if (hovered(cardX(i), CARD_TOP, CARD_W, cardHeight())) {
 				tooltip(context, font, stackAt(REELS[i]));
 				return;
 			}
