@@ -193,9 +193,20 @@ public class ProgressHudObject extends HudObject {
 	 * pinning it. Anything already shown as a pin is skipped in the second pass so a
 	 * gaining pin is not drawn twice.
 	 */
+	/**
+	 * Rebuilt at most once a frame. {@code shouldRender} asks, then the width, then the
+	 * height, then the draw — four builds of the same list, each copying both trackers'
+	 * backing collections and normalising every pinned name.
+	 */
+	private static final FrameValue<List<Row>> VISIBLE = new FrameValue<>();
+
 	private static List<Row> visibleRows() {
-		// Snapshotted once: this runs several times a frame (measure, then draw), and both
-		// accessors copy their backing collection on every call.
+		return VISIBLE.get(net.minecraft.util.Util.getMeasuringTimeMs(), false,
+				ProgressHudObject::buildVisibleRows);
+	}
+
+	private static List<Row> buildVisibleRows() {
+		// Snapshotted once: both accessors copy their backing collection on every call.
 		List<MasteryQuest> quests = MasteryTracker.quests();
 		List<PrestigeChem> chems = PrestigeTracker.chems();
 
