@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.17.0] - 2026-09-22
 
 ### Added
 - **Crates open in a chamber, and the light tells you what is still in play.** A supply crate's spin is three rows of stained glass panes that go grey one at a time; everything you want to know is already there, because each column's pane is coloured for its candidate's rarity — but reading it means matching nine colours by eye while they vanish. The mod draws the same eight eliminations as light: the nine candidates hang in a chamber as the server's own item icons, each carrying **its own rarity's glow**, and each cull vents one out while everything left gets brighter. A field that still holds an Exceedingly Rare has an orange light in it, and the moment that one dies you watch it go out. Nothing is written on it while it runs, because five seconds of animation is not long enough to read anything: the reward's name fades up underneath once it has landed, in its own rarity's colour, and that is the only text on the panel besides the crate's name. Hovering any candidate still in play shows that reward's own tooltip, the whole way through the roll — the server's item handed straight to the game, so it reads exactly as it would in the chest menu, enchantments, rarity, unbox count and all. Off in Mod Menu gives back the server's chest menu, untouched.
