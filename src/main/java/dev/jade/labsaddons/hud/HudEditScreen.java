@@ -4,6 +4,8 @@ import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.hud.editor.Shutter;
+import dev.jade.labsaddons.rental.RentalAlarm;
+import dev.jade.labsaddons.rental.RentalHudObject;
 import dev.jade.labsaddons.runner.RunnerAlarm;
 import dev.jade.labsaddons.runner.RunnerHudObject;
 import net.minecraft.client.MinecraftClient;
@@ -22,6 +24,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -68,6 +71,8 @@ public class HudEditScreen extends Screen {
 	private static final long NUDGE_FADE_MS = 600L;
 	/** {@link #expandedGroups} key for the Runner Jobs widget's low-job alarm section. */
 	private static final String ALARM_GROUP_KEY = "runner_alarm";
+	/** {@link #expandedGroups} key for the Rented Items widget's return reminder section. */
+	private static final String RENTAL_ALARM_GROUP_KEY = "rental_alarm";
 
 	/** Resize-handle roles: {signX, signY} in {-1,0,1}, excluding the centre. */
 	private static final int[][] HANDLE_SPECS = {
@@ -299,8 +304,8 @@ public class HudEditScreen extends Screen {
 		HudObject.SwitchOption switchOption = widget.switchOption();
 		List<HudObject.ToggleGroup> groups = widget.toggleGroups();
 		boolean hasGroups = !groups.isEmpty();
-		boolean isRunnerJobs = widget instanceof RunnerHudObject;
-		boolean alarmExpanded = isRunnerJobs && expandedGroups.contains(ALARM_GROUP_KEY);
+		AlarmControls alarm = alarmControls(widget);
+		boolean alarmExpanded = alarm != null && expandedGroups.contains(alarm.groupKey());
 
 		int rowStep = EditorTheme.ROW + EditorTheme.GAP;
 		int groupsRows = 0;
@@ -318,7 +323,7 @@ public class HudEditScreen extends Screen {
 				+ (switchOption != null ? rowStep : 0)
 				+ (hasAction ? rowStep : 0)
 				+ rowStep
-				+ (isRunnerJobs ? rowStep : 0)
+				+ (alarm != null ? rowStep : 0)
 				+ (alarmExpanded ? rowStep * 3 : 0)
 				+ (hasGroups ? GROUPS_HEADING_EXTRA + EditorTheme.NAME_H : 0)
 				+ rowStep * groupsRows;
@@ -393,13 +398,12 @@ public class HudEditScreen extends Screen {
 				.dimensions(innerX, y, innerW, EditorTheme.ROW).build());
 		y += rowStep;
 
-		if (isRunnerJobs) {
-			LabsAddonsConfig config = LabsAddonsConfig.get();
+		if (alarm != null) {
 			inspectorChild(ButtonWidget.builder(
-							groupHeaderLabel(Text.translatable("labsaddons.hud.runner_jobs.alarm"), alarmExpanded),
+							groupHeaderLabel(Text.translatable(alarm.lang()), alarmExpanded),
 							b -> {
-								if (!expandedGroups.remove(ALARM_GROUP_KEY)) {
-									expandedGroups.add(ALARM_GROUP_KEY);
+								if (!expandedGroups.remove(alarm.groupKey())) {
+									expandedGroups.add(alarm.groupKey());
 								}
 								clearAndInit();
 							})
@@ -407,21 +411,22 @@ public class HudEditScreen extends Screen {
 			y += rowStep;
 
 			if (alarmExpanded) {
-				inspectorChild(CyclingButtonWidget.onOffBuilder(config.runnerAlarmEnabled).build(
+				inspectorChild(CyclingButtonWidget.onOffBuilder(alarm.enabled()).build(
 						innerX, y, innerW, EditorTheme.ROW,
-						Text.translatable("labsaddons.hud.runner_jobs.alarm.enabled"),
-						(b, v) -> config.runnerAlarmEnabled = v));
+						Text.translatable(alarm.lang() + ".enabled"),
+						(b, v) -> alarm.setEnabled().accept(v)));
 				y += rowStep;
 
 				inspectorChild(new ThresholdSlider(innerX, y, innerW, EditorTheme.ROW,
-						config.runnerAlarmThreshold, v -> config.runnerAlarmThreshold = v));
+						alarm.threshold(), alarm.min(), alarm.max(), alarm.lang() + ".threshold",
+						alarm.setThreshold()));
 				y += rowStep;
 
-				inspectorChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, config.runnerAlarmSound)
+				inspectorChild(CyclingButtonWidget.builder(RunnerAlarm::soundLabel, alarm.sound())
 						.values(RunnerAlarm.SOUND_IDS)
 						.build(innerX, y, innerW, EditorTheme.ROW,
-								Text.translatable("labsaddons.hud.runner_jobs.alarm.sound"),
-								(b, v) -> config.runnerAlarmSound = v));
+								Text.translatable(alarm.lang() + ".sound"),
+								(b, v) -> alarm.setSound().accept(v)));
 				y += rowStep;
 			}
 		}
@@ -454,6 +459,35 @@ public class HudEditScreen extends Screen {
 		}
 	}
 
+	/**
+	 * A widget's alert section: on/off, a whole-number threshold and a sound. Its labels are
+	 * {@code lang}, plus {@code .enabled}, {@code .threshold} and {@code .sound}.
+	 */
+	private record AlarmControls(String groupKey, String lang,
+			boolean enabled, Consumer<Boolean> setEnabled,
+			int threshold, int min, int max, IntConsumer setThreshold,
+			String sound, Consumer<String> setSound) {
+	}
+
+	@org.jetbrains.annotations.Nullable
+	private static AlarmControls alarmControls(HudObject widget) {
+		LabsAddonsConfig config = LabsAddonsConfig.get();
+		if (widget instanceof RunnerHudObject) {
+			return new AlarmControls(ALARM_GROUP_KEY, "labsaddons.hud.runner_jobs.alarm",
+					config.runnerAlarmEnabled, v -> config.runnerAlarmEnabled = v,
+					config.runnerAlarmThreshold, 0, RunnerAlarm.MAX_THRESHOLD, v -> config.runnerAlarmThreshold = v,
+					config.runnerAlarmSound, v -> config.runnerAlarmSound = v);
+		}
+		if (widget instanceof RentalHudObject) {
+			return new AlarmControls(RENTAL_ALARM_GROUP_KEY, "labsaddons.hud.rentals.alarm",
+					config.rentalAlarmEnabled, v -> config.rentalAlarmEnabled = v,
+					config.rentalAlarmMinutes, RentalAlarm.MIN_MINUTES, RentalAlarm.MAX_MINUTES,
+					v -> config.rentalAlarmMinutes = v,
+					config.rentalAlarmSound, v -> config.rentalAlarmSound = v);
+		}
+		return null;
+	}
+
 	private static Text groupHeaderLabel(Text label, boolean expanded) {
 		return Text.literal(expanded ? "v " : "> ").append(label);
 	}
@@ -465,34 +499,40 @@ public class HudEditScreen extends Screen {
 	 * {@value #ANIM_MS}ms rather than jumping instantly.
 	 */
 	/**
-	 * The low-job alarm threshold: a whole number of jobs from 0 to
-	 * {@link RunnerAlarm#MAX_THRESHOLD}. A slider rather than a text box because the
+	 * An alarm threshold: a whole number from {@code min} to {@code max} (jobs left for the
+	 * runner alarm, minutes left for the rental one). A slider rather than a text box because the
 	 * range is small and closed — there is no invalid value to type, nothing to parse,
 	 * and, being drawn by hand like {@link DirectionSwitch}, it ghosts with the rest of
 	 * the panel instead of staying a stark white box over the game.
 	 */
 	private static final class ThresholdSlider extends SliderWidget {
+		private final int min;
+		private final int max;
+		private final String labelKey;
 		private final IntConsumer onChange;
 
-		ThresholdSlider(int x, int y, int width, int height, int initial, IntConsumer onChange) {
-			super(x, y, width, height, Text.empty(),
-					Math.clamp(initial, 0, RunnerAlarm.MAX_THRESHOLD) / (double) RunnerAlarm.MAX_THRESHOLD);
+		ThresholdSlider(int x, int y, int width, int height, int initial, int min, int max,
+				String labelKey, IntConsumer onChange) {
+			super(x, y, width, height, Text.empty(), (Math.clamp(initial, min, max) - min) / (double) (max - min));
+			this.min = min;
+			this.max = max;
+			this.labelKey = labelKey;
 			this.onChange = onChange;
 			updateMessage();
 		}
 
-		private int jobs() {
-			return (int) Math.round(value * RunnerAlarm.MAX_THRESHOLD);
+		private int current() {
+			return min + (int) Math.round(value * (max - min));
 		}
 
 		@Override
 		protected void updateMessage() {
-			setMessage(Text.translatable("labsaddons.hud.runner_jobs.alarm.threshold", jobs()));
+			setMessage(Text.translatable(labelKey, current()));
 		}
 
 		@Override
 		protected void applyValue() {
-			onChange.accept(jobs());
+			onChange.accept(current());
 		}
 
 		@Override

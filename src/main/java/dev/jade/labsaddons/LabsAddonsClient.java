@@ -12,6 +12,9 @@ import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import dev.jade.labsaddons.mines.MinesChat;
 import dev.jade.labsaddons.mount.RentalMountHudObject;
 import dev.jade.labsaddons.mount.RentalMountTimer;
+import dev.jade.labsaddons.rental.RentalHudObject;
+import dev.jade.labsaddons.rental.RentalReader;
+import dev.jade.labsaddons.rental.RentalTracker;
 import dev.jade.labsaddons.personal.PersonalBoosterHudObject;
 import dev.jade.labsaddons.personal.PersonalBoosters;
 import dev.jade.labsaddons.chum.ChumTimer;
@@ -164,6 +167,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new RaidMineHudObject());
 		HudObjects.register(new LabWarsHudObject());
 		HudObjects.register(new RentalMountHudObject());
+		HudObjects.register(new RentalHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
 		HudObjects.register(new BountyHudObject());
 		HudObjects.register(new DailyReminderHudObject());
@@ -323,6 +327,11 @@ public class LabsAddonsClient implements ClientModInitializer {
 				ModrinthUpdateChecker.checkAndNotify();
 			}
 			RunnerAlarm.tick();
+			// Rented items are read off the inventory, which is also where the return
+			// reminder is checked from — once a second, not every tick.
+			if (McLabsSession.isActive()) {
+				RentalReader.tick(client.player == null ? null : client.player.getInventory());
+			}
 			RaidMineHologramReader.tick(client);
 			// Live "Kill <mob>" progress: no chat line announces a Pit kill, so deaths
 			// are read straight off the world and matched against the mobs we hit.
@@ -400,6 +409,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);
+					// And /rent return: its rows carry "Expiry:", which nothing else does.
+					RentalReader.tryReadReturnMenu(handledScreen);
 					// Also out of the chain: the /prestige GUI is nobody else's screen.
 					if (PolicePrestigeReader.tryRead(handledScreen)) {
 						PrestigeStore.save();
@@ -553,6 +564,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		LabWarsTracker.onMessage(text);
 		ChumTimer.onMessage(text);
 		RentalMountTimer.onMessage(text);
+		RentalTracker.onMessage(text, System.currentTimeMillis());
 		PersonalBoosters.onMessage(text);
 		BountyTracker.onMessage(text);
 		SunkenTreasureTracker.onMessage(text);

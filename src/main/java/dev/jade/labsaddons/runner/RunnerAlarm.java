@@ -69,7 +69,9 @@ public final class RunnerAlarm {
 		if (RunnerTracker.postedJobs() <= config.runnerAlarmThreshold) {
 			if (!fired) {
 				fired = true;
-				fire(config.runnerAlarmSound);
+				ring(Text.translatable("labsaddons.hud.runner_jobs.alarm.title").formatted(Formatting.RED),
+						Text.translatable("labsaddons.hud.runner_jobs.alarm.subtitle", RunnerTracker.postedJobs()),
+						config.runnerAlarmSound);
 			}
 		} else {
 			fired = false;
@@ -95,15 +97,14 @@ public final class RunnerAlarm {
 		replayCountdown--;
 	}
 
-	private static void fire(String soundId) {
+	/** Title, subtitle and a pair of beeps. Shared with the rental return reminder. */
+	public static synchronized void ring(Text title, Text subtitle, String soundId) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		InGameHud hud = client.inGameHud;
 		if (hud != null) {
 			hud.setDefaultTitleFade();
-			hud.setTitle(Text.translatable("labsaddons.hud.runner_jobs.alarm.title")
-					.formatted(Formatting.RED));
-			hud.setSubtitle(Text.translatable(
-					"labsaddons.hud.runner_jobs.alarm.subtitle", RunnerTracker.postedJobs()));
+			hud.setTitle(title);
+			hud.setSubtitle(subtitle);
 		}
 
 		// First beep now; schedule the second so the two are heard as a distinct pair.

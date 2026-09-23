@@ -139,6 +139,9 @@ public class LabsAddonsConfig {
 	// --- Rental mount & personal boosts (tracked from chat + items) ---
 	@Section(ConfigSection.STATE)
 	public long rentalMountExpiryEpochMs = 0L;
+	/** Items rented through {@code /rent}; see {@link dev.jade.labsaddons.rental.RentalTracker}. */
+	@Section(ConfigSection.STATE)
+	public java.util.List<dev.jade.labsaddons.rental.RentalEntry> rentals = new java.util.ArrayList<>();
 	@Section(ConfigSection.STATE)
 	public long personalChemPriceExpiryMs = 0L;
 	@Section(ConfigSection.STATE)
@@ -236,6 +239,11 @@ public class LabsAddonsConfig {
 	public boolean runnerAlarmEnabled = false;
 	public int runnerAlarmThreshold = 1;
 	public String runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
+
+	// --- Rental return reminder (on by default: a missed return is a ban) ---
+	public boolean rentalAlarmEnabled = true;
+	public int rentalAlarmMinutes = dev.jade.labsaddons.rental.RentalAlarm.DEFAULT_MINUTES;
+	public String rentalAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
 
 	// --- Double² board (drawn over the /double chest menu) ---
 	/** Off gives back the server's own chest menu, untouched. */
@@ -412,6 +420,17 @@ public class LabsAddonsConfig {
 		clean.miniEventUpcomingEpochMs = Math.max(0L, this.miniEventUpcomingEpochMs);
 		clean.pitExpiryEpochMs = Math.max(0L, this.pitExpiryEpochMs);
 		clean.rentalMountExpiryEpochMs = Math.max(0L, this.rentalMountExpiryEpochMs);
+		if (this.rentals != null) {
+			for (dev.jade.labsaddons.rental.RentalEntry entry : this.rentals) {
+				// Chat and the menu match on name + owner, so a rental missing either can
+				// never be returned or extended; drop it rather than keep a row stuck.
+				if (entry != null && entry.name != null && !entry.name.isBlank()
+						&& entry.owner != null && !entry.owner.isBlank() && entry.endMs > 0) {
+					clean.rentals.add(new dev.jade.labsaddons.rental.RentalEntry(
+							entry.itemId == null ? "" : entry.itemId, entry.name, entry.owner, entry.endMs));
+				}
+			}
+		}
 		clean.personalChemPriceExpiryMs = Math.max(0L, this.personalChemPriceExpiryMs);
 		clean.personalPrestigeExpiryMs = Math.max(0L, this.personalPrestigeExpiryMs);
 		clean.dailySpinClaimedMs = Math.max(0L, this.dailySpinClaimedMs);
@@ -486,6 +505,11 @@ public class LabsAddonsConfig {
 				dev.jade.labsaddons.runner.RunnerAlarm.MAX_THRESHOLD);
 		clean.runnerAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.isValidSound(this.runnerAlarmSound)
 				? this.runnerAlarmSound : dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
+		clean.rentalAlarmEnabled = this.rentalAlarmEnabled;
+		clean.rentalAlarmMinutes = Math.clamp(this.rentalAlarmMinutes,
+				dev.jade.labsaddons.rental.RentalAlarm.MIN_MINUTES, dev.jade.labsaddons.rental.RentalAlarm.MAX_MINUTES);
+		clean.rentalAlarmSound = dev.jade.labsaddons.runner.RunnerAlarm.isValidSound(this.rentalAlarmSound)
+				? this.rentalAlarmSound : dev.jade.labsaddons.runner.RunnerAlarm.DEFAULT_SOUND;
 		if (this.hiddenCooldownKeys != null) {
 			this.hiddenCooldownKeys.stream().filter(java.util.Objects::nonNull)
 					.forEach(clean.hiddenCooldownKeys::add);

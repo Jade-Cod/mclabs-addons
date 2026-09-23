@@ -36,7 +36,7 @@ class SanitizedKeepsEveryFieldTest {
 			// Carried across, but validated against a fixed set of names on the way. A
 			// nudged value is not one of them, so it correctly falls back to the default
 			// and looks dropped to this test.
-			"runnerAlarmSound", "itemUsesCorner");
+			"runnerAlarmSound", "rentalAlarmSound", "itemUsesCorner");
 
 	@Test
 	void everyFieldSurvivesSanitizing() throws Exception {
