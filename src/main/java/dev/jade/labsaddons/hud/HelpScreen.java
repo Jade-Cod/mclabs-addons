@@ -49,6 +49,7 @@ public class HelpScreen extends Screen {
 			{"Withdraw key (N)", "Pulls back whichever chem you have the most of."},
 			{"/ch", "Open it any time to re-sync exact Chemtainer contents."},
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
+			{"/rent return", "Open it to re-sync every rental\u2019s end time and drop ones you no longer hold."},
 			{"/fw", "Open it to re-sync the Sunken Treasure crates left."},
 			{"Crate odds", "Open a reward\u2019s odds once to sync your crate pity counters."},
 			{"/double", "Opens the Double² wheel with the mod’s own board drawn over it."},
@@ -139,7 +140,7 @@ public class HelpScreen extends Screen {
 		}
 
 		add(bold("AUTOMATIC"), EditorTheme.TEXT_ACCENT, 0, SECTION_GAP, innerW);
-		add(Component.literal("Boosters, mini-events, the Pit, bounties, rental mounts and the "
+		add(Component.literal("Boosters, mini-events, the Pit, bounties, rental mounts, rented items and the "
 						+ "Chum timer track themselves from chat — just play."),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 
