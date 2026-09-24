@@ -66,7 +66,7 @@ chest menu, untouched.
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
 2. Download the build for your Minecraft version and put it in `mods`. Modrinth and
    CurseForge pick the right file for you; on GitHub the jars are named
-   `mclabs-addons-1.17.0-mc1.21.11.jar` and `mclabs-addons-1.17.0-mc26.2.jar`. The
+   `mclabs-addons-1.17.1-mc1.21.11.jar` and `mclabs-addons-1.17.1-mc26.2.jar`. The
    mod is **client-side**, so it works on the MCLabs server with nothing installed
    server-side.
 
@@ -308,7 +308,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 20.0.1 | optional (config screen) |
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 26.2.155 | optional (widgets on that screen) |
 
-Current mod version: **1.17.0**.
+Current mod version: **1.17.1**.
 
 ## Building
 
