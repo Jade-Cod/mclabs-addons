@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- **Playing a casino game no longer moves items around your inventory.** Every button on the Double², Mines, blackjack, coinflip and crate boards is a real click on the menu underneath, and Minecraft answers a click by lifting that slot's item onto your cursor until the server replies. The board hides the cursor, so you never saw it. But letting go of the mouse still reached the menu, and a full cursor on release is a click on whatever slot is under the mouse, which was often one of your own inventory slots. The server, which never had anything on your cursor, picked your item up instead and put it back in the first free slot when the menu reopened, usually your hotbar. Releasing and dragging the mouse over a board now do nothing, the same as a click on a blank part of it always has.
+
 ## [1.17.0] - 2026-09-23
 
 ### Added

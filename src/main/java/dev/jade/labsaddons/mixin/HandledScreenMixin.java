@@ -108,4 +108,39 @@ public abstract class HandledScreenMixin {
 			cir.setReturnValue(true);
 		}
 	}
+
+	/**
+	 * Swallows the release that ends one of those clicks.
+	 *
+	 * <p>A board's click is a real PICKUP, and the client predicts it by lifting the menu
+	 * item onto the cursor until the server answers — invisibly, since the board draws
+	 * over it. Vanilla's release then sees a full cursor and clicks whatever real slot is
+	 * under the mouse, looked up by position rather than through {@code focusedSlot}. When
+	 * that is one of your own inventory slots the server, whose cursor was empty all along,
+	 * picks your item up, and hands it back to the first free slot when the menu reopens:
+	 * items hopping into the hotbar mid-game.
+	 */
+	@Inject(
+			method = "mouseReleased(Lnet/minecraft/client/gui/Click;)Z",
+			at = @At("HEAD"),
+			cancellable = true
+	)
+	private void labsaddons$releaseOverCasinoBoard(Click click, CallbackInfoReturnable<Boolean> cir) {
+		if (CasinoBoards.recognises((HandledScreen<?>) (Object) this)) {
+			cir.setReturnValue(true);
+		}
+	}
+
+	/** The same for a drag, which with a full cursor spreads it across the slots it crosses. */
+	@Inject(
+			method = "mouseDragged(Lnet/minecraft/client/gui/Click;DD)Z",
+			at = @At("HEAD"),
+			cancellable = true
+	)
+	private void labsaddons$dragOverCasinoBoard(Click click, double offsetX, double offsetY,
+			CallbackInfoReturnable<Boolean> cir) {
+		if (CasinoBoards.recognises((HandledScreen<?>) (Object) this)) {
+			cir.setReturnValue(true);
+		}
+	}
 }
