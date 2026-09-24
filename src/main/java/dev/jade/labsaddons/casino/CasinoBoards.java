@@ -69,9 +69,10 @@ public final class CasinoBoards {
 		return false;
 	}
 
-	public static boolean mouseClicked(HandledScreen<?> screen, double mouseX, double mouseY) {
+	public static boolean mouseClicked(HandledScreen<?> screen, double mouseX, double mouseY,
+			int button) {
 		for (CasinoPanel board : BOARDS) {
-			if (board.mouseClicked(screen, mouseX, mouseY)) {
+			if (board.mouseClicked(screen, mouseX, mouseY, button)) {
 				return true;
 			}
 		}

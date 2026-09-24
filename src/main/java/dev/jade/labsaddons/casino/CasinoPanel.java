@@ -4,15 +4,19 @@ import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
 import dev.jade.labsaddons.server.McLabsSession;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.screen.sync.ItemStackHash;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 
@@ -23,20 +27,19 @@ import java.util.List;
  * A board drawn in place of a casino game's chest menu, clicking through to it.
  *
  * <p>The screen is never replaced. A board cancels the menu's own render, paints a fixed
- * panel on the ordinary Minecraft screen dim, and forwards clicks with
- * {@code clickSlot} to the slot a player would have hit — so the server sees an ordinary
- * click and the mod never has to know what a wager means.
+ * panel on the ordinary Minecraft screen dim, and forwards clicks to the slot a player
+ * would have hit — so the server sees an ordinary click and the mod never has to know
+ * what a wager means.
  *
- * <p>Everything subtle about doing that lives here, because all three games need it
- * identically and two of them were found the hard way on the Double² board:
+ * <p>Everything subtle about doing that lives here, because all the games need it
+ * identically:
  *
  * <ul>
  *   <li><b>{@link #hold}</b> — these menus re-send themselves, and for a frame or two
  *       their panes are simply not there. Dropping the board on those frames lets the
  *       real chest through, which reads as a flash on every click.</li>
- *   <li><b>{@link #unpredict}</b> — the client predicts a click by emptying the clicked
- *       slot into the cursor, before the server has said anything. Left alone, that one
- *       empty slot makes the container stop looking like the game it is.</li>
+ *   <li><b>{@link #sendClick}</b> — a click goes to the server without the client's
+ *       local prediction of it. See there for what that prediction did.</li>
  * </ul>
  *
  * <p>Mines and BondJoules go further than Double² did: they close and reopen the chest
@@ -65,11 +68,11 @@ public abstract class CasinoPanel {
 	protected static final int LOSS = 0xFFFF8080;
 	protected static final int WARN = 0xFFF1C15E;
 
+	private static final int LEFT_BUTTON = 0;
+
 	/** Slots that exist in every one of these menus. */
 	public static final int CONTAINER_SLOTS = 54;
 
-	/** How long a click's local prediction may mask the slot it emptied. */
-	private static final long PREDICTION_MS = 600L;
 	/**
 	 * How long a board holds its last reading of a container that has stopped parsing.
 	 * Long enough to ride out the re-send that follows a click, short enough that a menu
@@ -101,9 +104,6 @@ public abstract class CasinoPanel {
 	private List<ItemStack> liveStacks = List.of();
 	/** The stacks belonging to the slots actually being drawn. See {@link #stacks()}. */
 	private List<ItemStack> shownStacks = List.of();
-	private int predictedSlot = -1;
-	private SlotView predictedBefore;
-	private long predictedAtMs;
 	private float hoverX;
 	private float hoverY;
 	/** The cursor in screen coordinates, which is the only place a tooltip can be drawn. */
@@ -310,10 +310,18 @@ public abstract class CasinoPanel {
 		return true;
 	}
 
-	/** True when the click was over our board, so the hidden vanilla slots stay untouched. */
-	public final boolean mouseClicked(HandledScreen<?> screen, double mouseX, double mouseY) {
+	/**
+	 * True when the click was over our board, so the hidden vanilla slots stay untouched.
+	 * Only the left button works a control: a middle-click out of pick-block habit, or a
+	 * side button bound to something else entirely, must not place a wager.
+	 */
+	public final boolean mouseClicked(HandledScreen<?> screen, double mouseX, double mouseY,
+			int button) {
 		if (!owns(screen)) {
 			return false;
+		}
+		if (button != LEFT_BUTTON) {
+			return true;
 		}
 		double localX = (mouseX - panelX) / panelScale;
 		double localY = (mouseY - panelY) / panelScale;
@@ -343,21 +351,30 @@ public abstract class CasinoPanel {
 		onContainerChange();
 	}
 
+	/**
+	 * The click packet {@code clickSlot} would send, without {@code clickSlot} first playing
+	 * the click out on the client.
+	 *
+	 * <p>That local prediction is built for a real chest, and on these menus every part of
+	 * it was wrong. A pickup lifted the menu item onto a cursor the board hides, and the next
+	 * mouse release dropped it on whatever inventory slot was under the mouse — which the
+	 * server, whose cursor was empty, read as picking that item up and handed back to the
+	 * hotbar. A shift-click moved the stake button into your hotbar outright until the
+	 * server corrected it. And the emptied slot made the game stop parsing for a frame. The
+	 * server re-sends the menu after every click regardless, so claiming no change is both
+	 * true and all it needs.
+	 */
 	private void sendClick(HandledScreen<?> screen, int slot, SlotActionType action) {
 		MinecraftClient client = MinecraftClient.getInstance();
-		if (client.interactionManager == null || client.player == null) {
+		ClientPlayNetworkHandler network = client.getNetworkHandler();
+		if (network == null || client.player == null) {
 			return;
 		}
-		// Keep what the slot held, so unpredict can put it back until the server answers.
-		List<SlotView> shown = container.heldSlots();
-		if (shown != null && slot >= 0 && slot < shown.size()) {
-			predictedSlot = slot;
-			predictedBefore = shown.get(slot);
-			predictedAtMs = Util.getMeasuringTimeMs();
-		}
 		onClick(slot);
-		client.interactionManager.clickSlot(screen.getScreenHandler().syncId, slot, 0,
-				action, client.player);
+		ScreenHandler handler = screen.getScreenHandler();
+		network.sendPacket(new ClickSlotC2SPacket(handler.syncId, handler.getRevision(),
+				(short) slot, (byte) 0, action, new Int2ObjectOpenHashMap<>(),
+				ItemStackHash.fromItemStack(handler.getCursorStack(), network.getComponentHasher())));
 	}
 
 	private List<SlotView> slotViews(ScreenHandler handler) {
@@ -383,7 +400,7 @@ public abstract class CasinoPanel {
 			out.add(new SlotView(i, name, lore, stack.getCount()));
 		}
 		liveStacks = live;
-		return unpredict(out);
+		return out;
 	}
 
 	/**
@@ -405,27 +422,6 @@ public abstract class CasinoPanel {
 	protected final ItemStack stackAt(int index) {
 		List<ItemStack> all = shownStacks;
 		return index >= 0 && index < all.size() ? all.get(index) : ItemStack.EMPTY;
-	}
-
-	/**
-	 * Undoes the local pickup prediction on the slot we last clicked, until the server's
-	 * own contents come back or the window lapses. Only ever substitutes for a slot that
-	 * reads empty, so a genuine change is never masked.
-	 */
-	private List<SlotView> unpredict(List<SlotView> slots) {
-		if (predictedSlot < 0 || predictedSlot >= slots.size()) {
-			return slots;
-		}
-		if (Util.getMeasuringTimeMs() - predictedAtMs > PREDICTION_MS
-				|| !slots.get(predictedSlot).isEmpty()) {
-			predictedSlot = -1;
-			predictedBefore = null;
-			return slots;
-		}
-		if (predictedBefore != null) {
-			slots.set(predictedSlot, predictedBefore);
-		}
-		return slots;
 	}
 
 	// --- drawing helpers every board wants ----------------------------------
