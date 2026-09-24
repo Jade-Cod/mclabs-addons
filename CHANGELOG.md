@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.17.1] - 2026-09-24
 
 ### Fixed
 - **Playing a casino game no longer moves items around your inventory.** Every button on the Double², Mines, blackjack, coinflip and crate boards is a real click on the menu underneath, and Minecraft used to act out each click on your side before the server answered, the way it does in a real chest. In these menus that was wrong every time. A click lifted the button's item onto your cursor, which the board hides, and letting go of the mouse then dropped it on whatever slot was under it. That was often one of your own inventory slots, so the server picked up your item instead and put it back in the first free slot when the menu reopened, usually your hotbar. The min and max stake buttons were worse: they are a shift-click, which moved the button itself into your hotbar until the server took it back. The boards now send the click and leave the result to the server, and letting go of or dragging the mouse over a board does nothing.
@@ -226,6 +226,7 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.17.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.17.1
 [1.17.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.17.0
 [1.16.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.16.1
 [1.16.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.16.0
