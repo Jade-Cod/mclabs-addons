@@ -142,7 +142,7 @@
 	"labsaddons.hud.runner_jobs.reset": "Reset Session",
 	"labsaddons.hud.runner_jobs.alarm": "Low Job Alarm",
 	"labsaddons.hud.runner_jobs.alarm.enabled": "Alarm",
-	"labsaddons.hud.runner_jobs.alarm.threshold": "Alert At",
+	"labsaddons.hud.runner_jobs.alarm.threshold": "Alert At: %s jobs left",
 	"labsaddons.hud.runner_jobs.alarm.sound": "Alarm Sound",
 	"labsaddons.hud.runner_jobs.alarm.title": "Running Low on Jobs!",
 	"labsaddons.hud.runner_jobs.alarm.subtitle": "%s jobs left",
