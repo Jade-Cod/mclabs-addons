@@ -228,10 +228,6 @@ public final class MinesBoard extends CasinoPanel {
 
 				int border = hot ? accent : TILE_BORDER;
 				EditorPainter.outline(context, x, y, TILE, TILE, border);
-				// Interactive center pip ONLY when hovered under cursor
-				if (hot) {
-					context.fill(x + 10, y + 10, x + 12, y + 12, accent);
-				}
 			}
 			case SAFE -> {
 				boolean earned = playerPicks[index] || !state.blown();
