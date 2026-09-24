@@ -76,7 +76,9 @@ public final class EditorPainter {
 		int top = cy - r - 1;
 		int bottom = cy + r + 1;
 		int xStart = rightHalf ? cx : cx - r - 1;
-		int xEnd = rightHalf ? cx + r + 1 : cx;
+		// The left half stops short of the centre column: that column is the first one of the
+		// pill's middle rect, and drawing it twice doubled a translucent fill into a visible seam.
+		int xEnd = rightHalf ? cx + r + 1 : cx - 1;
 		for (int py = top; py <= bottom; py++) {
 			for (int px = xStart; px <= xEnd; px++) {
 				float coverage = discCoverage(px, py, cx, cy, r);
