@@ -3,9 +3,10 @@
 A **client-side** Fabric mod for **Minecraft 1.21.11** and **26.2**, built for the MCLabs
 server. It started as a fishing bite indicator and grew into a suite of
 on-screen HUD timers that track server boosters and events by reading chat and
-GUIs **passively**. Tracking never automates anything on its own; the only
-commands it ever sends are the optional **Chemtainer deposit/withdraw keybinds**
-you press yourself.
+GUIs **passively**. Tracking never automates anything on its own. The only
+commands it sends are the optional **Chemtainer deposit/withdraw keybinds** you
+press yourself, and a single `/cf stats` the first time you ever open the
+coinflip lobby, to seed your coinflip record.
 
 ## Features
 
@@ -34,7 +35,10 @@ bobber's catch splash with any registered Minecraft sound (click-to-open dropdow
 | **Vote Reminder** | Daily vote progress toward 7/7 | "Vote registered!" chat; resets 9 PM Pacific |
 | **Chemtainer** | What's in your Chemtainer (chems by quantity + an "inventories" estimate) | the `/ch` GUI (read while open) **and** the Deposit/Withdraw keybinds, which diff your inventory and parse the "Withdrew N …" chat |
 | **Runner Jobs** | Your posted/completed/failed jobs and money earned this session, with an optional low-jobs alarm and a per-runner leaderboard | "Runner »" / "MCLabs »" chat; the **`/supplier` GUI re-syncs your open job count** |
-| **Mastery & Prestige** | Progress bars for your 5 active Mastery challenges and your 14 chem prestige tracks, with the amount just earned | the `/mastery` GUI (read while open) + chat; **`/prestige progress`**, then each sale's prestige line (the amount printed in chat, or each chem's share in its hover) |
+| **Mastery & Prestige** | Progress bars for your 5 active Mastery challenges, your 14 chem prestige tracks and your police contraband tier, with the amount just earned | the `/mastery` GUI (read while open) + chat; **`/prestige progress`**, then each sale's prestige line (the amount printed in chat, or each chem's share in its hover) and each confiscation's `Earned N progress` line |
+| **Rented Items** | Everything you have taken through `/rent`: icon, name and time left, with a return reminder (title + sound) at 1–60 minutes left | the rented item's own lore; the extend and return chat lines; **`/rent return` re-syncs every rental** |
+| **Open Coinflips** | Every coinflip posted and not yet taken, with its id | the server's coinflip announcements |
+| **Coinflip Record** | What you have won, lost and wagered at coinflip | `/cf stats` once, then each result line |
 
 Timers persist across relogs (absolute expiry in config) and display as `M:SS`,
 `H:MM:SS`, or `Xd Yh` for long durations. The **Dailies** and **Vote Reminder**
@@ -42,6 +46,16 @@ widgets reset at **9 PM Pacific**, computed as a real instant so they reset at t
 correct local time wherever you play. The **Booster** and **Bounty** widgets show
 each chemical's real in-game icon, skinned by the server resource pack (the "All"
 booster shows an end crystal labelled "All").
+
+**Casino boards and crates** — the casino games and crate openings are chest menus
+full of stained glass. The mod draws its own panel in the chest's place:
+Double²'s wheel (`/double`), a 5x5 Mines grid with its payout ladder (`/mines`),
+a blackjack card table (`/bj`), a coinflip lobby and coin (`/cf`), a crate
+chamber with your pity-ladder odds, and a voter crate's three-way choice with the
+published odds of each draw. Every control forwards a click to the slot you would
+have clicked yourself, only when you click it, so the server sees an ordinary
+click. Each board has its own switch in Mod Menu; off gives back the server's
+chest menu, untouched.
 
 ## User Guide
 
@@ -124,7 +138,18 @@ Everything updates **passively** from chat — you never have to run anything sp
   chem prints its amount in chat (`Earned 104 prestige progress for Cactium.`); a
   sale that earns progress for several chems, raw or compound, carries each chem's
   share in its hover instead. Finished chem tracks are marked complete and stop
-  counting.
+  counting. Police prestige moves from each confiscation's own figure; run
+  `/prestige progress` once to pick up your contraband tier.
+- **Rented Items** — anything taken through `/rent` gets a row with its icon, name
+  and time left, read off the item's own lore. Extending and returning update it
+  from chat, and opening **`/rent return`** re-syncs every rental you hold. The
+  **Return Reminder** (on by default, 10 minutes, set in the widget's settings)
+  puts up a title and plays a sound once per rental. Dying with a rental or
+  breaking it isn't read yet: open `/rent return` or clear the widget in the HUD
+  editor.
+- **Coinflip** — **Open Coinflips** lists every flip posted and not yet taken.
+  **Coinflip Record** is seeded by one `/cf stats` the first time you open the
+  lobby and then keeps itself current from each result.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 - **Raid Mine** — counts down the double mine drops buff (procs stack, so a fresh
@@ -144,8 +169,10 @@ HUD editor to preview and position every widget, including idle ones.
 Press **"Open HUD Editor"** (in *Controls* → category: **McLab Addons**; defaults
 to **semicolon** `;`) to enter the editor:
 
-- **Layers rail** (left) — lists all widgets; click to select, eye icon to
-  toggle visibility even on hidden widgets. Click the **Widgets** header to roll
+- **Layers rail** (left) — lists all widgets alphabetically, with related ones
+  folded into groups (**Boosts**, **Events**, **Reminders**, **Gambling**); click
+  to select, eye icon to toggle visibility even on hidden widgets, and a group's
+  toggle switches everything in it. Click the **Widgets** header to roll
   the list up to its title bar and free the corner behind it; it stays that way
   until you roll it back down. While you drag, resize or arrow-nudge a widget both
   the rail and the settings panel fade back so you can see the widget travelling
@@ -212,7 +239,7 @@ before the rename) is migrated on first launch and left in place as a backup.
   item-use detection (`UseItemCallback`), the keybinds (HUD editor + Chemtainer
   deposit/withdraw, under a custom **McLab Addons** controls category), and the
   once-per-open GUI scrapes (`/lw rates`, `/chems`, `/ch`, `/supplier`, `/mastery`,
-  `/fw`).
+  `/prestige`, `/fw`, `/rent return`, crate odds).
 - `hud/` — the reusable widget framework: `HudObject` base (background, scale,
   auto side-anchoring, screen bounds), `HudObjectSettings`, `HudEditScreen`,
   `ColorPickerScreen`, `HelpScreen` (the welcome/Help guide), `TimeFormat`,
@@ -232,6 +259,11 @@ before the rename) is migrated on first launch and left in place as a backup.
   `cooldown/` ring widget from mcMMO super-ability and Pit-item chat.
   `item/` draws the remaining-uses count on charge items; `server/McLabsSession`
   detects whether the player is actually on MCLabs.
+- `casino/` is the shared base for the boards drawn over casino menus
+  (`CasinoPanel`: click forwarding, container hold). `double2/`, `mines/`,
+  `blackjack/` and `coinflip/` are the games, and `crate/` holds the crate chamber,
+  pity ladder and voter-crate odds. `rental/` tracks `/rent` items and their return
+  reminder, and `police/` feeds contraband prestige and the Patrol challenges.
 - `mastery/` and `prestige/`: the two sources behind the progress widget.
   `MasteryReader` scrapes `/mastery`, and the kill, catch, sell and chat trackers
   advance challenges live. `PrestigeChat` reads `/prestige progress` and both
@@ -248,14 +280,20 @@ before the rename) is migrated on first launch and left in place as a backup.
 - `mixin/` — `FishingHookAccessor` (synced `DATA_BITING`),
   `SoundEngineMixin` (mute/replace bobber sounds),
   `HudMixin` (bite-marker projection + HUD render tail),
-  `GuiGraphicsExtractorMixin` (the item-uses overlay), and
+  `GuiGraphicsExtractorMixin` (the item-uses overlay),
   `KeyMappingCategoryAccessor` (hoists the McLab Addons keybind category near
-  the top of Controls).
+  the top of Controls), `TextDisplayInvoker` (reads the Raid Mine's gain
+  holograms), `AbstractContainerScreenMixin` / `ContainerScreenMixin` (draw the
+  casino and crate boards over their menus and route clicks to them), and
+  `ClientPacketListenerMixin` (server-closed menus, clicked chat commands, and
+  damage attribution for Pit kills).
 
 Design rule: **passive by default**. Chat is parsed; container GUIs are read only
-while the player has them open. Nothing is auto-clicked or auto-closed. The sole
-exception is the Chemtainer deposit/withdraw keybinds, which send a `/ch` command
-only when the player presses the key.
+while the player has them open. Nothing is auto-clicked or auto-closed: the casino
+boards send a slot click only for a click the player made on them. The commands
+the mod sends are the Chemtainer deposit/withdraw keybinds (a `/ch` command only
+when the player presses the key) and one `/cf stats` the first time the coinflip
+lobby is ever opened.
 
 <!-- AUTO-GENERATED: from gradle.properties + build.gradle — do not hand-edit -->
 ## Requirements
