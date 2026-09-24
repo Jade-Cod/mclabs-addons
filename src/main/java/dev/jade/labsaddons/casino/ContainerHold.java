@@ -103,11 +103,6 @@ final class ContainerHold {
 		staleSinceMs = 0L;
 	}
 
-	/** The slots we are drawing from, for the click prediction to put a slot back. */
-	List<SlotView> heldSlots() {
-		return heldSlots;
-	}
-
 	/** Whether the server has put anything in this container yet. */
 	private static boolean isUnfilled(List<SlotView> slots) {
 		for (SlotView slot : slots) {
