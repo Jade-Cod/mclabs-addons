@@ -541,13 +541,12 @@ public class HudEditScreen extends Screen {
 			EditorPainter.pill(context, getX(), getY(), getWidth(), getHeight(),
 					EditorTheme.withAlpha(EditorTheme.SWITCH_TRACK, a));
 
-			// Only once the filled part is at least as wide as it is tall: below that the
-			// pill's two semicircular caps would overlap and invert the middle rect.
-			int filled = (int) Math.round(value * getWidth());
-			if (filled >= getHeight()) {
-				EditorPainter.pill(context, getX(), getY(), filled, getHeight(),
-						EditorTheme.withAlpha(EditorTheme.ROW_SELECTED, a));
-			}
+			// Never narrower than it is tall: below that the pill's two caps would overlap and
+			// invert the middle rect. So the fill starts as one round cap at the minimum and
+			// grows from there, rather than vanishing across the bottom of the range.
+			int filled = getHeight() + (int) Math.round(value * (getWidth() - getHeight()));
+			EditorPainter.pill(context, getX(), getY(), filled, getHeight(),
+					EditorTheme.withAlpha(EditorTheme.ROW_SELECTED, a));
 
 			TextRenderer font = MinecraftClient.getInstance().textRenderer;
 			Text label = getMessage();
