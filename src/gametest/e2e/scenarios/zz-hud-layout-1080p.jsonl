@@ -1,0 +1,5 @@
+{"type": "note", "text": "Runs last among the committed scenarios, so most widgets are live. 1080p at auto GUI scale is what most players see."}
+{"type": "window", "width": 1920, "height": 1080}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "hud-layout-1080p"}
+{"type": "window", "width": 854, "height": 480}

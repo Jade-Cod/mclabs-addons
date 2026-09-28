@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.jade.labsaddons.config.E2eStore;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -19,13 +20,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Replays every scenario in {@code src/gametest/resources/e2e/scenarios} through a local
- * world with the real mod loaded, and compares what each one did to the mod's saved state
- * (plus the menu clicks it sent) against {@code expected/<scenario>.json}.
+ * Replays every scenario in {@code src/gametest/e2e/scenarios} (committed, server lines
+ * only) and {@code src/gametest/e2e/local} (gitignored: raw captures and whole session
+ * logs) through a local world with the real mod loaded, and compares what each one did to
+ * the mod's saved state (plus the menu clicks it sent) against
+ * {@code expected/<scenario>.json} or {@code local-expected/<scenario>.json}.
  *
  * <p>A scenario with no expected file writes one and is reported NEW, for review;
  * {@code -Pe2eUpdate} rewrites them all. Minecraft-free apart from the context types,
@@ -51,6 +55,13 @@ public class E2eTest implements FabricClientGameTest {
 			context.waitFor(client -> McLabsSession.isActive());
 			for (Path scenario : scenarios(dir.resolve("scenarios"), only)) {
 				report.add(runOne(context, replay, scenario, dir.resolve("expected"), update));
+			}
+			// The local captures run for ten minutes; a boost timer set by a committed scenario
+			// would run out somewhere inside them and land in whichever scenario was playing.
+			// A fresh store keeps each phase's results its own.
+			context.runOnClient(client -> E2eStore.fresh(FabricLoader.getInstance().getGameDir().resolve("e2e-local")));
+			for (Path scenario : scenarios(dir.resolve("local"), only)) {
+				report.add(runOne(context, replay, scenario, dir.resolve("local-expected"), update));
 			}
 		}
 		write(out.resolve("report.json"), new GsonBuilder().setPrettyPrinting().create().toJson(report));
@@ -132,16 +143,19 @@ public class E2eTest implements FabricClientGameTest {
 	private static JsonObject snapshot(ClientGameTestContext context) {
 		context.runOnClient(client -> LabsAddonsConfig.get().saveNow());
 		try {
-			return StateSnapshot.read(FabricLoader.getInstance().getConfigDir().resolve("labsaddons"));
+			return StateSnapshot.read(LabsAddonsConfig.storage().root());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
 	}
 
 	private static List<Path> scenarios(Path dir, String only) {
+		if (!Files.isDirectory(dir)) {
+			return List.of();
+		}
 		try (Stream<Path> files = Files.list(dir)) {
 			return files.filter(p -> p.toString().endsWith(".jsonl"))
-					.filter(p -> only.isEmpty() || p.getFileName().toString().contains(only))
+					.filter(p -> only.isEmpty() || Arrays.stream(only.split(",")).anyMatch(p.getFileName().toString()::contains))
 					.sorted()
 					.toList();
 		} catch (IOException e) {

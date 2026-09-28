@@ -26,6 +26,12 @@ final class StateSnapshot {
 	private static final long EPOCH_MAX = 2_100_000_000_000L;
 	/** A scenario takes a few seconds to play; timestamps are compared to the nearest ten. */
 	private static final long ROUND_MS = 10_000L;
+	/**
+	 * Further back than this, a timestamp came from a calendar rather than from the replay: a
+	 * rental's end date in a dump, the daily vote reset. Its distance from now is the wall
+	 * clock, not the mod, so it only has to be in the past.
+	 */
+	private static final long CALENDAR_PAST_MS = 10L * 60_000L;
 
 	private StateSnapshot() {
 	}
@@ -48,29 +54,37 @@ final class StateSnapshot {
 			JsonObject was = before.has(file.getKey()) ? before.getAsJsonObject(file.getKey()) : new JsonObject();
 			for (Map.Entry<String, JsonElement> entry : file.getValue().getAsJsonObject().entrySet()) {
 				if (!entry.getValue().equals(was.get(entry.getKey()))) {
-					changed.add(file.getKey() + "/" + entry.getKey(), normalise(entry.getValue(), nowMs));
+					changed.add(file.getKey() + "/" + entry.getKey(), normalise(entry.getKey(), entry.getValue(), nowMs));
 				}
 			}
 		}
 		return changed;
 	}
 
-	/** Timestamps become "now+37m30s"-style offsets; everything else is left alone. */
-	static JsonElement normalise(JsonElement value, long nowMs) {
+	/**
+	 * Timestamps become "now+37m30s"-style offsets, and a "...Ms" duration is rounded to the
+	 * second, since it measured how long the replay took between two lines. Everything else
+	 * is left alone.
+	 */
+	static JsonElement normalise(String key, JsonElement value, long nowMs) {
 		if (value.isJsonObject()) {
 			JsonObject out = new JsonObject();
-			value.getAsJsonObject().entrySet().forEach(e -> out.add(e.getKey(), normalise(e.getValue(), nowMs)));
+			value.getAsJsonObject().entrySet().forEach(e -> out.add(e.getKey(), normalise(e.getKey(), e.getValue(), nowMs)));
 			return out;
 		}
 		if (value.isJsonArray()) {
 			JsonArray out = new JsonArray();
-			value.getAsJsonArray().forEach(e -> out.add(normalise(e, nowMs)));
+			value.getAsJsonArray().forEach(e -> out.add(normalise(key, e, nowMs)));
 			return out;
 		}
 		if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
 			double number = value.getAsDouble();
 			if (number >= EPOCH_MIN && number <= EPOCH_MAX && number == Math.rint(number)) {
-				return new JsonPrimitive(relative((long) number - nowMs));
+				long delta = (long) number - nowMs;
+				return new JsonPrimitive(delta < -CALENDAR_PAST_MS ? "past" : relative(delta));
+			}
+			if (key.endsWith("Ms") && number >= 0 && number < EPOCH_MIN) {
+				return new JsonPrimitive(Math.round(number / 1000.0) + "s");
 			}
 		}
 		return value;

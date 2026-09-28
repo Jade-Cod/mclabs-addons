@@ -1,0 +1,6 @@
+{"type": "sidebar", "title": "MCLabs Raid"}
+{"type": "wait", "ticks": 5}
+{"type": "chat", "plain": "MCLabs » Double mine drops for 30 seconds!"}
+{"type": "screenshot", "name": "raidmine-double-drops"}
+{"type": "sidebar", "title": "MCLabs Spawn"}
+{"type": "wait", "ticks": 5}

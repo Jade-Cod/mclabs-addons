@@ -1,0 +1,17 @@
+{
+  "state": {
+    "state.json/boosters": {
+      "chowartusite": {
+        "item": "Chowartusite",
+        "multiplier": 2.25,
+        "expiryEpochMs": "now+20m0s"
+      },
+      "all": {
+        "item": "All Chems",
+        "multiplier": 1.5,
+        "expiryEpochMs": "now+20m0s"
+      }
+    }
+  },
+  "clicks": []
+}
