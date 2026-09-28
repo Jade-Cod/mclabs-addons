@@ -4,6 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.jade.labsaddons.config.E2eStore;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.server.McLabsSession;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -55,6 +56,10 @@ public class E2eTest implements FabricClientGameTest {
 			for (Path scenario : scenarios(dir.resolve("scenarios"), only)) {
 				report.add(runOne(context, replay, scenario, dir.resolve("expected"), update));
 			}
+			// The local captures run for ten minutes; a boost timer set by a committed scenario
+			// would run out somewhere inside them and land in whichever scenario was playing.
+			// A fresh store keeps each phase's results its own.
+			context.runOnClient(client -> E2eStore.fresh(FabricLoader.getInstance().getGameDir().resolve("e2e-local")));
 			for (Path scenario : scenarios(dir.resolve("local"), only)) {
 				report.add(runOne(context, replay, scenario, dir.resolve("local-expected"), update));
 			}
@@ -138,7 +143,7 @@ public class E2eTest implements FabricClientGameTest {
 	private static JsonObject snapshot(ClientGameTestContext context) {
 		context.runOnClient(client -> LabsAddonsConfig.get().saveNow());
 		try {
-			return StateSnapshot.read(FabricLoader.getInstance().getConfigDir().resolve("labsaddons"));
+			return StateSnapshot.read(LabsAddonsConfig.storage().root());
 		} catch (IOException e) {
 			throw new UncheckedIOException(e);
 		}
