@@ -1,0 +1,7 @@
+{
+  "state": {
+    "state.json/miniEventType": "Mining",
+    "state.json/miniEventExpiryEpochMs": "now+20m0s"
+  },
+  "clicks": []
+}

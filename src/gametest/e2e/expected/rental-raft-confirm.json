@@ -1,0 +1,13 @@
+{
+  "state": {
+    "state.json/rentals": [
+      {
+        "itemId": "minecraft:acacia_boat",
+        "name": "Portable Raft",
+        "owner": "Zemperus",
+        "endMs": "past"
+      }
+    ]
+  },
+  "clicks": []
+}

@@ -1,0 +1,11 @@
+{"type": "note", "text": "Raid Mine resource popups: text displays spawned beside the player, in the shape and colours RaidMineGainsTest pins from the real mine."}
+{"type": "sidebar", "title": "MCLabs Raid"}
+{"type": "wait", "ticks": 5}
+{"type": "command", "command": "execute at @p run summon text_display ~ ~1.5 ~2 {text:[{text:\"+3ℯ\",color:\"#FFFC2E\"},{text:\"\\n\",color:\"white\"},{text:\"+2𝕊\",color:\"#00B1C7\"}],tag:[\"e2e\"]}"}
+{"type": "wait", "ticks": 10}
+{"type": "command", "command": "execute at @p run summon text_display ~1 ~1.5 ~2 {text:[{text:\"+3ℯ\",color:\"#FFFC2E\"},{text:\"\\n\",color:\"white\"},{text:\"+2𝕊\",color:\"#00B1C7\"}],tag:[\"e2e\"]}"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "raidmine-gains"}
+{"type": "command", "command": "kill @e[type=text_display,tag=e2e]"}
+{"type": "sidebar", "title": "MCLabs Spawn"}
+{"type": "wait", "ticks": 5}

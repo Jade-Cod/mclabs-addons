@@ -3,8 +3,14 @@
     "state.json/prestigeChems": [
       {
         "chem": "Contraband III",
-        "current": 404725.0,
+        "current": 408662.48,
         "target": 518400.0,
+        "unlocked": false
+      },
+      {
+        "chem": "Contraband I",
+        "current": 0.0,
+        "target": 172800.0,
         "unlocked": false
       }
     ]

@@ -1,0 +1,9 @@
+{"type": "note", "text": "First press opens the welcome guide on a fresh install; past it is the editor itself, with whatever earlier scenarios left live."}
+{"type": "key", "key": "key.keyboard.semicolon"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "hud-welcome-guide"}
+{"type": "button", "text": "Got it"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "hud-editor"}
+{"type": "key", "key": "key.keyboard.escape"}
+{"type": "wait", "ticks": 5}

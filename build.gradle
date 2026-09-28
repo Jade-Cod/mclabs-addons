@@ -62,13 +62,16 @@ fabricApi {
 	}
 }
 
-// Scenarios and goldens live in the source tree so -Pe2eUpdate can rewrite them;
-// the report lands in build/e2e. -Pe2eOnly=<name> runs the matching scenarios.
+// Scenarios and goldens live in src/gametest/e2e so -Pe2eUpdate can rewrite them;
+// the report lands in build/e2e. -Pe2eOnly=a,b runs the scenarios whose names contain a or b.
 loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
-	vmArg "-Dlabsaddons.e2e.dir=${file('src/gametest/resources/e2e')}"
+	vmArg "-Dlabsaddons.e2e.dir=${file('src/gametest/e2e')}"
 	vmArg "-Dlabsaddons.e2e.out=${layout.buildDirectory.dir('e2e').get().asFile}"
 	vmArg "-Dlabsaddons.e2e.update=${project.hasProperty('e2eUpdate')}"
 	vmArg "-Dlabsaddons.e2e.only=${project.findProperty('e2eOnly') ?: ''}"
+	// The name the captures were recorded under, so "Welcome to MCLabs Spawn, Ophiliah!"
+	// and every "you" line replay as the local player's own without rewriting them.
+	programArgs '--username', 'Ophiliah'
 }
 
 processResources {

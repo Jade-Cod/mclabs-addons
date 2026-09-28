@@ -1,0 +1,10 @@
+{"type": "note", "text": "Synthetic /mastery board: lore lines verbatim from MasteryReaderTest (a real dump); names from the server's 'Mastery challenge started' lines."}
+{"type": "screen", "title": "Mastery", "containerSlots": 27}
+{"type": "full", "slots": {"11": {"id": "minecraft:paper", "count": 1, "name": "Complete Chat Reactions", "lore": ["Completions: 0", "", "37/100 (37%)", "", "Right-click to select new", "challenge (your current", "progress will be lost!)"]}, "13": {"id": "minecraft:sugar", "count": 1, "name": "Sell Melcobinide", "lore": ["Completions: 0", "", "319514.42/806,400 (39%)", "", "Right-click to select new", "challenge (your current", "progress will be lost!)"]}, "15": {"id": "minecraft:chest", "count": 1, "name": "Secure Bounties", "lore": ["Completions: 0", "", "6/15 (40%)", "", "Right-click to select new", "challenge (your current", "progress will be lost!)"]}}}
+{"type": "wait", "ticks": 10}
+{"type": "close"}
+{"type": "chat", "plain": "» Ophiliah typed the message in 6.62 seconds and won $7,500!"}
+{"type": "chat", "plain": "» ItsMims typed the message in 19.979 seconds and won $7,500!"}
+{"type": "chat", "plain": "Bounty » Ophiliah has found a bounty chest near the Stock Market in 26:41! There are 5 bounty chests left hidden in Spawn. Use /bounty track in Spawn to track one."}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "mastery-after-wins"}

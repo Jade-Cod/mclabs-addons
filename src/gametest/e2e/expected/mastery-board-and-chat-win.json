@@ -1,0 +1,29 @@
+{
+  "state": {
+    "state.json/masteryQuests": [
+      {
+        "icon": "minecraft:paper",
+        "name": "Complete Chat Reactions",
+        "current": 38.0,
+        "target": 100.0,
+        "percent": 38
+      },
+      {
+        "icon": "minecraft:sugar",
+        "name": "Sell Melcobinide",
+        "current": 319514.42,
+        "target": 806400.0,
+        "percent": 39
+      },
+      {
+        "icon": "minecraft:chest",
+        "name": "Secure Bounties",
+        "current": 7.0,
+        "target": 15.0,
+        "percent": 46
+      }
+    ],
+    "state.json/masterySnapshotMs": "now+0m0s"
+  },
+  "clicks": []
+}

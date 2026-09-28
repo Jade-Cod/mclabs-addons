@@ -1,0 +1,20 @@
+{
+  "state": {
+    "state.json/chemtainer": [
+      {
+        "chem": "chowartusite",
+        "purity": "2-2-2",
+        "label": "Chowartusite-2-2-2",
+        "count": 8704
+      },
+      {
+        "chem": "pumpwartinide",
+        "purity": "2-2-2",
+        "label": "Pumpwartinide-2-2-2",
+        "count": 2992
+      }
+    ],
+    "state.json/chemtainerSnapshotMs": "now+0m0s"
+  },
+  "clicks": []
+}
