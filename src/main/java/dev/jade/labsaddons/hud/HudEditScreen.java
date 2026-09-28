@@ -22,7 +22,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -1192,7 +1192,7 @@ public class HudEditScreen extends Screen {
 		}
 		double mx = click.x();
 		double my = click.y();
-		boolean shift = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+		boolean shift = (click.modifiers() & InputConstants.MOD_SHIFT) != 0;
 
 		HudObject one = singleSelected();
 		if (one != null) {
@@ -1285,7 +1285,7 @@ public class HudEditScreen extends Screen {
 
 	@Override
 	public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
-		boolean snap = snapEnabled && (click.modifiers() & GLFW.GLFW_MOD_ALT) == 0;
+		boolean snap = snapEnabled && (click.modifiers() & InputConstants.MOD_ALT) == 0;
 		if (resizing) {
 			doResize(click.x(), click.y(), snap);
 			return true;
@@ -1430,14 +1430,14 @@ public class HudEditScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent input) {
 		if (!selection.isEmpty()) {
-			int step = (input.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 ? 10 : 1;
+			int step = (input.modifiers() & InputConstants.MOD_SHIFT) != 0 ? 10 : 1;
 			int dx = 0;
 			int dy = 0;
 			switch (input.key()) {
-				case GLFW.GLFW_KEY_LEFT -> dx = -step;
-				case GLFW.GLFW_KEY_RIGHT -> dx = step;
-				case GLFW.GLFW_KEY_UP -> dy = -step;
-				case GLFW.GLFW_KEY_DOWN -> dy = step;
+				case InputConstants.KEY_LEFT -> dx = -step;
+				case InputConstants.KEY_RIGHT -> dx = step;
+				case InputConstants.KEY_UP -> dy = -step;
+				case InputConstants.KEY_DOWN -> dy = step;
 				default -> {
 				}
 			}

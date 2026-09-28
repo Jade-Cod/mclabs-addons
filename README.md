@@ -1,6 +1,6 @@
 # MCLabs Addons
 
-A **client-side** Fabric mod for **Minecraft 1.21.11** and **26.2**, built for the MCLabs
+A **client-side** Fabric mod for **Minecraft 1.21.11**, **26.2** and **26.3**, built for the MCLabs
 server. It started as a fishing bite indicator and grew into a suite of
 on-screen HUD timers that track server boosters and events by reading chat and
 GUIs **passively**. Tracking never automates anything on its own. The only
@@ -61,12 +61,12 @@ chest menu, untouched.
 
 ### Install
 
-1. Install **Fabric Loader** for Minecraft **1.21.11** or **26.2**, then drop **Fabric API**
+1. Install **Fabric Loader** for Minecraft **1.21.11**, **26.2** or **26.3**, then drop **Fabric API**
    into your `mods` folder. **Mod Menu** and **Cloth Config** are both optional —
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
 2. Download the build for your Minecraft version and put it in `mods`. Modrinth and
    CurseForge pick the right file for you; on GitHub the jars are named
-   `mclabs-addons-1.17.1-mc1.21.11.jar` and `mclabs-addons-1.17.1-mc26.2.jar`. The
+   `mclabs-addons-1.17.1-mc1.21.11.jar`, `-mc26.2.jar` and `-mc26.3.jar`. The
    mod is **client-side**, so it works on the MCLabs server with nothing installed
    server-side.
 
@@ -302,11 +302,11 @@ Drop these in your `mods` folder alongside the mod:
 
 | Dependency | Version | Notes |
 |------------|---------|-------|
-| Minecraft | 26.2 exactly | |
+| Minecraft | 26.3 exactly | |
 | Fabric Loader | ≥ 0.17.3 | |
-| [Fabric API](https://modrinth.com/mod/fabric-api) | 0.159.0+26.2 | required |
-| [Mod Menu](https://modrinth.com/mod/modmenu) | 20.0.1 | optional (config screen) |
-| [Cloth Config](https://modrinth.com/mod/cloth-config) | 26.2.155 | optional (widgets on that screen) |
+| [Fabric API](https://modrinth.com/mod/fabric-api) | 0.161.0+26.3 | required |
+| [Mod Menu](https://modrinth.com/mod/modmenu) | 21.0.0 | optional (config screen) |
+| [Cloth Config](https://modrinth.com/mod/cloth-config) | 26.3.159 | optional (widgets on that screen) |
 
 Current mod version: **1.17.1**.
 

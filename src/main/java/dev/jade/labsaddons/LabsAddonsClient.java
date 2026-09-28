@@ -100,7 +100,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 import java.util.Locale;
@@ -309,16 +308,16 @@ public class LabsAddonsClient implements ClientModInitializer {
 
 		// Keybind to open the draggable chum HUD editor (unbound by default).
 		chumEditorKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-				"key.labsaddons.chum_editor", InputConstants.Type.KEYSYM,
-				GLFW.GLFW_KEY_SEMICOLON, MCLAB_CATEGORY));
+				"key.labsaddons.chum_editor", InputConstants.Type.KEYBOARD,
+				InputConstants.KEY_SEMICOLON, MCLAB_CATEGORY));
 		// Chemtainer deposit (default B): send "/ch qd" and track what gets banked.
 		chemDepositKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-				"key.labsaddons.chem_deposit", InputConstants.Type.KEYSYM,
-				GLFW.GLFW_KEY_B, MCLAB_CATEGORY));
+				"key.labsaddons.chem_deposit", InputConstants.Type.KEYBOARD,
+				InputConstants.KEY_B, MCLAB_CATEGORY));
 		// Chemtainer withdraw (default N): pull back the largest chem you have.
 		chemWithdrawKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-				"key.labsaddons.chem_withdraw", InputConstants.Type.KEYSYM,
-				GLFW.GLFW_KEY_N, MCLAB_CATEGORY));
+				"key.labsaddons.chem_withdraw", InputConstants.Type.KEYBOARD,
+				InputConstants.KEY_N, MCLAB_CATEGORY));
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
 			KeybindMigration.apply(client, chumEditorKey, chemDepositKey, chemWithdrawKey);
 		});
