@@ -49,6 +49,28 @@ test {
 	useJUnitPlatform()
 }
 
+// In-game end-to-end tests: ./gradlew runClientGameTest launches the real client
+// with the mod, replays captured MCLabs chat and menus through a local world, and
+// exits with the result. Lives in src/gametest and never ships in the jar.
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = 'labsaddons-e2e'
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
+// Scenarios and goldens live in the source tree so -Pe2eUpdate can rewrite them;
+// the report lands in build/e2e. -Pe2eOnly=<name> runs the matching scenarios.
+loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
+	vmArg "-Dlabsaddons.e2e.dir=${file('src/gametest/resources/e2e')}"
+	vmArg "-Dlabsaddons.e2e.out=${layout.buildDirectory.dir('e2e').get().asFile}"
+	vmArg "-Dlabsaddons.e2e.update=${project.hasProperty('e2eUpdate')}"
+	vmArg "-Dlabsaddons.e2e.only=${project.findProperty('e2eOnly') ?: ''}"
+}
+
 processResources {
 	inputs.property "version", project.version
 	inputs.property "minecraft_version", project.minecraft_version
@@ -155,3 +177,7 @@ tasks.register('checkReadme') {
 }
 tasks.named('modrinth') { dependsOn 'checkReadme' }
 tasks.named('curseforge') { dependsOn 'checkReadme' }
+
+// Every run starts from a new client: the mod's saved state is the thing under test,
+// and last run's Pit window would otherwise decide this run's diff.
+tasks.named('runClientGameTest') { dependsOn 'deleteGameTestRunDir' }
