@@ -22,7 +22,7 @@ for entry in "${VERSIONS[@]}"; do
 		continue
 	fi
 	if [ "$dir" != "$ROOT" ]; then
-		rsync -a --delete "$ROOT/src/gametest/resources/e2e/" "$dir/src/gametest/resources/e2e/"
+		rsync -a --delete "$ROOT/src/gametest/e2e/" "$dir/src/gametest/e2e/"
 	fi
 	(cd "$dir" && ./gradlew test runClientGameTest --console=plain ${ONLY:+-Pe2eOnly="$ONLY"} >"$OUT/$version.log" 2>&1
 		echo $? >"$OUT/$version.exit"

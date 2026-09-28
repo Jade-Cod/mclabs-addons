@@ -1,0 +1,29 @@
+{
+  "state": {
+    "runners.json/runnerStats": {
+      "Relston735": {
+        "completed": 1,
+        "failed": 0,
+        "valueSold": 5530.0,
+        "totalCompletionMs": "0s",
+        "recentJobs": [
+          {
+            "drug": "Carrotenium",
+            "qty": 2176,
+            "value": 5530.0,
+            "completedMs": "now+0m0s",
+            "durationMs": "0s"
+          }
+        ]
+      },
+      "onveil": {
+        "completed": 0,
+        "failed": 1,
+        "valueSold": 0.0,
+        "totalCompletionMs": "0s",
+        "recentJobs": []
+      }
+    }
+  },
+  "clicks": []
+}

@@ -1,0 +1,9 @@
+{"type": "command", "command": "give @p minecraft:diamond_pickaxe"}
+{"type": "wait", "ticks": 5}
+{"type": "actionbar", "plain": "**SUPER BREAKER ACTIVATED**"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "mcmmo-super-breaker-active"}
+{"type": "actionbar", "plain": "**Super Breaker has worn off**"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "mcmmo-super-breaker-cooldown"}
+{"type": "command", "command": "clear @p"}

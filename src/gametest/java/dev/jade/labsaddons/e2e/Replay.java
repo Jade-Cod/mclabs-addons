@@ -34,7 +34,7 @@ import java.util.Map;
  *
  * <p>Record shapes are gui-dumper's (chat, actionbar, screen, full, delta, close) plus a
  * few the harness adds to set a scene or poke the client (sidebar, command,
- * playerCommand, key, mouse, wait, screenshot).
+ * playerCommand, key, mouse, button, window, wait, screenshot).
  */
 final class Replay {
 	private static final ScreenHandlerType<?>[] ROWS = {
@@ -59,7 +59,8 @@ final class Replay {
 	void play(JsonObject record) {
 		String type = record.get("type").getAsString();
 		switch (type) {
-			case "capture", "end", "note" -> { }
+			// satchel: gui-dumper notes the Smuggler satchel it saw; nothing to replay.
+			case "capture", "end", "note", "satchel" -> { }
 			case "chat" -> send(record, record.has("overlay") && record.get("overlay").getAsBoolean());
 			case "actionbar" -> send(record, true);
 			case "screen" -> open(record.get("title"), record.get("containerSlots").getAsInt());
@@ -79,6 +80,14 @@ final class Replay {
 			case "key" -> context.getInput().pressKey(InputUtil.fromTranslationKey(record.get("key").getAsString()));
 			case "mouse" -> click(record.get("x").getAsDouble(), record.get("y").getAsDouble(),
 					record.has("button") ? record.get("button").getAsInt() : 0);
+			case "button" -> {
+				context.clickScreenButton(record.get("text").getAsString());
+				context.waitTicks(5);
+			}
+			case "window" -> {
+				context.getInput().resizeWindow(record.get("width").getAsInt(), record.get("height").getAsInt());
+				context.waitTicks(5);
+			}
 			case "wait" -> context.waitTicks(record.get("ticks").getAsInt());
 			case "screenshot" -> context.takeScreenshot(record.get("name").getAsString());
 			default -> throw new IllegalArgumentException("Unknown record type: " + type);
@@ -106,6 +115,8 @@ final class Replay {
 	private void send(JsonObject record, boolean overlay) {
 		JsonElement json = record.has("text") ? record.get("text") : record.get("plain");
 		world.getServer().runOnServer(server -> player(server).sendMessage(text(server, json), overlay));
+		// The client reads it on its next tick; a screenshot straight after would miss it.
+		context.waitTicks(2);
 	}
 
 	private void open(JsonElement title, int containerSlots) {

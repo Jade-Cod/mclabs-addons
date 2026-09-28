@@ -1,0 +1,14 @@
+{
+  "state": {
+    "state.json/masterySnapshotMs": "now+0m0s",
+    "state.json/prestigeChems": [
+      {
+        "chem": "Contraband III",
+        "current": 408662.48,
+        "target": 518400.0,
+        "unlocked": false
+      }
+    ]
+  },
+  "clicks": []
+}

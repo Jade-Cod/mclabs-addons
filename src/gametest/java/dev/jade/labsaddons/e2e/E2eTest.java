@@ -19,13 +19,16 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Replays every scenario in {@code src/gametest/resources/e2e/scenarios} through a local
- * world with the real mod loaded, and compares what each one did to the mod's saved state
- * (plus the menu clicks it sent) against {@code expected/<scenario>.json}.
+ * Replays every scenario in {@code src/gametest/e2e/scenarios} (committed, server lines
+ * only) and {@code src/gametest/e2e/local} (gitignored: raw captures and whole session
+ * logs) through a local world with the real mod loaded, and compares what each one did to
+ * the mod's saved state (plus the menu clicks it sent) against
+ * {@code expected/<scenario>.json} or {@code local-expected/<scenario>.json}.
  *
  * <p>A scenario with no expected file writes one and is reported NEW, for review;
  * {@code -Pe2eUpdate} rewrites them all. Minecraft-free apart from the context types,
@@ -51,6 +54,9 @@ public class E2eTest implements FabricClientGameTest {
 			context.waitFor(client -> McLabsSession.isActive());
 			for (Path scenario : scenarios(dir.resolve("scenarios"), only)) {
 				report.add(runOne(context, replay, scenario, dir.resolve("expected"), update));
+			}
+			for (Path scenario : scenarios(dir.resolve("local"), only)) {
+				report.add(runOne(context, replay, scenario, dir.resolve("local-expected"), update));
 			}
 		}
 		write(out.resolve("report.json"), new GsonBuilder().setPrettyPrinting().create().toJson(report));
@@ -139,9 +145,12 @@ public class E2eTest implements FabricClientGameTest {
 	}
 
 	private static List<Path> scenarios(Path dir, String only) {
+		if (!Files.isDirectory(dir)) {
+			return List.of();
+		}
 		try (Stream<Path> files = Files.list(dir)) {
 			return files.filter(p -> p.toString().endsWith(".jsonl"))
-					.filter(p -> only.isEmpty() || p.getFileName().toString().contains(only))
+					.filter(p -> only.isEmpty() || Arrays.stream(only.split(",")).anyMatch(p.getFileName().toString()::contains))
 					.sorted()
 					.toList();
 		} catch (IOException e) {

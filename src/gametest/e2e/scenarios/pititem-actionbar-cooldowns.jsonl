@@ -1,0 +1,4 @@
+{"type": "actionbar", "plain": "Excalibur [18s]"}
+{"type": "actionbar", "plain": "Body Slam [14s]"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "pititem-cooldowns"}
