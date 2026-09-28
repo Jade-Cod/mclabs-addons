@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.coinflip;
 
 import dev.jade.labsaddons.casino.Money;
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
@@ -35,6 +36,8 @@ public class CfOpenHudObject extends HudObject {
 	private record Row(String text, String id, int color) {
 	}
 
+	private final FrameValue<List<Row>> rowCache = new FrameValue<>();
+
 	@Override
 	public String id() {
 		return ID;
@@ -60,6 +63,10 @@ public class CfOpenHudObject extends HudObject {
 	}
 
 	private List<Row> rows(boolean preview) {
+		return rowCache.get(Util.getMillis(), preview, () -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		List<CfChat.OpenFlip> flips = CfChat.openFlips(Util.getMillis());
 		List<Row> rows = new ArrayList<>();
 		rows.add(new Row("Coinflips", flips.isEmpty() ? "" : String.valueOf(flips.size()),

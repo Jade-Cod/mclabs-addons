@@ -1,10 +1,12 @@
 package dev.jade.labsaddons.booster;
 
 import dev.jade.labsaddons.chem.ChemIcons;
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
@@ -54,7 +56,13 @@ public class BoosterHudObject extends HudObject {
 	private record Row(ItemStack icon, String text) {
 	}
 
+	private final FrameValue<List<Row>> rowsCache = new FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return rowsCache.get(Util.getMillis(), preview, () -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
 		for (var booster : BoosterTracker.active()) {
 			String prefix = ChemIcons.isAllBooster(booster.item) ? ALL_BOOSTER_LABEL + " " : "";
