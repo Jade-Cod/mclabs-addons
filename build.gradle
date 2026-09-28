@@ -49,6 +49,28 @@ test {
 	useJUnitPlatform()
 }
 
+// In-game tests: `./gradlew runClientGameTest` boots a real client into a fresh
+// singleplayer world and drives it (src/gametest). They cover what the unit tests
+// can't — the HUD editor, the bite marker, the frame and memory budget — and they
+// open a window, so they're not part of `build`.
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = 'labsaddons-gametest'
+		enableGameTests = false
+		enableClientGameTests = true
+		eula = true
+	}
+}
+
+// `-Pjfr` also records the run with Java Flight Recorder, to see where the time went
+// when a budget in PerformanceGameTest fails: build/gametest.jfr.
+if (project.hasProperty('jfr')) {
+	loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
+		vmArg "-XX:StartFlightRecording=filename=${file('build/gametest.jfr')},settings=profile"
+	}
+}
+
 processResources {
 	inputs.property "version", project.version
 	inputs.property "minecraft_version", project.minecraft_version

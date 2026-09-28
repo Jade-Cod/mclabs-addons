@@ -1,0 +1,19 @@
+{
+	"schemaVersion": 1,
+	"id": "labsaddons-gametest",
+	"version": "1.0.0",
+	"name": "MCLabs Addons in-game tests",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"dev.jade.labsaddons.gametest.HudEditorGameTest",
+			"dev.jade.labsaddons.gametest.BiteMarkerGameTest",
+			"dev.jade.labsaddons.gametest.PerformanceGameTest"
+		]
+	},
+	"mixins": ["labsaddons-gametest.mixins.json"],
+	"depends": {
+		"labsaddons": "*",
+		"fabric-client-gametest-api-v1": "*"
+	}
+}
