@@ -1,10 +1,12 @@
 package dev.jade.labsaddons.coinflip;
 
 import dev.jade.labsaddons.casino.Money;
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -31,6 +33,8 @@ public class CfRecordHudObject extends HudObject {
 	private record Row(String label, String value, int labelColor, int valueColor) {
 	}
 
+	private final FrameValue<List<Row>> rowCache = new FrameValue<>();
+
 	@Override
 	public String id() {
 		return ID;
@@ -56,6 +60,10 @@ public class CfRecordHudObject extends HudObject {
 	}
 
 	private List<Row> rows() {
+		return rowCache.get(Util.getMeasuringTimeMs(), false, this::buildRows);
+	}
+
+	private List<Row> buildRows() {
 		CfStats.Record record = CfStats.current();
 		List<Row> rows = new ArrayList<>();
 		rows.add(new Row("Coinflip", "", HEADER_COLOR, HEADER_COLOR));

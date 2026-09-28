@@ -1,10 +1,12 @@
 package dev.jade.labsaddons.personal;
 
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -54,7 +56,13 @@ public class PersonalBoosterHudObject extends HudObject {
 	private record Row(ItemStack icon, String text) {
 	}
 
+	private final FrameValue<List<Row>> rowsCache = new FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return rowsCache.get(Util.getMeasuringTimeMs(), preview, () -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
 		if (PersonalBoosters.chemRemainingMs() > 0) {
 			rows.add(new Row(new ItemStack(Items.GOLD_INGOT),
