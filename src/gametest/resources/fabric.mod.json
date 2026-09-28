@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "labsaddons-e2e",
+	"version": "1",
+	"name": "MCLabs Addons E2E",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"dev.jade.labsaddons.e2e.E2eTest"
+		]
+	},
+	"depends": {
+		"labsaddons": "*"
+	}
+}
