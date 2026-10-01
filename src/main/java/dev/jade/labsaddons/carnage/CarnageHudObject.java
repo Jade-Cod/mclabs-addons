@@ -58,14 +58,21 @@ public class CarnageHudObject extends HudObject {
 	/** Component this faint is skipped: Minecraft draws near-zero alpha as fully opaque. */
 	private static final float MIN_TEXT_ALPHA = 0.05f;
 
-	/** {@code color} 0 means the widget's own text colour. */
-	private record Row(Component text, int color, double fraction, float alpha) {
+	/**
+	 * {@code color} 0 means the widget's own text colour. The text is resolved and measured once,
+	 * as the row is built, rather than on every measure and draw of the frame.
+	 */
+	private record Row(String text, int width, int color, double fraction, float alpha) {
+		Row(Component text, int color, double fraction, float alpha) {
+			this(text.getString(), font().width(text.getString()), color, fraction, alpha);
+		}
+
 		Row(Component text, int color, double fraction) {
 			this(text, color, fraction, 1f);
 		}
 
 		Row faded(float to) {
-			return new Row(text, color, fraction, to);
+			return new Row(text, width, color, fraction, to);
 		}
 	}
 
@@ -273,7 +280,7 @@ public class CarnageHudObject extends HudObject {
 	@Override
 	public int contentWidth(boolean preview) {
 		List<Row> rows = rows(preview);
-		int text = rows.stream().mapToInt(row -> font().width(row.text())).max().orElse(0);
+		int text = rows.stream().mapToInt(row -> row.width()).max().orElse(0);
 		boolean hasBar = rows.stream().anyMatch(row -> row.fraction() >= 0);
 		return hasBar ? Math.max(MIN_BAR_W, text) : text;
 	}
