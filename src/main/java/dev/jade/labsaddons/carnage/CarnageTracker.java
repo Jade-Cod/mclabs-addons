@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.carnage;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.mastery.MasteryGains;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,17 @@ import java.util.regex.Pattern;
  */
 public final class CarnageTracker {
 	static final long DAY_MS = 24L * 60 * 60 * 1000;
+
+	/**
+	 * Keys in {@link MasteryGains}, so the HUD rows pop up on a gain and fade exactly like the
+	 * progress widget's. Prefixed, so they can never be taken for a quest or chem name.
+	 */
+	public static final String SCORE_GAIN = "carnage:score";
+	public static final String HUNT_GAIN = "carnage:hunt";
+
+	public static String missionGain(String missionName) {
+		return "carnage:mission:" + missionName;
+	}
 
 	/**
 	 * "+4.3 Carnage Points (67 - 67)". The first figure in the brackets is taken as today's
@@ -91,8 +103,13 @@ public final class CarnageTracker {
 		store(daily);
 	}
 
+	/** A sync that shows new finds counts as a gain; the first sync is only a baseline. */
 	public static void onHunt(Hunt hunt) {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
+		Hunt before = config.carnageHunt;
+		if (before != null && hunt.found() > before.found()) {
+			MasteryGains.record(HUNT_GAIN, hunt.found() - before.found());
+		}
 		config.carnageHunt = hunt;
 		config.save();
 	}
@@ -102,6 +119,9 @@ public final class CarnageTracker {
 		Double score = parseScore(text);
 		Daily daily = daily();
 		if (score != null && daily != null) {
+			if (score > daily.score()) {
+				MasteryGains.record(SCORE_GAIN, score - daily.score());
+			}
 			store(withScore(daily, score));
 		}
 	}
@@ -115,6 +135,11 @@ public final class CarnageTracker {
 		Daily next = withKill(daily, mob);
 		if (next == daily) {
 			return false;
+		}
+		for (int i = 0; i < next.missions().size(); i++) {
+			if (next.missions().get(i) != daily.missions().get(i)) {
+				MasteryGains.record(missionGain(next.missions().get(i).name()), 1);
+			}
 		}
 		store(next);
 		return true;
