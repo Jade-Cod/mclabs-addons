@@ -19,6 +19,8 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 import java.util.List;
@@ -60,8 +62,6 @@ public final class CarnageBoard extends CasinoPanel {
 	private static final int BODY_Y = 40;
 	private static final int BODY_W = PANEL_W - PAD * 2;
 	private static final int FOOT_Y = H - PAD - 13;
-	private static final int COL_W = 134;
-	private static final int RIGHT_X = PANEL_W - PAD - COL_W;
 	private static final int BAR_H = 4;
 	private static final String[] TAB_LABELS = {"Today", "Hunt", "Shop", "Leaders", "Bestiary", "Tags"};
 
@@ -251,89 +251,203 @@ public final class CarnageBoard extends CasinoPanel {
 
 	// --- Today ---
 
+	/**
+	 * One stack, most important first: the score as the hero, then the missions as full-width
+	 * rows, then everything else as a single footer line.
+	 *
+	 * <p>The raffle has no bar of its own because it is the same number: a ticket every
+	 * {@code ticketCost} of today's score. Its thresholds are notched into the score bar, so
+	 * filling the bar is visibly earning tickets on the way to the goal.
+	 *
+	 * <p>Anything with more to say than fits (raffle prizes, the "all three" bonus, the streak
+	 * bonus) shows the server's own tooltip on hover rather than being squeezed in.
+	 */
 	private void dashboard(GuiGraphicsExtractor context, Font font, List<SlotView> slots) {
 		Daily daily = CarnageReader.dashboard(slots, System.currentTimeMillis());
 		if (daily == null) {
 			return;
 		}
-		int x = PAD;
-		int y = BODY_Y;
+		hero(context, font, slots, daily);
+		raffle(context, font, slots, daily);
+		context.fill(PAD, BODY_Y + 50, PANEL_W - PAD, BODY_Y + 51, DIVIDER);
+		missions(context, font, slots, daily.missions());
+		footer(context, font, slots, daily);
+	}
 
+	private void hero(GuiGraphicsExtractor context, Font font, List<SlotView> slots, Daily daily) {
+		int y = BODY_Y + 2;
 		enter(context, 0);
-		caption(context, font, x, y, COL_W, "DAILY SCORE", percent(daily.score(), daily.scoreGoal()));
 		context.pose().pushMatrix();
-		context.pose().translate(x, y + 11);
+		context.pose().translate(PAD, y);
 		context.pose().scale(2f, 2f);
 		String score = number(daily.score());
 		text(context, font, score, 0, 0, 0xFFFFFFFF);
 		context.pose().popMatrix();
-		text(context, font, "/ " + number(daily.scoreGoal()), x + font.width(score) * 2 + 4, y + 18, TEXT_FAINT);
-		boolean goalMet = daily.score() >= daily.scoreGoal() && daily.scoreGoal() > 0;
-		bar(context, x, y + 30, COL_W, fraction(daily.score(), daily.scoreGoal()), goalMet ? WIN : PUMPKIN, 0);
+		text(context, font, "/ " + number(daily.scoreGoal()) + " today", PAD + font.width(score) * 2 + 5, y + 7, TEXT_FAINT);
+
+		boolean goalMet = daily.scoreGoal() > 0 && daily.score() >= daily.scoreGoal();
 		String reward = loreAfter(slots, "Daily Score Goal", "Reward:");
 		if (!reward.isEmpty()) {
-			text(context, font, fit(font, "→ " + reward, COL_W), x, y + 38, TEXT_FAINT);
+			String label = goalMet ? "✔ " : "Goal → ";
+			int rewardW = font.width(reward);
+			int right = PANEL_W - PAD;
+			text(context, font, reward, right - rewardW, y + 7, goalMet ? WIN : TEXT);
+			text(context, font, label, right - rewardW - font.width(label), y + 7, goalMet ? WIN : TEXT_FAINT);
 		}
+		int barY = y + 20;
+		int barH = 6;
+		bar(context, PAD, barY, BODY_W, barH, fraction(daily.score(), daily.scoreGoal()), goalMet ? WIN : PUMPKIN, 0);
+		notches(context, barY, barH, daily);
 		leave(context);
-
-		y += 58;
-		enter(context, 1);
-		String draws = loreValue(slots, "Daily Raffle", "Drawing in:");
-		caption(context, font, x, y, COL_W, "RAFFLE", draws.isEmpty() ? "" : "draws in " + TimeFormat.hms(Durations.parseMs(draws)));
-		pips(context, x, y + 11, daily.maxTickets(), daily.tickets(), 11, 6, PUMPKIN);
-		if (daily.tickets() < daily.maxTickets() && daily.ticketCost() > 0) {
-			text(context, font, "next ticket " + number(daily.score() % daily.ticketCost()) + " / "
-					+ number(daily.ticketCost()), x, y + 21, TEXT_FAINT);
-		} else {
-			text(context, font, "all tickets earned", x, y + 21, WIN);
+		int goalSlot = slotNamed(slots, "Daily Score Goal");
+		if (goalSlot >= 0 && hovered(PAD, y, BODY_W, 28)) {
+			tooltip(context, font, stackAt(goalSlot));
 		}
-		leave(context);
-
-		y += 40;
-		enter(context, 2);
-		caption(context, font, x, y, COL_W, "GOAL STREAK", daily.goalsDone() + " / " + daily.goalsTotal());
-		pips(context, x, y + 11, daily.goalsTotal(), daily.goalsDone(), 6, 6, WIN);
-		text(context, font, "bonus rewards at " + daily.goalsTotal(), x, y + 21, TEXT_FAINT);
-		leave(context);
-
-		missions(context, font, daily.missions());
-
-		enter(context, 5);
-		SlotView clock = SlotView.at(slots, CarnageMenu.COUNTDOWN);
-		String dayEnds = clock == null ? "" : valueAfter(clock.lore(), "Current day ends in:");
-		if (!dayEnds.isEmpty()) {
-			text(context, font, "day resets in " + TimeFormat.hms(Durations.parseMs(dayEnds)), PAD, FOOT_Y + 3, TEXT_FAINT);
-		}
-		claimButton(context, font, CarnageMenu.CLAIM_SOULS);
-		leave(context);
 	}
 
-	private void missions(GuiGraphicsExtractor context, Font font, List<Mission> missions) {
-		int x = RIGHT_X;
-		int y = BODY_Y;
-		long done = missions.stream().filter(Mission::done).count();
+	/** A 1px cut in the score bar at every raffle ticket threshold. */
+	private void notches(GuiGraphicsExtractor context, int y, int h, Daily daily) {
+		if (daily.ticketCost() <= 0 || daily.scoreGoal() <= 0) {
+			return;
+		}
+		for (int points = daily.ticketCost(); points < daily.scoreGoal(); points += daily.ticketCost()) {
+			int x = PAD + Math.round(BODY_W * points / (float) daily.scoreGoal());
+			context.fill(x, y, x + 1, y + h, c(0xFF1A1D24));
+		}
+	}
+
+	private void raffle(GuiGraphicsExtractor context, Font font, List<SlotView> slots, Daily daily) {
+		int y = BODY_Y + 34;
 		enter(context, 1);
-		caption(context, font, x, y, COL_W, "MISSIONS", done + " / " + missions.size());
+		int x = PAD;
+		if (daily.maxTickets() > 0 && daily.tickets() >= daily.maxTickets()) {
+			text(context, font, "✔ all " + daily.maxTickets() + " raffle tickets earned", x, y, WIN);
+		} else if (daily.maxTickets() > 0) {
+			String have = String.valueOf(daily.tickets());
+			text(context, font, have, x, y, PUMPKIN);
+			x += font.width(have);
+			String rest = " of " + daily.maxTickets() + " raffle tickets";
+			text(context, font, rest, x, y, TEXT_DIM);
+			x += font.width(rest);
+			if (daily.ticketCost() > 0) {
+				text(context, font, " · next at " + number((daily.tickets() + 1L) * daily.ticketCost()), x, y, TEXT_FAINT);
+			}
+		}
+		String draws = loreValue(slots, "Daily Raffle", "Drawing in:");
+		if (!draws.isEmpty()) {
+			String when = "draws in " + TimeFormat.hms(Durations.parseMs(draws));
+			text(context, font, when, PANEL_W - PAD - font.width(when), y, TEXT_FAINT);
+		}
 		leave(context);
+		int raffleSlot = slotNamed(slots, "Daily Raffle");
+		if (raffleSlot >= 0 && hovered(PAD, y - 2, BODY_W, 12)) {
+			tooltip(context, font, stackAt(raffleSlot));
+		}
+	}
+
+	private void missions(GuiGraphicsExtractor context, Font font, List<SlotView> slots, List<Mission> missions) {
+		int y = BODY_Y + 57;
+		long done = missions.stream().filter(Mission::done).count();
+		enter(context, 2);
+		text(context, font, "MISSIONS", PAD, y, TEXT_FAINT);
+		String count = done + "/" + missions.size();
+		int x = PAD + font.width("MISSIONS ");
+		text(context, font, count, x, y, done == missions.size() && !missions.isEmpty() ? WIN : TEXT_DIM);
+		leave(context);
+
+		int missionSlot = slotNamed(slots, "Daily Missions");
+		int rowH = 24;
 		y += 11;
 		for (int i = 0; i < missions.size(); i++) {
 			Mission mission = missions.get(i);
-			enter(context, 2 + i);
-			int cardH = 40;
-			HudObject.drawRoundedRect(context, x, y, COL_W, cardH, c(CARD));
+			int rowY = y + i * (rowH + 2);
+			enter(context, 3 + i);
+			boolean hot = hovered(PAD, rowY, BODY_W, rowH);
+			HudObject.drawRoundedRect(context, PAD, rowY, BODY_W, rowH, c(hot ? CARD_HOT : CARD));
 			int accent = mission.done() ? WIN : PUMPKIN;
-			String count = mission.current() + "/" + mission.target();
-			String mark = mission.done() ? "✔ " : "";
-			text(context, font, fit(font, mark + mission.name(), COL_W - 12 - font.width(count)),
-					x + 5, y + 5, mission.done() ? WIN : TEXT);
-			text(context, font, count, x + COL_W - 5 - font.width(count), y + 5, mission.done() ? WIN : TEXT_DIM);
-			bar(context, x + 5, y + 17, COL_W - 10, fraction(mission.current(), mission.target()), accent, 2 + i);
+			String name = (mission.done() ? "✔ " : "") + mission.name();
+			text(context, font, name, PAD + 6, rowY + 4, mission.done() ? WIN : TEXT);
 			if (!mission.reward().isEmpty()) {
-				text(context, font, fit(font, "→ " + mission.reward(), COL_W - 10), x + 5, y + 27, TEXT_FAINT);
+				String reward = fit(font, mission.reward(), BODY_W - 22 - font.width(name));
+				text(context, font, reward, PANEL_W - PAD - 6 - font.width(reward), rowY + 4, TEXT_FAINT);
 			}
+			String progress = mission.current() + " / " + mission.target();
+			int countX = PANEL_W - PAD - 6 - font.width(progress);
+			text(context, font, progress, countX, rowY + 14, mission.done() ? WIN : TEXT_DIM);
+			bar(context, PAD + 6, rowY + 16, countX - PAD - 12, BAR_H,
+					fraction(mission.current(), mission.target()), accent, 3 + i);
 			leave(context);
-			y += cardH + 5;
+			if (hot && missionSlot >= 0) {
+				tooltip(context, font, stackAt(missionSlot));
+			}
 		}
+		String bonus = allMissionsBonus(slots);
+		if (!bonus.isEmpty()) {
+			enter(context, 3 + missions.size());
+			int bonusY = y + missions.size() * (rowH + 2) + 3;
+			String label = "Finish all three → ";
+			text(context, font, label, PAD, bonusY, TEXT_FAINT);
+			text(context, font, fit(font, bonus, BODY_W - font.width(label)), PAD + font.width(label), bonusY, TEXT_DIM);
+			leave(context);
+		}
+	}
+
+	private void footer(GuiGraphicsExtractor context, Font font, List<SlotView> slots, Daily daily) {
+		enter(context, 6);
+		int x = PAD;
+		int y = FOOT_Y + 3;
+		x = pair(context, font, x, y, "Goal streak ", daily.goalsDone() + "/" + daily.goalsTotal());
+		SlotView clock = SlotView.at(slots, CarnageMenu.COUNTDOWN);
+		String dayEnds = clock == null ? "" : valueAfter(clock.lore(), "Current day ends in:");
+		if (!dayEnds.isEmpty()) {
+			text(context, font, "  ·  ", x, y, TEXT_FAINT);
+			x += font.width("  ·  ");
+			pair(context, font, x, y, "resets in ", TimeFormat.hms(Durations.parseMs(dayEnds)));
+		}
+		claimButton(context, font, CarnageMenu.CLAIM_SOULS);
+		leave(context);
+		int bonusSlot = slotNamed(slots, "Daily Score Goal Bonus");
+		if (bonusSlot >= 0 && hovered(PAD, FOOT_Y, 110, 13)) {
+			tooltip(context, font, stackAt(bonusSlot));
+		}
+	}
+
+	/** A faint label and its value, returning where the next piece goes. */
+	private int pair(GuiGraphicsExtractor context, Font font, int x, int y, String label, String value) {
+		text(context, font, label, x, y, TEXT_FAINT);
+		x += font.width(label);
+		text(context, font, value, x, y, TEXT_DIM);
+		return x + font.width(value);
+	}
+
+	/** "0.2 Event Points + 100 Store Points": the bullets under the missions' "Complete all" line. */
+	private static String allMissionsBonus(List<SlotView> slots) {
+		int slot = slotNamed(slots, "Daily Missions");
+		if (slot < 0) {
+			return "";
+		}
+		StringBuilder bonus = new StringBuilder();
+		boolean inSummary = false;
+		for (String raw : slots.get(slot).lore()) {
+			String line = raw.trim();
+			if (line.toLowerCase(Locale.ROOT).contains("complete all")) {
+				inSummary = true;
+			} else if (inSummary && line.startsWith("•")) {
+				bonus.append(bonus.isEmpty() ? "" : " + ").append(line.substring(1).trim());
+			} else if (inSummary) {
+				break;
+			}
+		}
+		return bonus.toString();
+	}
+
+	private static int slotNamed(List<SlotView> slots, String name) {
+		for (SlotView slot : slots) {
+			if (slot.name().trim().equals(name)) {
+				return slot.index();
+			}
+		}
+		return -1;
 	}
 
 	// --- Hunt ---
@@ -524,8 +638,14 @@ public final class CarnageBoard extends CasinoPanel {
 			boolean hot = hovered(x, y, cardW, cardH);
 			HudObject.drawRoundedRect(context, x, y, cardW, cardH,
 					c(tag.unlocked() ? shade(WIN, 0x22) : hot ? CARD_HOT : CARD));
-			String name = fit(font, tag.name(), cardW - 8);
-			text(context, font, name, x + (cardW - font.width(name)) / 2, y + 8, tag.unlocked() ? 0xFFFFFFFF : TEXT_DIM);
+			Component name = tagLabel(stackAt(tag.slot()), tag.name());
+			int nameW = font.width(name);
+			if (nameW <= cardW - 8) {
+				styled(context, font, name, x + (cardW - nameW) / 2, y + 8);
+			} else {
+				String plain = fit(font, tag.name(), cardW - 8);
+				text(context, font, plain, x + (cardW - font.width(plain)) / 2, y + 8, TEXT);
+			}
 			String status = tag.unlocked() ? "✔ unlocked" : tag.status();
 			text(context, font, status, x + (cardW - font.width(status)) / 2, y + 20, tag.unlocked() ? WIN : TEXT_FAINT);
 			leave(context);
@@ -568,24 +688,17 @@ public final class CarnageBoard extends CasinoPanel {
 
 	/** A bar whose fill grows in with its element, {@code order} staggered like the rest. */
 	private void bar(GuiGraphicsExtractor context, int x, int y, int w, double fraction, int color, int order) {
-		EditorPainter.pill(context, x, y, w, BAR_H, c(RAIL));
-		float grow = ease(progress(enterMs + order * STAGGER_MS, BAR_MS));
-		int filled = (int) Math.round(w * Math.clamp(fraction, 0.0, 1.0) * grow);
-		if (filled >= BAR_H) {
-			EditorPainter.pill(context, x, y, filled, BAR_H, c(color));
-		} else if (filled > 0) {
-			context.fill(x, y, x + filled, y + BAR_H, c(color));
-		}
+		bar(context, x, y, w, BAR_H, fraction, color, order);
 	}
 
-	/** A row of {@code total} cells, the first {@code filled} lit. */
-	private void pips(GuiGraphicsExtractor context, int x, int y, int total, int filled, int w, int h, int color) {
-		if (total <= 0) {
-			return;
-		}
-		int gap = Math.max(1, Math.min(3, (COL_W - total * w) / Math.max(1, total - 1)));
-		for (int i = 0; i < total; i++) {
-			HudObject.drawRoundedRect(context, x + i * (w + gap), y, w, h, c(i < filled ? color : RAIL));
+	private void bar(GuiGraphicsExtractor context, int x, int y, int w, int h, double fraction, int color, int order) {
+		EditorPainter.pill(context, x, y, w, h, c(RAIL));
+		float grow = ease(progress(enterMs + order * STAGGER_MS, BAR_MS));
+		int filled = (int) Math.round(w * Math.clamp(fraction, 0.0, 1.0) * grow);
+		if (filled >= h) {
+			EditorPainter.pill(context, x, y, filled, h, c(color));
+		} else if (filled > 0) {
+			context.fill(x, y, x + filled, y + h, c(color));
 		}
 	}
 
@@ -600,6 +713,34 @@ public final class CarnageBoard extends CasinoPanel {
 	private void icon(GuiGraphicsExtractor context, ItemStack stack, int x, int y) {
 		if (alpha > ICON_CUTOFF && stack != null && !stack.isEmpty()) {
 			context.item(stack, x, y);
+		}
+	}
+
+	/**
+	 * A tag exactly as chat shows it: the server's own colours, weights and glyphs, minus the
+	 * trailing " Tag" its menu adds. Falls back to the plain name if the parts aren't the
+	 * usual "[", name, "] ", "Tag".
+	 */
+	static Component tagLabel(ItemStack stack, String plain) {
+		List<Component> parts = stack == null || stack.isEmpty() ? List.of() : stack.getHoverName().getSiblings();
+		if (parts.size() < 2 || !parts.getLast().getString().trim().equals("Tag")) {
+			return Component.literal(plain);
+		}
+		MutableComponent label = Component.empty().setStyle(stack.getHoverName().getStyle());
+		for (int i = 0; i < parts.size() - 1; i++) {
+			Component part = parts.get(i);
+			label.append(i == parts.size() - 2
+					? Component.literal(part.getString().stripTrailing()).setStyle(part.getStyle())
+					: part);
+		}
+		return label;
+	}
+
+	/** Styled text keeps its own colours; only the entrance fade is applied. */
+	private void styled(GuiGraphicsExtractor context, Font font, Component value, int x, int y) {
+		int faded = c(0xFFFFFFFF);
+		if ((faded >>> 24) >= 8) {
+			context.text(font, value, x, y, faded, false);
 		}
 	}
 
