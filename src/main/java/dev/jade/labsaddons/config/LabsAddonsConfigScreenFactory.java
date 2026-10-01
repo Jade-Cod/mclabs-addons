@@ -136,6 +136,14 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.crateOverlay = value)
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.carnage"),
+						config.carnageOverlay)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.carnage.tooltip"))
+				.setSaveConsumer(value -> config.carnageOverlay = value)
+				.build());
+
 		addItemUsesEntries(entries, builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.item_uses")), config);
 
