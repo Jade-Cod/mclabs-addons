@@ -149,4 +149,13 @@ public class CarnageTest {
 		assertEquals("II", monsters.get(0).stage());
 		assertEquals("", monsters.get(1).stage());
 	}
+
+	/** The scope button cycles stage, overall, daily; its label is where it goes next. */
+	@Test
+	public void theScopeButtonNamesTheNextScope() {
+		assertEquals("OVERALL", CarnageMenu.nextScope(new SlotView(29, "Stage I Leaderboard",
+				List.of("Viewing this stage's leaderboard.", "", "Click to switch to", "overall leaderboard."), 1)));
+		assertEquals("DAILY", CarnageMenu.nextScope(new SlotView(29, "Overall Leaderboard", List.of(), 1)));
+		assertEquals("THIS STAGE", CarnageMenu.nextScope(new SlotView(29, "Daily Leaderboard", List.of(), 1)));
+	}
 }
