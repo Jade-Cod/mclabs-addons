@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.mastery;
 
+import dev.jade.labsaddons.carnage.CarnageTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -61,6 +62,12 @@ public final class MasteryKillTracker {
 	public static final long LAST_HIT_WINDOW_MS = 2_000L;
 
 	private static final String KILL_PREFIX = "kill ";
+	/**
+	 * Marks a target as a Halloween Carnage daily mission rather than a Mastery challenge.
+	 * Carnage mobs are name-tagged and die to our hits the same way Pit mobs do, so the
+	 * same attribution serves both.
+	 */
+	private static final String CARNAGE_PREFIX = "carnage:";
 
 	// entity id -> the active challenge its tag matched; survives the heart-bar phase.
 	private static final Map<Integer, String> matched = new HashMap<>();
@@ -123,9 +130,15 @@ public final class MasteryKillTracker {
 			}
 		}
 		if (challenge != null && dead && weLandedTheLastHit(id, nowMs) && counted.add(id)) {
-			return MasteryTracker.advance(challenge, 1);
+			return credit(challenge);
 		}
 		return false;
+	}
+
+	private static boolean credit(String challenge) {
+		return challenge.startsWith(CARNAGE_PREFIX)
+				? CarnageTracker.onKill(challenge.substring(CARNAGE_PREFIX.length()))
+				: MasteryTracker.advance(challenge, 1);
 	}
 
 	/** Whether our own hit on this mob is recent enough to have been the killing blow. */
@@ -144,20 +157,37 @@ public final class MasteryKillTracker {
 				targets.put(name.substring(KILL_PREFIX.length()).toLowerCase(Locale.ROOT), name);
 			}
 		}
+		for (String mob : CarnageTracker.killTargets()) {
+			targets.putIfAbsent(mob, CARNAGE_PREFIX + mob);
+		}
 		return targets;
 	}
 
-	/** The challenge a name tag belongs to, or null. */
+	/**
+	 * The challenge a name tag belongs to, or null. The mob has to appear as a whole word,
+	 * so a "Poltergeist" is never taken for a "Geist".
+	 */
 	private static String matchChallenge(String tag, Map<String, String> targets) {
 		String lower = tag.toLowerCase(Locale.ROOT);
 		for (Map.Entry<String, String> target : targets.entrySet()) {
-			// contains, not equals: a tag may carry a level prefix or a trailing
-			// health figure around the mob name.
-			if (lower.contains(target.getKey())) {
+			// Not equals: a tag may carry a level prefix or a trailing health figure
+			// around the mob name.
+			if (containsWord(lower, target.getKey())) {
 				return target.getValue();
 			}
 		}
 		return null;
+	}
+
+	static boolean containsWord(String text, String word) {
+		for (int at = text.indexOf(word); at >= 0; at = text.indexOf(word, at + 1)) {
+			int end = at + word.length();
+			if ((at == 0 || !Character.isLetter(text.charAt(at - 1)))
+					&& (end == text.length() || !Character.isLetter(text.charAt(end)))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Drop all per-session state (call on disconnect / when no Kill challenge is active). */

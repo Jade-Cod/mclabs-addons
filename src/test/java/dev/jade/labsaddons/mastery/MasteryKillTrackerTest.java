@@ -178,4 +178,11 @@ public class MasteryKillTrackerTest {
 		assertFalse(MasteryKillTracker.observe(1, "Petrified Archer", true, targets(), T));
 		assertEquals(0, currentOf(KILL_ARCHER));
 	}
+
+	/** Carnage has both a Geist and a Poltergeist; one must never count for the other. */
+	@Test
+	public void mobNamesMatchAsWholeWords() {
+		assertTrue(MasteryKillTracker.containsWord("[lv 3] geist ❤ 20", "geist"));
+		assertFalse(MasteryKillTracker.containsWord("poltergeist", "geist"));
+	}
 }

@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.mixin;
 
+import dev.jade.labsaddons.carnage.CarnageTracker;
 import dev.jade.labsaddons.hud.HudRenderDispatcher;
 import dev.jade.labsaddons.mcmmo.McmmoCooldownTracker;
 import dev.jade.labsaddons.pititem.PitItemCooldownTracker;
@@ -46,6 +47,7 @@ public abstract class HudMixin {
 		if (message != null) {
 			McmmoCooldownTracker.onMessage(message.getString());
 			PitItemCooldownTracker.onMessage(message.getString());
+			CarnageTracker.onActionbar(message.getString());
 		}
 	}
 }

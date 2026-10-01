@@ -194,6 +194,12 @@ public class LabsAddonsConfig {
 	/** Whether the player uses a satchel (changes the inventory-estimate divisor). */
 	public boolean chemtainerSatchel = true;
 
+	// --- Halloween Carnage (dashboard and hunt, scraped from /carnage) ---
+	@Section(ConfigSection.STATE)
+	public dev.jade.labsaddons.carnage.CarnageTracker.Daily carnageDaily = null;
+	@Section(ConfigSection.STATE)
+	public dev.jade.labsaddons.carnage.CarnageTracker.Hunt carnageHunt = null;
+
 	// --- Mastery challenges (progress widget) ---
 	/** Last known board, restored on launch so chat reactions count before the first /mastery. */
 	@Section(ConfigSection.STATE)
@@ -478,6 +484,9 @@ public class LabsAddonsConfig {
 			}
 		}
 		clean.masterySnapshotMs = Math.max(0L, this.masterySnapshotMs);
+		// Records, so sharing them with the loaded copy is safe.
+		clean.carnageDaily = this.carnageDaily;
+		clean.carnageHunt = this.carnageHunt;
 		if (this.prestigeChems != null) {
 			for (dev.jade.labsaddons.prestige.PrestigeChemEntry entry : this.prestigeChems) {
 				// A nameless chem can never be matched by a sale; a non-positive target
