@@ -574,7 +574,7 @@ public final class CarnageBoard extends CasinoPanel {
 		enter(context, 10);
 		int[] pages = CarnageMenu.pageOf(title);
 		pager(context, font, slots, pages);
-		String toggle = scope.toLowerCase(Locale.ROOT).startsWith("stage") ? "OVERALL" : "THIS STAGE";
+		String toggle = CarnageMenu.nextScope(SlotView.at(slots, CarnageMenu.LEADERBOARD_SCOPE));
 		button(context, font, PAD, FOOT_Y, 64, 13, toggle,
 				SlotView.at(slots, CarnageMenu.LEADERBOARD_SCOPE) == null ? -1 : CarnageMenu.LEADERBOARD_SCOPE, PUMPKIN);
 		leave(context);
