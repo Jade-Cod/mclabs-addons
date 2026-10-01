@@ -1,13 +1,16 @@
 package dev.jade.labsaddons.booster;
 
+import dev.jade.labsaddons.carnage.CarnageBooster;
 import dev.jade.labsaddons.chem.ChemIcons;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -43,12 +46,15 @@ public class BoosterHudObject extends HudObject {
 
 	@Override
 	public boolean shouldRender() {
-		return !BoosterTracker.active().isEmpty();
+		return !BoosterTracker.active().isEmpty() || CarnageBooster.active() != null;
 	}
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Component.translatable("labsaddons.hud.booster.clear"), BoosterTracker::clear);
+		return new EditorAction(Component.translatable("labsaddons.hud.booster.clear"), () -> {
+			BoosterTracker.clear();
+			CarnageBooster.clear();
+		});
 	}
 
 	private record Row(ItemStack icon, String text) {
@@ -61,6 +67,15 @@ public class BoosterHudObject extends HudObject {
 			rows.add(new Row(ChemIcons.iconFor(booster.item),
 					prefix + BoosterTracker.formatMultiplier(booster.multiplier) + " "
 							+ BoosterTracker.formatRemaining(booster)));
+		}
+		CarnageBooster.State carnage = CarnageBooster.active();
+		if (carnage != null) {
+			// The reminder's minutes can't be trusted, so a booster known only from a reminder
+			// has no countdown to show.
+			long left = carnage.endMs() - System.currentTimeMillis();
+			rows.add(new Row(new ItemStack(Items.JACK_O_LANTERN), "Carnage "
+					+ BoosterTracker.formatMultiplier(carnage.multiplier()) + " "
+					+ (carnage.endMs() > 0 ? TimeFormat.hms(left) : "active")));
 		}
 		if (rows.isEmpty() && preview) {
 			rows.add(new Row(ChemIcons.iconFor("all"), ALL_BOOSTER_LABEL + " 1.5x 30:00"));
