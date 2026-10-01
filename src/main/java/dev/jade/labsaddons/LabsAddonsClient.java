@@ -21,6 +21,7 @@ import dev.jade.labsaddons.chum.ChumTimer;
 import dev.jade.labsaddons.booster.BoosterRatesReader;
 import dev.jade.labsaddons.booster.BoosterTracker;
 import dev.jade.labsaddons.bounty.BountyHudObject;
+import dev.jade.labsaddons.carnage.CarnageBooster;
 import dev.jade.labsaddons.carnage.CarnageHudObject;
 import dev.jade.labsaddons.carnage.CarnageReader;
 import dev.jade.labsaddons.bounty.BountyTracker;
@@ -563,6 +564,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// First: the join banner names the world, which may swap the whole HUD profile.
 		McLabsWorld.onMessage(text);
 		BoosterTracker.onMessage(text);
+		CarnageBooster.onMessage(text);
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
 		RaidMineTracker.onMessage(text);

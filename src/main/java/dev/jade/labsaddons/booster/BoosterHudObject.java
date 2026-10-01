@@ -1,19 +1,25 @@
 package dev.jade.labsaddons.booster;
 
+import dev.jade.labsaddons.carnage.CarnageBooster;
 import dev.jade.labsaddons.chem.ChemIcons;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.HudObjectSettings;
+import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Server booster countdowns: a chem icon with "<mult>x <time>" per active booster. */
+/**
+ * Server booster countdowns: a chem icon with "<mult>x <time>" per active booster, and the
+ * Halloween Carnage Booster under a jack o'lantern while one runs.
+ */
 public class BoosterHudObject extends HudObject {
 	public static final String ID = "booster_timer";
 	private static final int DEFAULT_TEXT_COLOR = 0xFFFFD75F;
@@ -43,12 +49,15 @@ public class BoosterHudObject extends HudObject {
 
 	@Override
 	public boolean shouldRender() {
-		return !BoosterTracker.active().isEmpty();
+		return !BoosterTracker.active().isEmpty() || CarnageBooster.active() != null;
 	}
 
 	@Override
 	public EditorAction editorAction() {
-		return new EditorAction(Text.translatable("labsaddons.hud.booster.clear"), BoosterTracker::clear);
+		return new EditorAction(Text.translatable("labsaddons.hud.booster.clear"), () -> {
+			BoosterTracker.clear();
+			CarnageBooster.clear();
+		});
 	}
 
 	private record Row(ItemStack icon, String text) {
@@ -61,6 +70,15 @@ public class BoosterHudObject extends HudObject {
 			rows.add(new Row(ChemIcons.iconFor(booster.item),
 					prefix + BoosterTracker.formatMultiplier(booster.multiplier) + " "
 							+ BoosterTracker.formatRemaining(booster)));
+		}
+		CarnageBooster.State carnage = CarnageBooster.active();
+		if (carnage != null) {
+			// The reminder's minutes can't be trusted, so a booster known only from a reminder
+			// has no countdown to show.
+			long left = carnage.endMs() - System.currentTimeMillis();
+			rows.add(new Row(new ItemStack(Items.JACK_O_LANTERN), "Carnage "
+					+ BoosterTracker.formatMultiplier(carnage.multiplier()) + " "
+					+ (carnage.endMs() > 0 ? TimeFormat.hms(left) : "active")));
 		}
 		if (rows.isEmpty() && preview) {
 			rows.add(new Row(ChemIcons.iconFor("all"), ALL_BOOSTER_LABEL + " 1.5x 30:00"));
