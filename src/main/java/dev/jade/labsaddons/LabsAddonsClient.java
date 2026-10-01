@@ -21,6 +21,8 @@ import dev.jade.labsaddons.chum.ChumTimer;
 import dev.jade.labsaddons.booster.BoosterRatesReader;
 import dev.jade.labsaddons.booster.BoosterTracker;
 import dev.jade.labsaddons.bounty.BountyHudObject;
+import dev.jade.labsaddons.carnage.CarnageHudObject;
+import dev.jade.labsaddons.carnage.CarnageReader;
 import dev.jade.labsaddons.bounty.BountyTracker;
 import dev.jade.labsaddons.bounty.SunkenTreasureReader;
 import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
@@ -169,6 +171,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new RentalHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
 		HudObjects.register(new BountyHudObject());
+		HudObjects.register(new CarnageHudObject());
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
@@ -408,6 +411,8 @@ public class LabsAddonsClient implements ClientModInitializer {
 					// Likewise out of the chain: /fw is nobody else's screen, and the
 					// chain is already as deep as it should get.
 					SunkenTreasureReader.tryRead(handledScreen);
+					// /carnage and /carnage hunt: titled menus nothing else reads.
+					CarnageReader.tryRead(handledScreen);
 					// And /rent return: its rows carry "Expiry:", which nothing else does.
 					RentalReader.tryReadReturnMenu(handledScreen);
 					// Also out of the chain: the /prestige GUI is nobody else's screen.
