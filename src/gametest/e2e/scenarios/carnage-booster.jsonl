@@ -1,0 +1,6 @@
+{"type": "note", "text": "Activation sets 60 minutes; the server's reminder then claims 0 minutes, which must not end it."}
+{"type": "chat", "plain": "\nCarnage » Ophiliah has just activated a Halloween Carnage Booster!\nAll Carnage Points and Soul of Fright drop rates are boosted by 1.5x for 60 minutes! Earn Souls of Fright by fighting spooky mobs at Spawn!\n"}
+{"type": "wait", "ticks": 10}
+{"type": "chat", "plain": "\nCarnage » A Halloween Carnage Booster is active, sponsored by Ophiliah! All Soul of Fright drop chances are boosted 1.5x for 0 minutes. Earn Souls of Fright by fighting spooky mobs in Spawn.\n"}
+{"type": "wait", "ticks": 10}
+{"type": "screenshot", "name": "carnage-booster-row"}

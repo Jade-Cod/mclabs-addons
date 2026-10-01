@@ -1,0 +1,10 @@
+{
+  "state": {
+    "state.json/carnageBooster": {
+      "multiplier": 1.5,
+      "endMs": "now+60m0s",
+      "lastSeenMs": "now+0m0s"
+    }
+  },
+  "clicks": []
+}
