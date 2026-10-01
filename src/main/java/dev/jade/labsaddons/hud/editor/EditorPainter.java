@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.hud.editor;
 
+import dev.jade.labsaddons.hud.GuiElements;
 import dev.jade.labsaddons.hud.HudObject;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -54,60 +55,18 @@ public final class EditorPainter {
 		outline(ctx, rect[0], rect[1], rect[2], rect[3], border);
 	}
 
-	/** Supersample grid per pixel for {@link #fillHalfDiscAA}; 4x4 is smooth enough at this size. */
-	private static final int PILL_AA_SAMPLES = 4;
-
-	/** A stadium/pill shape: a rect with fully rounded (semicircular), anti-aliased ends. */
-	public static void pill(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int color) {
-		int r = h / 2;
-		ctx.fill(x + r, y, x + w - r, y + h, color);
-		fillHalfDiscAA(ctx, x + r, y + r, r, color, false);
-		fillHalfDiscAA(ctx, x + w - r, y + r, r, color, true);
-	}
-
 	/**
-	 * Anti-aliased filled semicircle of radius {@code r} centred at (cx,cy); the flat
-	 * edge runs through the centre. Each candidate pixel gets its own fractional
-	 * coverage from supersampling (same technique as
-	 * {@code CooldownHudObject.pixelDiscCoverage}), so the curved edge reads smooth
-	 * instead of stair-stepped.
+	 * A stadium/pill shape: a rect with fully rounded, anti-aliased ends, drawn as one GUI
+	 * element (see {@link PillRenderState}). Falls back to a plain rect if the element can't be
+	 * queued, which only happens when the mod's own DrawContext mixin failed to apply.
 	 */
-	private static void fillHalfDiscAA(GuiGraphicsExtractor ctx, int cx, int cy, int r, int color, boolean rightHalf) {
-		int top = cy - r - 1;
-		int bottom = cy + r + 1;
-		int xStart = rightHalf ? cx : cx - r - 1;
-		// The left half stops short of the centre column: that column is the first one of the
-		// pill's middle rect, and drawing it twice doubled a translucent fill into a visible seam.
-		int xEnd = rightHalf ? cx + r + 1 : cx - 1;
-		for (int py = top; py <= bottom; py++) {
-			for (int px = xStart; px <= xEnd; px++) {
-				float coverage = discCoverage(px, py, cx, cy, r);
-				if (coverage <= 0.02f) {
-					continue;
-				}
-				int alpha = Math.round(((color >>> 24) & 0xFF) * coverage);
-				if (alpha <= 0) {
-					continue;
-				}
-				ctx.fill(px, py, px + 1, py + 1, (alpha << 24) | (color & 0x00FFFFFF));
-			}
+	public static void pill(GuiGraphicsExtractor ctx, int x, int y, int w, int h, int color) {
+		if (w <= 0 || h <= 0) {
+			return;
 		}
-	}
-
-	/** Fraction of unit pixel cell (px,py) covered by a disc of radius {@code r} centred at (cx,cy). */
-	private static float discCoverage(int px, int py, int cx, int cy, int r) {
-		float radiusSq = r * r;
-		int hits = 0;
-		for (int sy = 0; sy < PILL_AA_SAMPLES; sy++) {
-			float sampleY = (py + (sy + 0.5f) / PILL_AA_SAMPLES) - cy;
-			for (int sx = 0; sx < PILL_AA_SAMPLES; sx++) {
-				float sampleX = (px + (sx + 0.5f) / PILL_AA_SAMPLES) - cx;
-				if (sampleX * sampleX + sampleY * sampleY <= radiusSq) {
-					hits++;
-				}
-			}
+		if (!GuiElements.submit(ctx, new PillRenderState(ctx.pose(), x, y, w, h, color))) {
+			ctx.fill(x, y, x + w, y + h, color);
 		}
-		return hits / (float) (PILL_AA_SAMPLES * PILL_AA_SAMPLES);
 	}
 
 	/**
