@@ -81,6 +81,16 @@ public final class CasinoBoards {
 		return false;
 	}
 
+	/** The coinflip create form types; every other board lets keys through. */
+	public static boolean keyPressed(AbstractContainerScreen<?> screen, int keyCode) {
+		for (CasinoPanel board : BOARDS) {
+			if (board.keyPressed(screen, keyCode)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** The coinflip lobby scrolls; every other board ignores the wheel. */
 	public static boolean mouseScrolled(AbstractContainerScreen<?> screen, double amount) {
 		for (CasinoPanel board : BOARDS) {
