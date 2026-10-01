@@ -4,6 +4,7 @@ import dev.jade.labsaddons.carnage.CarnageTracker.Daily;
 import dev.jade.labsaddons.carnage.CarnageTracker.Hunt;
 import dev.jade.labsaddons.carnage.CarnageTracker.Mission;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.mastery.MasteryGains;
 import dev.jade.labsaddons.hud.HudObjectSettings;
@@ -14,6 +15,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+
+import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -138,7 +141,18 @@ public class CarnageHudObject extends HudObject {
 	 * The rows to draw. In the editor, with nothing gaining or pinned, every row is shown so
 	 * there is something to place, and a sample stands in before the first sync.
 	 */
+	/**
+	 * Built once a frame: the HUD asks for the rows four times (shouldRender, width, height,
+	 * draw), and rebuilding them each time made this the costliest widget after the cooldown
+	 * rings, about 136 us and 100 KB of garbage a frame with every group pinned.
+	 */
+	private static final FrameValue<List<Row>> ROWS = new FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return ROWS.get(Util.getMillis(), preview, () -> buildRows(preview));
+	}
+
+	private static List<Row> buildRows(boolean preview) {
 		Daily daily = CarnageTracker.daily();
 		Hunt hunt = CarnageTracker.hunt();
 		long now = System.currentTimeMillis();
