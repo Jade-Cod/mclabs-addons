@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.mixin;
 
 import dev.jade.labsaddons.casino.CasinoBoards;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -106,6 +107,22 @@ public abstract class AbstractContainerScreenMixin {
 			CallbackInfoReturnable<Boolean> cir) {
 		if (CasinoBoards.mouseClicked((AbstractContainerScreen<?>) (Object) this, click.x(), click.y(),
 				click.button())) {
+			cir.setReturnValue(true);
+		}
+	}
+
+	/**
+	 * Gives keys to a board that is taking typing (the coinflip create form). Ahead of the
+	 * menu's own handling, so the inventory key or Escape edits the form instead of closing
+	 * the menu while it is open.
+	 */
+	@Inject(
+			method = "keyPressed(Lnet/minecraft/client/input/KeyEvent;)Z",
+			at = @At("HEAD"),
+			cancellable = true
+	)
+	private void labsaddons$typeIntoCasinoBoard(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+		if (CasinoBoards.keyPressed((AbstractContainerScreen<?>) (Object) this, input.key())) {
 			cir.setReturnValue(true);
 		}
 	}

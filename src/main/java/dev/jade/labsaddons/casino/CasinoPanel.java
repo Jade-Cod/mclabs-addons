@@ -91,13 +91,19 @@ public abstract class CasinoPanel {
 	 * click it — {@code QUICK_MOVE} is what the client sends for a shift-click, which is
 	 * the only way to reach the min and max stake the betting screen hides there.
 	 */
-	private record Hit(int x, int y, int w, int h, int slot, ContainerInput action) {
+	private record Hit(int x, int y, int w, int h, int slot, ContainerInput action, Runnable local) {
+		Hit(int x, int y, int w, int h, int slot, ContainerInput action) {
+			this(x, y, w, h, slot, action, null);
+		}
+
 		boolean contains(double mx, double my) {
 			return mx >= x && mx < x + w && my >= y && my < y + h;
 		}
 	}
 
 	private final List<Hit> hits = new ArrayList<>();
+	/** The screen this board last drew for, so a board can click a slot on its own. */
+	private AbstractContainerScreen<?> drawnFor;
 	/** Which container this board is answering for, and whose slots it is drawing. */
 	private final ContainerHold container = new ContainerHold();
 	/** The stacks read this frame, before the hold has decided whether to use them. */
@@ -168,6 +174,11 @@ public abstract class CasinoPanel {
 	 */
 	protected boolean titleAllows(String title) {
 		return true;
+	}
+
+	/** A key while this board is up; return true to keep it from the menu. */
+	protected boolean onKey(int keyCode) {
+		return false;
 	}
 
 	/** A notch of the scroll wheel over the board, positive away from the player. */
@@ -241,6 +252,7 @@ public abstract class CasinoPanel {
 		hits.clear();
 		AbstractContainerMenu handler = screen.getMenu();
 		int syncId = handler.containerId;
+		drawnFor = screen;
 		if (!enabled() || !McLabsSession.isActive()) {
 			if (container.holding()) {
 				release();
@@ -327,13 +339,25 @@ public abstract class CasinoPanel {
 		double localY = (mouseY - panelY) / panelScale;
 		for (Hit hit : hits) {
 			if (hit.contains(localX, localY)) {
-				sendClick(screen, hit.slot(), hit.action());
+				if (hit.local() != null) {
+					hit.local().run();
+				} else {
+					sendClick(screen, hit.slot(), hit.action());
+				}
 				return true;
 			}
 		}
 		// Swallowed even with nothing under the cursor: the real slots are still live
 		// behind the board, and a stray click on an invisible one would place a wager.
 		return true;
+	}
+
+	/**
+	 * True when the board took the key, so the menu never sees it. Only a board with its own
+	 * input (the coinflip create form) takes any; every other key reaches the menu as usual.
+	 */
+	public final boolean keyPressed(AbstractContainerScreen<?> screen, int keyCode) {
+		return owns(screen) && onKey(keyCode);
 	}
 
 	/** True when the wheel turned over our board, so the menu does not also see it. */
@@ -459,6 +483,19 @@ public abstract class CasinoPanel {
 			return;
 		}
 		context.setTooltipForNextFrame(font, stack, screenMouseX, screenMouseY);
+	}
+
+	/** A rectangle that runs something of the board's own rather than clicking a slot. */
+	protected final void action(int x, int y, int w, int h, Runnable run) {
+		hits.add(new Hit(x, y, w, h, -1, ContainerInput.PICKUP, run));
+	}
+
+	/** Clicks {@code slot} as though the player had, for a board acting on its own (a refresh). */
+	protected final void clickSlot(int slot) {
+		AbstractContainerScreen<?> screen = drawnFor;
+		if (screen != null && owns(screen)) {
+			sendClick(screen, slot, ContainerInput.PICKUP);
+		}
 	}
 
 	/** Registers a clickable rectangle that forwards an ordinary click to {@code slot}. */
