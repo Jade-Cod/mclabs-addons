@@ -92,6 +92,9 @@ public final class CarnageMenu {
 	private static final Pattern COST = Pattern.compile("Cost:\\s*([\\d,]+)\\s+Souls? of Fright", Pattern.CASE_INSENSITIVE);
 	private static final Pattern STAGE_MONSTER = Pattern.compile("^Stage\\s+(\\S+)\\s+Monster$");
 	private static final Pattern TAGS_AWAY = Pattern.compile("(\\d+)\\s+tags? away", Pattern.CASE_INSENSITIVE);
+	/** "Click to switch to overall leaderboard." with the line break the lore puts in it. */
+	private static final Pattern SWITCH_TO = Pattern.compile(
+			"switch to\\s+(?:the\\s+)?(?:this\\s+)?(\\w+)(?:'s)?\\s+leaderboard", Pattern.CASE_INSENSITIVE);
 	/** "(1/2)" or "[1/7]" at the end of a title. */
 	private static final Pattern PAGE_OF = Pattern.compile("[(\\[](\\d+)/(\\d+)[)\\]]\\s*$");
 
@@ -182,6 +185,27 @@ public final class CarnageMenu {
 			out.add(new Tag(i, name, unlocked, unlocked ? "unlocked" : status));
 		}
 		return out;
+	}
+
+	/**
+	 * The label for the scope button: where it goes next. The server cycles stage, overall,
+	 * daily, and says so in the button's own lore ("Click to switch to / overall
+	 * leaderboard."), which is read first; the cycle is the fallback.
+	 */
+	public static String nextScope(SlotView button) {
+		if (button == null || button.isEmpty()) {
+			return "";
+		}
+		Matcher m = SWITCH_TO.matcher(String.join(" ", button.lore()));
+		if (m.find()) {
+			String next = m.group(1).trim().toUpperCase(Locale.ROOT);
+			return next.equals("STAGE") ? "THIS STAGE" : next;
+		}
+		String scope = button.name().trim().toLowerCase(Locale.ROOT);
+		if (scope.startsWith("stage")) {
+			return "OVERALL";
+		}
+		return scope.startsWith("overall") ? "DAILY" : "THIS STAGE";
 	}
 
 	/** {page, pages} from a title's "(1/2)" or "[1/7]", or null when it has none. */
