@@ -4,6 +4,7 @@ import dev.jade.labsaddons.casino.CasinoBoards;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.screen.slot.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -106,6 +107,22 @@ public abstract class HandledScreenMixin {
 			CallbackInfoReturnable<Boolean> cir) {
 		if (CasinoBoards.mouseClicked((HandledScreen<?>) (Object) this, click.x(), click.y(),
 				click.button())) {
+			cir.setReturnValue(true);
+		}
+	}
+
+	/**
+	 * Gives keys to a board that is taking typing (the coinflip create form). Ahead of the
+	 * menu's own handling, so the inventory key or Escape edits the form instead of closing
+	 * the menu while it is open.
+	 */
+	@Inject(
+			method = "keyPressed(Lnet/minecraft/client/input/KeyInput;)Z",
+			at = @At("HEAD"),
+			cancellable = true
+	)
+	private void labsaddons$typeIntoCasinoBoard(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
+		if (CasinoBoards.keyPressed((HandledScreen<?>) (Object) this, input.key())) {
 			cir.setReturnValue(true);
 		}
 	}
