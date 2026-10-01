@@ -90,21 +90,24 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
 
-		general.addEntry(entries
+		// Every board that redraws a server menu, in a tab of its own.
+		ConfigCategory customGuis = builder.getOrCreateCategory(
+				Text.translatable("labsaddons.config.category.custom_guis"));
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.double2"), config.double2Overlay)
 				.setDefaultValue(true)
 				.setTooltip(Text.translatable("labsaddons.config.double2.tooltip"))
 				.setSaveConsumer(value -> config.double2Overlay = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.mines"), config.minesOverlay)
 				.setDefaultValue(true)
 				.setTooltip(Text.translatable("labsaddons.config.mines.tooltip"))
 				.setSaveConsumer(value -> config.minesOverlay = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.blackjack"),
 						config.blackjackOverlay)
 				.setDefaultValue(true)
@@ -112,7 +115,7 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.blackjackOverlay = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.coinflip"),
 						config.coinflipOverlay)
 				.setDefaultValue(true)
@@ -120,7 +123,7 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.coinflipOverlay = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.coinflip_hold"),
 						config.coinflipHoldResult)
 				.setDefaultValue(true)
@@ -128,7 +131,7 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.coinflipHoldResult = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.crate"),
 						config.crateOverlay)
 				.setDefaultValue(true)
@@ -136,7 +139,7 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.crateOverlay = value)
 				.build());
 
-		general.addEntry(entries
+		customGuis.addEntry(entries
 				.startBooleanToggle(Text.translatable("labsaddons.config.carnage"),
 						config.carnageOverlay)
 				.setDefaultValue(true)

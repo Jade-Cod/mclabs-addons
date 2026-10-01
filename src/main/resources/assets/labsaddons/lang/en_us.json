@@ -37,6 +37,7 @@
 	"labsaddons.config.crate.tooltip": "Draw the mod’s own crate opening over the crate menus. The supply-crate spin becomes a chamber whose light tracks the best rarity still in play, and a voter crate’s three-way choice gets each draw’s published odds. Off gives back the server’s chest menu.",
 	"labsaddons.config.coinflip_hold.tooltip": "The server closes the coinflip menu seconds after the coin lands. Keep the result on screen for a few seconds longer — any key or click dismisses it.",
 	"labsaddons.config.category.item_uses": "Item Uses",
+	"labsaddons.config.category.custom_guis": "Custom GUIs",
 	"labsaddons.config.item_uses.enabled": "Show Remaining Uses",
 	"labsaddons.config.item_uses.enabled.tooltip": "Show a remaining-charges count on items like Whetstones in your inventory.",
 	"labsaddons.config.item_uses.corner": "Corner",
