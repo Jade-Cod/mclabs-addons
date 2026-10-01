@@ -51,7 +51,7 @@ public class HelpScreen extends Screen {
 			{"/supplier", "Open it to re-sync your posted runner-job count."},
 			{"/rent return", "Open it to re-sync every rental\u2019s end time and drop ones you no longer hold."},
 			{"/fw", "Open it to re-sync the Sunken Treasure crates left."},
-			{"/carnage", "Open it to sync your Carnage score, raffle, missions and stage timer."},
+			{"/carnage", "Opens the mod’s own Carnage screen, and syncs your score, raffle, missions and stage timer."},
 			{"/carnage hunt", "Open it to sync your Halloween Hunt finds."},
 			{"Crate odds", "Open a reward\u2019s odds once to sync your crate pity counters."},
 			{"/double", "Opens the Double² wheel with the mod’s own board drawn over it."},

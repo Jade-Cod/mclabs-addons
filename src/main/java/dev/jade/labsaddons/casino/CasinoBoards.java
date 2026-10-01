@@ -1,6 +1,7 @@
 package dev.jade.labsaddons.casino;
 
 import dev.jade.labsaddons.blackjack.BjBoard;
+import dev.jade.labsaddons.carnage.CarnageBoard;
 import dev.jade.labsaddons.coinflip.CfFlipBoard;
 import dev.jade.labsaddons.coinflip.CfLobbyBoard;
 import dev.jade.labsaddons.crate.CrateSpinBoard;
@@ -28,7 +29,8 @@ public final class CasinoBoards {
 			CfLobbyBoard.INSTANCE,
 			CfFlipBoard.INSTANCE,
 			CrateSpinBoard.INSTANCE,
-			VoteRollBoard.INSTANCE);
+			VoteRollBoard.INSTANCE,
+			CarnageBoard.INSTANCE);
 
 	/** The board currently standing in for a menu, or null. */
 	private static CasinoPanel current;

@@ -1,6 +1,6 @@
 package dev.jade.labsaddons.carnage;
 
-import dev.jade.labsaddons.carnage.CarnageReader.Item;
+import dev.jade.labsaddons.casino.SlotView;
 import dev.jade.labsaddons.carnage.CarnageTracker.Daily;
 import dev.jade.labsaddons.carnage.CarnageTracker.Hunt;
 import dev.jade.labsaddons.carnage.CarnageTracker.Mission;
@@ -19,18 +19,22 @@ public class CarnageTest {
 	private static final long HOUR = 3_600_000L;
 	private static final String BAR = "[|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||]";
 
-	private static final List<Item> DASHBOARD = List.of(
-			new Item("Daily Missions", List.of(
+	private static final List<SlotView> DASHBOARD = List.of(
+			item("Daily Missions", List.of(
 					"[0/3] Complete all daily missions for:", "  • 0.2 Event Points", "  • 100 Store Points", "",
 					"[0/4] Kill 4x Poltergeist", BAR, "• 1x Halloween Crate Key", "",
 					"[0/125] Kill 125x Geist", BAR, "• Next Tag: /carnage tags", "",
 					"[0/3] Kill 3x Scarecrow", BAR, "• 200 Store Points")),
-			new Item("Daily Score Goal", List.of("", "Progress: 0/5,000", BAR, "", "Reward:", "• 2x Halloween Crate Key")),
-			new Item("Daily Raffle", List.of("You have 0/10 tickets.", "", "Next Ticket: 0/500", BAR, "",
+			item("Daily Score Goal", List.of("", "Progress: 0/5,000", BAR, "", "Reward:", "• 2x Halloween Crate Key")),
+			item("Daily Raffle", List.of("You have 0/10 tickets.", "", "Next Ticket: 0/500", BAR, "",
 					"Prize #1:", "• $1,000,000", "", "Drawing in: 1d:06h:06m")),
-			new Item("Daily Score Goal Bonus", List.of("", "Goals Completed: 0/16", "")),
-			new Item("Carnage Countdown", List.of("", "Current day ends in: 1d:06h:06m", "",
+			item("Daily Score Goal Bonus", List.of("", "Goals Completed: 0/16", "")),
+			item("Carnage Countdown", List.of("", "Current day ends in: 1d:06h:06m", "",
 					"Stage I ends in: 8d:06h:06m")));
+
+	private static SlotView item(String name, List<String> lore) {
+		return new SlotView(0, name, lore, 1);
+	}
 
 	@Test
 	public void readsTheDashboard() {
@@ -50,16 +54,16 @@ public class CarnageTest {
 
 	@Test
 	public void anotherMenuIsNotTheDashboard() {
-		assertNull(CarnageReader.dashboard(List.of(new Item("Carnage Countdown", List.of())), NOW));
+		assertNull(CarnageReader.dashboard(List.of(item("Carnage Countdown", List.of())), NOW));
 	}
 
 	@Test
 	public void readsTheHunt() {
 		Hunt hunt = CarnageReader.hunt(List.of(
-				new Item("Master Hunter [3/60]", List.of()),
-				new Item("Giant Pumpkins [2/12]", List.of()),
-				new Item("Crows [1/4]", List.of()),
-				new Item("Halloween Hunt", List.of())));
+				item("Master Hunter [3/60]", List.of()),
+				item("Giant Pumpkins [2/12]", List.of()),
+				item("Crows [1/4]", List.of()),
+				item("Halloween Hunt", List.of())));
 		assertEquals(3, hunt.found());
 		assertEquals(60, hunt.total());
 		assertEquals(2, hunt.sets().size());
@@ -102,5 +106,47 @@ public class CarnageTest {
 		assertTrue(next.missions().isEmpty());
 		assertEquals(1, next.goalsDone());
 		assertSame(daily, CarnageTracker.rolled(daily, NOW));
+	}
+
+	private static List<SlotView> menu(SlotView... filled) {
+		List<SlotView> slots = new java.util.ArrayList<>();
+		for (int i = 0; i < 54; i++) {
+			slots.add(SlotView.empty(i));
+		}
+		for (SlotView slot : filled) {
+			slots.set(slot.index(), slot);
+		}
+		return slots;
+	}
+
+	@Test
+	public void namesEveryPageByItsTitle() {
+		assertEquals(CarnageMenu.Page.LEADERBOARD, CarnageMenu.Page.of("Carnage - Stage I (1/2)"));
+		assertEquals(CarnageMenu.Page.SHOP, CarnageMenu.Page.of("Carnage Shop (Stage I)"));
+		assertEquals(CarnageMenu.Page.TAGS, CarnageMenu.Page.of("Halloween Tags [7/7]"));
+		assertNull(CarnageMenu.Page.of("Carnage Crate"));
+		assertEquals(7, CarnageMenu.pageOf("Halloween Tags [7/7]")[1]);
+	}
+
+	@Test
+	public void readsLeadersShopMonstersAndTags() {
+		List<SlotView> slots = menu(
+				new SlotView(18, "#1. Kojee53", List.of("", "8,941 Carnage Points.", "", "Set to win:"), 1),
+				new SlotView(20, "Halloween Crate Key", List.of("", "Cost: 32 Souls of Fright", "", "Click to purchase."), 1),
+				new SlotView(30, "Golden Apple x4", List.of("", "Cost: 1 Soul of Fright"), 1),
+				new SlotView(21, "[October] Tag", List.of("", "1 tags away!"), 1),
+				new SlotView(9, "???", List.of("Stage II Monster"), 1),
+				new SlotView(10, "???", List.of("Kill to discover!"), 1));
+		CarnageMenu.Leader leader = CarnageMenu.leaders(slots).get(0);
+		assertEquals("Kojee53", leader.player());
+		assertEquals("8,941", leader.points());
+		assertEquals(List.of(new CarnageMenu.ShopItem(20, "Halloween Crate Key", 32),
+				new CarnageMenu.ShopItem(30, "Golden Apple x4", 1)), CarnageMenu.shop(slots));
+		CarnageMenu.Tag tag = CarnageMenu.tags(slots).get(0);
+		assertEquals("[October]", tag.name());
+		assertEquals("1 away", tag.status());
+		List<CarnageMenu.Monster> monsters = CarnageMenu.bestiary(slots);
+		assertEquals("II", monsters.get(0).stage());
+		assertEquals("", monsters.get(1).stage());
 	}
 }

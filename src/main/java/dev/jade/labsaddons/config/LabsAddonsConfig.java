@@ -266,6 +266,8 @@ public class LabsAddonsConfig {
 	// --- Crate chamber (drawn over the crate menus at /warp crates) ---
 	/** Covers both the supply-crate spin and the voter crate's three-way choice. */
 	public boolean crateOverlay = true;
+	/** Draw the mod's own Halloween Carnage screen over the /carnage menus. */
+	public boolean carnageOverlay = true;
 	/**
 	 * A voter crate's published odds, scraped from the menu punching one opens. Server-derived
 	 * and useless to a player editing a file, so it lives in state.json — and it is the only
@@ -550,6 +552,7 @@ public class LabsAddonsConfig {
 		clean.coinflipOverlay = this.coinflipOverlay;
 		clean.coinflipHoldResult = this.coinflipHoldResult;
 		clean.crateOverlay = this.crateOverlay;
+		clean.carnageOverlay = this.carnageOverlay;
 		if (this.voteCrateOdds != null) {
 			for (dev.jade.labsaddons.crate.VoteOddsEntry entry : this.voteCrateOdds) {
 				// A hand-edited or part-written entry would show a figure against the wrong
