@@ -1,0 +1,96 @@
+{
+  "state": {
+    "state.json/carnageDaily": {
+      "dayEndMs": "now+1805m50s",
+      "stage": "Stage I",
+      "stageEndMs": "now+11885m50s",
+      "score": 67.0,
+      "scoreGoal": 5000,
+      "tickets": 0,
+      "maxTickets": 10,
+      "ticketCost": 500,
+      "goalsDone": 0,
+      "goalsTotal": 16,
+      "missions": [
+        {
+          "name": "Kill 4x Poltergeist",
+          "mob": "poltergeist",
+          "current": 0,
+          "target": 4,
+          "reward": "1x Halloween Crate Key"
+        },
+        {
+          "name": "Kill 125x Geist",
+          "mob": "geist",
+          "current": 0,
+          "target": 125,
+          "reward": "Next Tag: /carnage tags"
+        },
+        {
+          "name": "Kill 3x Scarecrow",
+          "mob": "scarecrow",
+          "current": 0,
+          "target": 3,
+          "reward": "200 Store Points"
+        }
+      ]
+    },
+    "state.json/carnageHunt": {
+      "found": 0,
+      "total": 60,
+      "sets": [
+        {
+          "name": "Giant Pumpkins",
+          "found": 0,
+          "total": 12
+        },
+        {
+          "name": "Spiders and Webs",
+          "found": 0,
+          "total": 6
+        },
+        {
+          "name": "Crows",
+          "found": 0,
+          "total": 4
+        },
+        {
+          "name": "Skulls and Bones",
+          "found": 0,
+          "total": 10
+        },
+        {
+          "name": "Pentagrams",
+          "found": 0,
+          "total": 6
+        },
+        {
+          "name": "Bats",
+          "found": 0,
+          "total": 3
+        },
+        {
+          "name": "Aliens",
+          "found": 0,
+          "total": 5
+        },
+        {
+          "name": "Sea Creatures",
+          "found": 0,
+          "total": 4
+        },
+        {
+          "name": "Cats",
+          "found": 0,
+          "total": 5
+        },
+        {
+          "name": "Witch Hats",
+          "found": 0,
+          "total": 5
+        }
+      ]
+    }
+  },
+  "clicks": []
+}

@@ -4,6 +4,7 @@ import dev.jade.labsaddons.carnage.CarnageTracker.Daily;
 import dev.jade.labsaddons.carnage.CarnageTracker.Hunt;
 import dev.jade.labsaddons.carnage.CarnageTracker.HuntSet;
 import dev.jade.labsaddons.carnage.CarnageTracker.Mission;
+import dev.jade.labsaddons.casino.SlotView;
 import dev.jade.labsaddons.hud.Durations;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
@@ -46,10 +47,6 @@ public final class CarnageReader {
 	private static final Pattern DAY_ENDS = Pattern.compile("Current day ends in:\\s*(.+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern STAGE_ENDS = Pattern.compile("(Stage\\s+\\S+)\\s+ends in:\\s*(.+)", Pattern.CASE_INSENSITIVE);
 
-	/** One slot's name and lore as plain text. */
-	record Item(String name, List<String> lore) {
-	}
-
 	private CarnageReader() {
 	}
 
@@ -72,16 +69,18 @@ public final class CarnageReader {
 		return false;
 	}
 
-	private static List<Item> items(AbstractContainerScreen<?> screen) {
-		List<Item> items = new ArrayList<>();
-		for (Slot slot : screen.getMenu().slots) {
-			ItemStack stack = slot.getItem();
+	private static List<SlotView> items(AbstractContainerScreen<?> screen) {
+		List<SlotView> items = new ArrayList<>();
+		List<Slot> slots = screen.getMenu().slots;
+		for (int i = 0; i < slots.size(); i++) {
+			ItemStack stack = slots.get(i).getItem();
 			if (stack.isEmpty()) {
+				items.add(SlotView.empty(i));
 				continue;
 			}
 			ItemLore lore = stack.get(DataComponents.LORE);
 			List<String> lines = lore == null ? List.of() : lore.lines().stream().map(Component::getString).toList();
-			items.add(new Item(stack.getHoverName().getString().trim(), lines));
+			items.add(new SlotView(i, stack.getHoverName().getString().trim(), lines, stack.getCount()));
 		}
 		return items;
 	}
@@ -89,9 +88,9 @@ public final class CarnageReader {
 	// --- Minecraft-free seams ---
 
 	/** The dashboard, or null if the countdown or missions are missing (not loaded, or not this menu). */
-	static Daily dashboard(List<Item> items, long nowMs) {
-		Item countdown = find(items, "Carnage Countdown");
-		Item missions = find(items, "Daily Missions");
+	static Daily dashboard(List<SlotView> items, long nowMs) {
+		SlotView countdown = find(items, "Carnage Countdown");
+		SlotView missions = find(items, "Daily Missions");
 		if (countdown == null || missions == null) {
 			return null;
 		}
@@ -142,12 +141,12 @@ public final class CarnageReader {
 		return missions;
 	}
 
-	static Hunt hunt(List<Item> items) {
+	static Hunt hunt(List<SlotView> items) {
 		int found = -1;
 		int total = 0;
 		List<HuntSet> sets = new ArrayList<>();
-		for (Item item : items) {
-			Matcher matcher = NAMED_COUNT.matcher(item.name());
+		for (SlotView item : items) {
+			Matcher matcher = NAMED_COUNT.matcher(item.name().trim());
 			if (!matcher.matches()) {
 				continue;
 			}
@@ -164,9 +163,17 @@ public final class CarnageReader {
 		return found < 0 ? null : new Hunt(found, total, sets);
 	}
 
-	private static Item find(List<Item> items, String name) {
-		for (Item item : items) {
-			if (item.name().equalsIgnoreCase(name)) {
+	/** "Giant Pumpkins [2/12]" as a set, or null for any other name. */
+	static HuntSet huntSet(String name) {
+		Matcher matcher = NAMED_COUNT.matcher(name == null ? "" : name.trim());
+		return matcher.matches()
+				? new HuntSet(matcher.group(1).trim(), toInt(matcher.group(2)), toInt(matcher.group(3)))
+				: null;
+	}
+
+	private static SlotView find(List<SlotView> items, String name) {
+		for (SlotView item : items) {
+			if (item.name().trim().equalsIgnoreCase(name)) {
 				return item;
 			}
 		}
@@ -174,7 +181,7 @@ public final class CarnageReader {
 	}
 
 	/** The "a/b" on the lore line starting with {@code label}, or {0, 0}. */
-	private static double[] fraction(Item item, String label) {
+	private static double[] fraction(SlotView item, String label) {
 		if (item != null) {
 			for (String line : item.lore()) {
 				if (!line.trim().startsWith(label)) {
