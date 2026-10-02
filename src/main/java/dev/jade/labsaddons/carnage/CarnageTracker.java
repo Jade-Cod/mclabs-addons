@@ -56,6 +56,8 @@ public final class CarnageTracker {
 	/** "Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score." */
 	private static final Pattern TICKET_EARNED = Pattern.compile(
 			"^Carnage »\\s+Carnage Daily Raffle Ticket (\\d+)/(\\d+) earned!");
+	/** "Halloween Hunt » Skull/Bone found! [1/10]": a set's singular name, and its new count. */
+	private static final Pattern HUNT_FOUND = Pattern.compile("^Halloween Hunt »\\s+(.+?) found! \\[(\\d+)/(\\d+)]");
 
 	/**
 	 * Keys in {@link MasteryGains}, so the HUD rows pop up on a gain and fade exactly like the
@@ -228,6 +230,11 @@ public final class CarnageTracker {
 			config.save();
 			return;
 		}
+		Hunt hunt = huntFound(hunt(), text);
+		if (hunt != null) {
+			onHunt(hunt);
+			return;
+		}
 		Daily daily = daily();
 		if (daily == null) {
 			return;
@@ -254,6 +261,39 @@ public final class CarnageTracker {
 		store(new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(), daily.scoreGoal(),
 				ticket[0], ticket[1], daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), daily.missions(),
 				daily.repeatGoal(), daily.repeatStart()));
+	}
+
+	/**
+	 * The hunt after a "found!" line, or null for any other line or a set we haven't synced. The
+	 * line names the set in the singular ("Skull/Bone" for "Skulls and Bones"), so a set matches
+	 * when its name holds every word and its total is the same.
+	 */
+	static Hunt huntFound(Hunt hunt, String text) {
+		Matcher matcher = HUNT_FOUND.matcher(text.trim());
+		if (hunt == null || !matcher.find()) {
+			return null;
+		}
+		String[] words = matcher.group(1).toLowerCase(Locale.ROOT).split("[/\\s]+");
+		int found = Integer.parseInt(matcher.group(2));
+		int total = Integer.parseInt(matcher.group(3));
+		List<HuntSet> sets = new ArrayList<>(hunt.sets());
+		for (int i = 0; i < sets.size(); i++) {
+			HuntSet set = sets.get(i);
+			if (set.total() == total && containsAll(set.name().toLowerCase(Locale.ROOT), words)) {
+				sets.set(i, new HuntSet(set.name(), found, total));
+				return new Hunt(hunt.found() + found - set.found(), hunt.total(), sets);
+			}
+		}
+		return null;
+	}
+
+	private static boolean containsAll(String name, String[] words) {
+		for (String word : words) {
+			if (!name.contains(word)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/** {held, max} from a "Raffle Ticket 1/10 earned!" line, or null for any other line. */
