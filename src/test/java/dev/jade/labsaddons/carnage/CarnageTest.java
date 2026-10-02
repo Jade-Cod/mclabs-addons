@@ -267,4 +267,27 @@ public class CarnageTest {
 		assertFalse(tags.get(2).unlocked());
 		assertEquals("1 away", tags.get(2).status());
 	}
+
+	@Test
+	void huntFoundLineMovesItsSetAndTheTotal() {
+		Hunt hunt = new Hunt(2, 60, List.of(
+				new CarnageTracker.HuntSet("Giant Pumpkins", 1, 12),
+				new CarnageTracker.HuntSet("Skulls and Bones", 0, 10),
+				new CarnageTracker.HuntSet("Sea Creatures", 0, 4),
+				new CarnageTracker.HuntSet("Cats", 1, 5)));
+
+		Hunt next = CarnageTracker.huntFound(hunt, "Halloween Hunt » Skull/Bone found! [1/10]");
+		assertEquals(3, next.found());
+		assertEquals(1, next.sets().get(1).found());
+		assertEquals(1, next.sets().get(0).found());
+
+		Hunt cat = CarnageTracker.huntFound(hunt, "Halloween Hunt » Cat found! [2/5] ");
+		assertEquals(2, cat.sets().get(3).found());
+		assertEquals(0, cat.sets().get(2).found());
+		assertEquals(3, cat.found());
+
+		assertNull(CarnageTracker.huntFound(hunt, "Halloween Hunt » Ghost found! [1/7]"));
+		assertNull(CarnageTracker.huntFound(hunt, "Carnage » Daily goal completed!"));
+		assertNull(CarnageTracker.huntFound(null, "Halloween Hunt » Cat found! [1/5]"));
+	}
 }
