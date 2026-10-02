@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.TestInput;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -105,8 +104,9 @@ public class HudEditorGameTest implements FabricClientGameTest {
 			checkNear(resized[1], nudged[1], "resize keeps the top edge");
 			context.takeScreenshot("editor-04-resized");
 
-			// Leaving the editor writes the layout to disk there and then.
-			Path config = FabricLoader.getInstance().getConfigDir().resolve("labsaddons");
+			// Leaving the editor writes the layout to disk there and then. Wherever the mod is
+			// writing: the e2e suite runs first and points it at a store of its own.
+			Path config = LabsAddonsConfig.storage().root();
 			long writtenBefore = lastModified(config);
 			input.pressKey(InputConstants.KEY_ESCAPE);
 			context.waitFor(c -> c.gui.screen() == null);
