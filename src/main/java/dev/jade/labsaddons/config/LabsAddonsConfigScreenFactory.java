@@ -90,6 +90,14 @@ public final class LabsAddonsConfigScreenFactory {
 				.setSaveConsumer(value -> config.catchSound = normalizeSoundId(value))
 				.build());
 
+		general.addEntry(entries
+				.startBooleanToggle(Text.translatable("labsaddons.config.quiet_attributes"),
+						config.quietMobAttributeWarnings)
+				.setDefaultValue(true)
+				.setTooltip(Text.translatable("labsaddons.config.quiet_attributes.tooltip"))
+				.setSaveConsumer(value -> config.quietMobAttributeWarnings = value)
+				.build());
+
 		// Every board that redraws a server menu, in a tab of its own.
 		ConfigCategory customGuis = builder.getOrCreateCategory(
 				Text.translatable("labsaddons.config.category.custom_guis"));

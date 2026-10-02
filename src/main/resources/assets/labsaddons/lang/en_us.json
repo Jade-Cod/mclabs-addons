@@ -32,6 +32,8 @@
 	"labsaddons.config.coinflip.tooltip": "Draw the mod’s own coin over the /cf menus. Off gives back the server’s chest menu.",
 	"labsaddons.config.coinflip_hold": "Hold the Coinflip Result",
 	"labsaddons.config.crate": "Crate Chamber",
+	"labsaddons.config.quiet_attributes": "Quiet Mob Attribute Warnings",
+	"labsaddons.config.quiet_attributes.tooltip": "Stop the game logging \"Entity ... does not have attribute ...\" for MCLabs' custom mobs, which filled about three lines in four of the log. Only that warning is skipped; nothing about the mobs changes.",
 	"labsaddons.config.carnage": "Carnage Screen",
 	"labsaddons.config.carnage.tooltip": "Draw the mod’s own Halloween Carnage screen over the /carnage menus: missions, raffle, hunt, shop, leaderboard, bestiary and tags. Off gives back the server’s chest menu.",
 	"labsaddons.config.crate.tooltip": "Draw the mod’s own crate opening over the crate menus. The supply-crate spin becomes a chamber whose light tracks the best rarity still in play, and a voter crate’s three-way choice gets each draw’s published odds. Off gives back the server’s chest menu.",

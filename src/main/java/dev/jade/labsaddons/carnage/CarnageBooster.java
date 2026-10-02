@@ -20,7 +20,8 @@ import java.util.regex.Pattern;
  * <p>The reminder's minutes are unreliable: four minutes into a 60-minute booster it said 0.
  * So an activation sets the end time (and a second one while running extends it), a reminder
  * re-sets it only when it states more than 0, and a reminder alone (you joined mid-booster)
- * shows the booster as active with no countdown.
+ * shows the booster as active with no countdown. The server's "boost has ended" line ends it
+ * outright.
  */
 public final class CarnageBooster {
 	/**
@@ -43,6 +44,10 @@ public final class CarnageBooster {
 	}
 
 	public static void onMessage(String text) {
+		if (ended(text)) {
+			clear();
+			return;
+		}
 		State next = next(LabsAddonsConfig.get().carnageBooster, text, System.currentTimeMillis());
 		if (next != null) {
 			LabsAddonsConfig config = LabsAddonsConfig.get();
@@ -87,6 +92,15 @@ public final class CarnageBooster {
 			return new State(multiplier, end, nowMs);
 		}
 		return null;
+	}
+
+	/**
+	 * "Carnage » Spidrr's Halloween Carnage boost has ended!" The server's real end, which beats
+	 * any countdown: a "60 minutes" booster ended after 23 on day one.
+	 */
+	static boolean ended(String text) {
+		String line = text.trim();
+		return line.startsWith(PREFIX) && line.contains("Halloween Carnage boost has ended");
 	}
 
 	static boolean isActive(State state, long nowMs) {

@@ -42,6 +42,7 @@ public final class CarnageReader {
 	private static final String MASTER_HUNTER = "master hunter";
 
 	private static final Pattern FRACTION = Pattern.compile("([\\d.,]+)\\s*/\\s*([\\d.,]+)");
+	private static final Pattern KILL_COUNT = Pattern.compile("^Kill\\s+([\\d,]+)x\\s", Pattern.CASE_INSENSITIVE);
 	private static final Pattern MISSION = Pattern.compile("^\\[([\\d,]+)/([\\d,]+)]\\s+(.+)$");
 	private static final Pattern NAMED_COUNT = Pattern.compile("^(.+?)\\s*\\[(\\d+)/(\\d+)]$");
 	private static final Pattern DAY_ENDS = Pattern.compile("Current day ends in:\\s*(.+)", Pattern.CASE_INSENSITIVE);
@@ -107,13 +108,21 @@ public final class CarnageReader {
 				stageEnd = nowMs + Durations.parseMs(stageLine.group(2));
 			}
 		}
-		double[] score = fraction(find(items, "Daily Score Goal"), "Progress");
+		SlotView goal = find(items, "Daily Score Goal");
+		double[] score = fraction(goal, "Progress");
+		// After the goal: "Daily Goal Complete!", then "Repeatable Goal:" with its own Progress line.
+		boolean goalDone = goal != null && goal.lore().stream().anyMatch(l -> l.trim().equals("Daily Goal Complete!"));
 		double[] tickets = fraction(find(items, "Daily Raffle"), "You have");
 		double[] nextTicket = fraction(find(items, "Daily Raffle"), "Next Ticket");
 		double[] goals = fraction(find(items, "Daily Score Goal Bonus"), "Goals Completed");
-		return new Daily(dayEnd, stage, stageEnd, score[0], (int) score[1],
-				(int) tickets[0], (int) tickets[1], ticketBase(nextTicket[1], (int) tickets[0]),
-				(int) goals[0], (int) goals[1], missions(missions.lore()));
+		List<Mission> list = missions(missions.lore());
+		int held = (int) tickets[0];
+		if (goalDone) {
+			return new Daily(dayEnd, stage, stageEnd, score[0], 0, held, (int) tickets[1],
+					ticketBase(nextTicket[1], held), (int) goals[0], (int) goals[1], list, (int) score[1], -1);
+		}
+		return new Daily(dayEnd, stage, stageEnd, score[0], (int) score[1], held, (int) tickets[1],
+				ticketBase(nextTicket[1], held), (int) goals[0], (int) goals[1], list);
 	}
 
 	/**
@@ -131,7 +140,12 @@ public final class CarnageReader {
 		for (String raw : lore) {
 			String line = raw.trim();
 			Matcher matcher = MISSION.matcher(line);
-			if (matcher.matches()) {
+			if (line.startsWith("✔ ")) {
+				// A finished mission: "✔ Kill 125x Geist", no figures; its target is in the name.
+				String name = line.substring(2).trim();
+				int target = Math.max(1, toInt(killCount(name)));
+				missions.add(new Mission(name, CarnageTracker.killMob(name), target, target, ""));
+			} else if (matcher.matches()) {
 				String name = matcher.group(3).trim();
 				if (name.toLowerCase(Locale.ROOT).startsWith("complete all")) {
 					continue;
@@ -170,6 +184,11 @@ public final class CarnageReader {
 			}
 		}
 		return found < 0 ? null : new Hunt(found, total, sets);
+	}
+
+	private static String killCount(String name) {
+		Matcher matcher = KILL_COUNT.matcher(name);
+		return matcher.find() ? matcher.group(1) : "1";
 	}
 
 	/** "Giant Pumpkins [2/12]" as a set, or null for any other name. */

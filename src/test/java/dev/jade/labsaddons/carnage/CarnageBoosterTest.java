@@ -58,4 +58,10 @@ public class CarnageBoosterTest {
 	public void aPlayerQuotingItMovesNothing() {
 		assertNull(CarnageBooster.next(null, "[VIP] Bob: Carnage » Bob has just activated a Halloween Carnage Booster! boosted by 1.5x for 60 minutes", NOW));
 	}
+
+	@Test
+	public void theServersEndLineEndsIt() {
+		assertTrue(CarnageBooster.ended("Carnage » Spidrr's Halloween Carnage boost has ended! Click this message to get another booster."));
+		assertFalse(CarnageBooster.ended("[VIP] Bob: Spidrr's Halloween Carnage boost has ended!"));
+	}
 }
