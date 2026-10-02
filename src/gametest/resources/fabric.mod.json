@@ -6,10 +6,15 @@
 	"environment": "*",
 	"entrypoints": {
 		"fabric-client-gametest": [
-			"dev.jade.labsaddons.e2e.E2eTest"
+			"dev.jade.labsaddons.e2e.E2eTest",
+			"dev.jade.labsaddons.gametest.HudEditorGameTest",
+			"dev.jade.labsaddons.gametest.BiteMarkerGameTest",
+			"dev.jade.labsaddons.gametest.PerformanceGameTest"
 		]
 	},
+	"mixins": ["labsaddons-gametest.mixins.json"],
 	"depends": {
-		"labsaddons": "*"
+		"labsaddons": "*",
+		"fabric-client-gametest-api-v1": "*"
 	}
 }

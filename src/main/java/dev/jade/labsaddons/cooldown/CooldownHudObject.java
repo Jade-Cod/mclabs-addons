@@ -1,10 +1,13 @@
 package dev.jade.labsaddons.cooldown;
 
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.hud.GuiElements;
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.TimeFormat;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
@@ -25,11 +28,8 @@ import java.util.List;
  * drops off. The ring has a transparent center — only the ring itself is
  * drawn, so the item icon sits directly on the surrounding HUD background.
  *
- * <p>The ring is anti-aliased directly (per-pixel coverage, see
- * {@link #fillRingAA}): every pixel in the ring's bounding box gets its own
- * fractional coverage from supersampling, and its color is chosen by its
- * angle around the center. That naturally smooths both the inner and outer
- * edge in one pass, with no separate outline layer needed.
+ * <p>Each ring is a single piece of geometry with its edges softened in the vertex
+ * alpha; see {@link RingRenderState} for why it isn't drawn with fills.
  */
 public class CooldownHudObject extends HudObject {
 	public static final String ID = "ability_cooldowns";
@@ -41,9 +41,6 @@ public class CooldownHudObject extends HudObject {
 	private static final int ICON_SIZE = 16;
 	private static final float TEXT_GAP = 3f;
 	private static final int TEXT_COLOR = 0xFFFFFFFF;
-
-	/** Supersample grid per pixel for {@link #fillRingAA}; 4x4 is smooth enough at this size. */
-	private static final int AA_SAMPLES = 4;
 
 	/** Green fill, sweeping clockwise as the cooldown recharges (also the ready pulse). Sampled from reference. */
 	private static final int COLOR_PROGRESS = 0xFF00A500;
@@ -140,7 +137,13 @@ public class CooldownHudObject extends HudObject {
 		return groups;
 	}
 
+	private final FrameValue<List<Ring>> ringsCache = new FrameValue<>();
+
 	private List<Ring> rings(boolean preview) {
+		return ringsCache.get(Util.getMillis(), preview, () -> buildRings(preview));
+	}
+
+	private List<Ring> buildRings(boolean preview) {
 		long now = System.currentTimeMillis();
 		List<Ring> rings = new ArrayList<>();
 		var hidden = LabsAddonsConfig.get().hiddenCooldownKeys;
@@ -223,80 +226,17 @@ public class CooldownHudObject extends HudObject {
 	}
 
 	private static void drawRing(GuiGraphicsExtractor context, float cx, float cy, Ring ring) {
+		RingRenderState shape;
 		if (ring.active()) {
-			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, angleDeg -> COLOR_ACTIVE);
+			shape = RingRenderState.solid(context.pose(), cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, COLOR_ACTIVE);
 		} else if (ring.ready()) {
-			int color = pulse(COLOR_PROGRESS);
-			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS, angleDeg -> color);
+			shape = RingRenderState.solid(context.pose(), cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS,
+					pulse(COLOR_PROGRESS));
 		} else {
-			float progressDeg = ring.elapsedFraction() * 360f;
-			fillRingAA(context, cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS,
-					angleDeg -> angleDeg < progressDeg ? COLOR_PROGRESS : COLOR_BASE);
+			shape = new RingRenderState(context.pose(), cx, cy, RING_INNER_RADIUS, RING_OUTER_RADIUS,
+					ring.elapsedFraction() * 360f, COLOR_PROGRESS, COLOR_BASE);
 		}
-	}
-
-	@FunctionalInterface
-	private interface AngleColorFn {
-		/** @param angleDeg clockwise from the top (12 o'clock), in [0, 360). */
-		int colorAt(float angleDeg);
-	}
-
-	/**
-	 * Fills an annulus with real anti-aliasing: every candidate pixel gets its own
-	 * fractional coverage (outer-circle coverage minus inner-circle coverage, each via
-	 * {@link #pixelDiscCoverage} supersampling) instead of a hard round, and its color
-	 * comes from {@code colorFn} evaluated at that pixel's angle around the center. One
-	 * pass smooths both the inner and outer edge with no separate outline needed, and
-	 * each pixel is touched exactly once, so there's no overlap for translucency to
-	 * compound into a moiré.
-	 */
-	private static void fillRingAA(GuiGraphicsExtractor context, float cx, float cy, float innerR, float outerR,
-			AngleColorFn colorFn) {
-		int top = (int) Math.floor(cy - outerR - 1);
-		int bottom = (int) Math.ceil(cy + outerR + 1);
-		int left = (int) Math.floor(cx - outerR - 1);
-		int right = (int) Math.ceil(cx + outerR + 1);
-		for (int y = top; y < bottom; y++) {
-			for (int x = left; x < right; x++) {
-				float outerCoverage = pixelDiscCoverage(x, y, cx, cy, outerR);
-				if (outerCoverage <= 0f) {
-					continue;
-				}
-				float innerCoverage = innerR > 0f ? pixelDiscCoverage(x, y, cx, cy, innerR) : 0f;
-				float coverage = Math.min(1f, outerCoverage - innerCoverage);
-				if (coverage <= 0.02f) {
-					continue;
-				}
-				float dx = (x + 0.5f) - cx;
-				float dy = (y + 0.5f) - cy;
-				float angleDeg = (float) Math.toDegrees(Math.atan2(dx, -dy));
-				if (angleDeg < 0f) {
-					angleDeg += 360f;
-				}
-				int color = colorFn.colorAt(angleDeg);
-				int alpha = Math.round((color >>> 24) * coverage);
-				if (alpha <= 0) {
-					continue;
-				}
-				context.fill(x, y, x + 1, y + 1, (alpha << 24) | (color & 0x00FFFFFF));
-			}
-		}
-	}
-
-	/** Fraction of unit pixel cell (px, py) covered by a disc of the given radius, via an {@link #AA_SAMPLES}² grid. */
-	private static float pixelDiscCoverage(int px, int py, float cx, float cy, float radius) {
-		float radiusSq = radius * radius;
-		int hits = 0;
-		for (int sy = 0; sy < AA_SAMPLES; sy++) {
-			float sampleY = (py + (sy + 0.5f) / AA_SAMPLES) - cy;
-			for (int sx = 0; sx < AA_SAMPLES; sx++) {
-				float sampleX = (px + (sx + 0.5f) / AA_SAMPLES) - cx;
-				if (sampleX * sampleX + sampleY * sampleY <= radiusSq) {
-					hits++;
-				}
-			}
-		}
-		return hits / (float) (AA_SAMPLES * AA_SAMPLES);
+		GuiElements.submit(context, shape);
 	}
 
 	/**

@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.e2e;
 
+import dev.jade.labsaddons.gametest.PerformanceGameTest;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -43,6 +44,9 @@ public class E2eTest implements FabricClientGameTest {
 
 	@Override
 	public void runTest(ClientGameTestContext context) {
+		if (PerformanceGameTest.enabled()) {
+			return; // a -Pperf run is the performance test alone
+		}
 		Path dir = Path.of(System.getProperty("labsaddons.e2e.dir"));
 		Path out = Path.of(System.getProperty("labsaddons.e2e.out"));
 		boolean update = Boolean.getBoolean("labsaddons.e2e.update");

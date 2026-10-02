@@ -69,9 +69,20 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
 	vmArg "-Dlabsaddons.e2e.out=${layout.buildDirectory.dir('e2e').get().asFile}"
 	vmArg "-Dlabsaddons.e2e.update=${project.hasProperty('e2eUpdate')}"
 	vmArg "-Dlabsaddons.e2e.only=${project.findProperty('e2eOnly') ?: ''}"
+	// -Pperf runs PerformanceGameTest too. Its budgets are microseconds a frame, so it is
+	// left out of the parallel e2e-all run and run on its own afterwards.
+	vmArg "-Dlabsaddons.perf=${project.hasProperty('perf')}"
 	// The name the captures were recorded under, so "Welcome to MCLabs Spawn, Ophiliah!"
 	// and every "you" line replay as the local player's own without rewriting them.
 	programArgs '--username', 'Ophiliah'
+}
+
+// `-Pjfr` also records the run with Java Flight Recorder, to see where the time went
+// when a budget in PerformanceGameTest fails: build/gametest.jfr.
+if (project.hasProperty('jfr')) {
+	loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
+		vmArg "-XX:StartFlightRecording=filename=${file('build/gametest.jfr')},settings=profile"
+	}
 }
 
 processResources {
