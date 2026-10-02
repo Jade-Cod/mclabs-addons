@@ -33,7 +33,9 @@
           "target": 3,
           "reward": "200 Store Points"
         }
-      ]
+      ],
+      "repeatGoal": 0,
+      "repeatStart": 0.0
     },
     "state.json/carnageHunt": {
       "found": 0,
