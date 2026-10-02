@@ -28,6 +28,17 @@ public final class CarnageTracker {
 	static final long DAY_MS = 24L * 60 * 60 * 1000;
 
 	/**
+	 * Each raffle ticket costs this much more score than the one before. Read off the dashboard's
+	 * "Next Ticket" figure through one day: 500, then 625, then 781.25.
+	 */
+	// ponytail: inferred from three tickets, not stated anywhere; if a later ticket's
+	// "Next Ticket" disagrees, this is the number to change.
+	static final double RAFFLE_RATIO = 1.25;
+	/** "Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score." */
+	private static final Pattern TICKET_EARNED = Pattern.compile(
+			"^Carnage »\\s+Carnage Daily Raffle Ticket (\\d+)/(\\d+) earned!");
+
+	/**
 	 * Keys in {@link MasteryGains}, so the HUD rows pop up on a gain and fade exactly like the
 	 * progress widget's. Prefixed, so they can never be taken for a quest or chem name.
 	 */
@@ -60,7 +71,7 @@ public final class CarnageTracker {
 
 	/** What the dashboard said, moved on by kills since. {@code score} is today's. */
 	public record Daily(long dayEndMs, String stage, long stageEndMs, double score, int scoreGoal,
-			int tickets, int maxTickets, int ticketCost, int goalsDone, int goalsTotal, List<Mission> missions) {
+			int tickets, int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions) {
 		public Daily {
 			missions = missions == null ? List.of() : List.copyOf(missions);
 			stage = stage == null ? "" : stage;
@@ -120,6 +131,23 @@ public final class CarnageTracker {
 		}
 	}
 
+	/** The server's own count when a ticket is earned, which beats our arithmetic. */
+	public static void onMessage(String text) {
+		int[] ticket = ticketEarned(text);
+		Daily daily = ticket == null ? null : daily();
+		if (daily == null) {
+			return;
+		}
+		store(new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(), daily.scoreGoal(),
+				ticket[0], ticket[1], daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), daily.missions()));
+	}
+
+	/** {held, max} from a "Raffle Ticket 1/10 earned!" line, or null for any other line. */
+	static int[] ticketEarned(String text) {
+		Matcher matcher = TICKET_EARNED.matcher(text.trim());
+		return matcher.find() ? new int[]{Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2))} : null;
+	}
+
 	/** @return true if a Kill mission for this mob moved. */
 	public static boolean onKill(String mob) {
 		Daily daily = daily();
@@ -166,6 +194,23 @@ public final class CarnageTracker {
 
 	// --- pure transitions ---
 
+	/** Total score at which the {@code n}th raffle ticket of the day is earned. */
+	public static double ticketThreshold(Daily daily, int n) {
+		return daily.ticketBase() * (Math.pow(RAFFLE_RATIO, n) - 1) / (RAFFLE_RATIO - 1);
+	}
+
+	/** Tickets a score has earned so far today, up to the cap. */
+	static int ticketsAt(Daily daily, double score) {
+		if (daily.ticketBase() <= 0) {
+			return daily.tickets();
+		}
+		int n = 0;
+		while (n < daily.maxTickets() && ticketThreshold(daily, n + 1) <= score) {
+			n++;
+		}
+		return n;
+	}
+
 	static Double parseScore(String text) {
 		Matcher matcher = POINTS.matcher(text);
 		return matcher.find() ? parseNumber(matcher.group(1)) : null;
@@ -193,19 +238,16 @@ public final class CarnageTracker {
 			dayEnd += DAY_MS;
 		}
 		return new Daily(dayEnd, daily.stage(), daily.stageEndMs(), 0, daily.scoreGoal(),
-				0, daily.maxTickets(), daily.ticketCost(), daily.goalsDone(), daily.goalsTotal(), List.of());
+				0, daily.maxTickets(), daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), List.of());
 	}
 
-	/** Raffle tickets are one per {@code ticketCost} of today's score, up to the cap. */
+	/** Raffle tickets earned at this score, up to the cap; never fewer than already counted. */
 	static Daily withScore(Daily daily, double score) {
 		boolean crossedGoal = daily.scoreGoal() > 0 && daily.score() < daily.scoreGoal() && score >= daily.scoreGoal();
-		int tickets = daily.tickets();
-		if (daily.ticketCost() > 0) {
-			tickets = Math.max(tickets, Math.min(daily.maxTickets(), (int) (score / daily.ticketCost())));
-		}
+		int tickets = Math.max(daily.tickets(), ticketsAt(daily, score));
 		int goalsDone = crossedGoal ? Math.min(daily.goalsTotal(), daily.goalsDone() + 1) : daily.goalsDone();
 		return new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), score, daily.scoreGoal(),
-				tickets, daily.maxTickets(), daily.ticketCost(), goalsDone, daily.goalsTotal(), daily.missions());
+				tickets, daily.maxTickets(), daily.ticketBase(), goalsDone, daily.goalsTotal(), daily.missions());
 	}
 
 	/** Credits the first open Kill mission for this mob; returns the same instance if none. */
@@ -217,7 +259,7 @@ public final class CarnageTracker {
 			if (key.equals(mission.mob()) && !mission.done()) {
 				missions.set(i, mission.plusOne());
 				return new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(),
-						daily.scoreGoal(), daily.tickets(), daily.maxTickets(), daily.ticketCost(),
+						daily.scoreGoal(), daily.tickets(), daily.maxTickets(), daily.ticketBase(),
 						daily.goalsDone(), daily.goalsTotal(), missions);
 			}
 		}

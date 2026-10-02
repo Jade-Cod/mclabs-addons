@@ -65,10 +65,10 @@ public class CarnageHudObject extends HudObject {
 	private static final ItemStack MISSION_ICON = new ItemStack(Items.IRON_SWORD);
 
 	/**
-	 * One row, its text resolved and measured as it is built. {@code notch} is the bar fraction
-	 * between raffle-ticket cuts, or 0 for none.
+	 * One row, its text resolved and measured as it is built. {@code notches} are where on the
+	 * bar the raffle tickets fall, as fractions of it; empty for none.
 	 */
-	private record Row(ItemStack icon, String label, String gain, int width, double fraction, double notch,
+	private record Row(ItemStack icon, String label, String gain, int width, double fraction, double[] notches,
 			float alpha) {
 	}
 
@@ -160,10 +160,8 @@ public class CarnageHudObject extends HudObject {
 		List<Row> rows = new ArrayList<>();
 		float scoreAlpha = showAll ? 1f : visibility(PIN_SCORE, CarnageTracker.SCORE_GAIN);
 		if (scoreAlpha > 0 && daily.scoreGoal() > 0) {
-			double notch = daily.ticketCost() > 0 && daily.ticketCost() < daily.scoreGoal()
-					? daily.ticketCost() / (double) daily.scoreGoal() : 0;
 			rows.add(row(SCORE_ICON, "Daily score", daily.score(), daily.scoreGoal(),
-					MasteryGains.delta(CarnageTracker.SCORE_GAIN), notch, scoreAlpha));
+					MasteryGains.delta(CarnageTracker.SCORE_GAIN), ticketNotches(daily), scoreAlpha));
 		}
 		boolean allMissions = showAll || isPinned(PIN_MISSIONS);
 		for (Mission mission : daily.missions()) {
@@ -171,19 +169,34 @@ public class CarnageHudObject extends HudObject {
 			float alpha = allMissions ? 1f : MasteryGains.alpha(key);
 			if (alpha > 0) {
 				rows.add(row(MISSION_ICON, shortName(mission.name()), mission.current(), mission.target(),
-						MasteryGains.delta(key), 0, alpha));
+						MasteryGains.delta(key), NO_NOTCHES, alpha));
 			}
 		}
 		return rows;
 	}
 
+	private static final double[] NO_NOTCHES = {};
+
+	/** Each ticket threshold short of the goal, as a fraction of it. Tickets cost more as they go. */
+	private static double[] ticketNotches(Daily daily) {
+		List<Double> at = new ArrayList<>();
+		for (int n = 1; n <= daily.maxTickets() && daily.ticketBase() > 0; n++) {
+			double threshold = CarnageTracker.ticketThreshold(daily, n);
+			if (threshold >= daily.scoreGoal()) {
+				break;
+			}
+			at.add(threshold / daily.scoreGoal());
+		}
+		return at.stream().mapToDouble(Double::doubleValue).toArray();
+	}
+
 	private static Row row(ItemStack icon, String name, double current, double target, double gain,
-			double notch, float alpha) {
+			double[] notches, float alpha) {
 		String label = name + "  " + number(current) + "/" + number(target) + "  " + percent(current, target) + "%";
 		String gainText = gain > 0 ? "  +" + trim(gain) : "";
 		int width = ICON_SIZE + GAP + font().getWidth(label + gainText);
 		double fraction = target <= 0 ? 0 : Math.clamp(current / target, 0.0, 1.0);
-		return new Row(icon, label, gainText, width, fraction, notch, alpha);
+		return new Row(icon, label, gainText, width, fraction, notches, alpha);
 	}
 
 	/** "Kill 4x Poltergeist" reads as "Poltergeist": the icon and the figures say the rest. */
@@ -265,11 +278,9 @@ public class CarnageHudObject extends HudObject {
 			} else if (filled > 0) {
 				context.fill(barX, barY, barX + filled, barY + BAR_H, faded(baseColor, alpha));
 			}
-			if (row.notch() > 0) {
-				for (double at = row.notch(); at < 1.0 - 1e-6; at += row.notch()) {
-					int nx = barX + (int) Math.round(barW * at);
-					context.fill(nx, barY, nx + 1, barY + BAR_H, faded(NOTCH_COLOR, alpha));
-				}
+			for (double at : row.notches()) {
+				int nx = barX + (int) Math.round(barW * at);
+				context.fill(nx, barY, nx + 1, barY + BAR_H, faded(NOTCH_COLOR, alpha));
 			}
 			y += rowHeight() + ROW_GAP;
 		}

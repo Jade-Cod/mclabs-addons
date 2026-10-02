@@ -256,7 +256,7 @@ public final class CarnageBoard extends CasinoPanel {
 	 * rows, then everything else as a single footer line.
 	 *
 	 * <p>The raffle has no bar of its own because it is the same number: a ticket every
-	 * {@code ticketCost} of today's score. Its thresholds are notched into the score bar, so
+	 * rising cost in today's score. Its thresholds are notched into the score bar, so
 	 * filling the bar is visibly earning tickets on the way to the goal.
 	 *
 	 * <p>Anything with more to say than fits (raffle prizes, the "all three" bonus, the streak
@@ -283,15 +283,24 @@ public final class CarnageBoard extends CasinoPanel {
 		String score = number(daily.score());
 		text(context, font, score, 0, 0, 0xFFFFFFFF);
 		context.getMatrices().popMatrix();
-		text(context, font, "/ " + number(daily.scoreGoal()) + " today", PAD + font.getWidth(score) * 2 + 5, y + 7, TEXT_FAINT);
+		String ofGoal = "/ " + number(daily.scoreGoal());
+		int ofGoalX = PAD + font.getWidth(score) * 2 + 5;
+		text(context, font, ofGoal, ofGoalX, y + 7, TEXT_FAINT);
 
+		// The reward takes what is left of the line; a five-figure score leaves less, so the
+		// "Goal →" label goes first and then the reward is trimmed, rather than overlapping.
 		boolean goalMet = daily.scoreGoal() > 0 && daily.score() >= daily.scoreGoal();
 		String reward = loreAfter(slots, "Daily Score Goal", "Reward:");
 		if (!reward.isEmpty()) {
-			String label = goalMet ? "✔ " : "Goal → ";
-			int rewardW = font.getWidth(reward);
 			int right = PANEL_W - PAD;
-			text(context, font, reward, right - rewardW, y + 7, goalMet ? WIN : TEXT);
+			int room = right - (ofGoalX + font.getWidth(ofGoal) + 8);
+			String label = goalMet ? "✔ " : "Goal → ";
+			if (font.getWidth(label + reward) > room) {
+				label = goalMet ? "✔ " : "";
+			}
+			String shown = fit(font, reward, room - font.getWidth(label));
+			int rewardW = font.getWidth(shown);
+			text(context, font, shown, right - rewardW, y + 7, goalMet ? WIN : TEXT);
 			text(context, font, label, right - rewardW - font.getWidth(label), y + 7, goalMet ? WIN : TEXT_FAINT);
 		}
 		int barY = y + 20;
@@ -305,13 +314,17 @@ public final class CarnageBoard extends CasinoPanel {
 		}
 	}
 
-	/** A 1px cut in the score bar at every raffle ticket threshold. */
+	/** A 1px cut in the score bar at every raffle ticket threshold; each ticket costs more. */
 	private void notches(DrawContext context, int y, int h, Daily daily) {
-		if (daily.ticketCost() <= 0 || daily.scoreGoal() <= 0) {
+		if (daily.ticketBase() <= 0 || daily.scoreGoal() <= 0) {
 			return;
 		}
-		for (int points = daily.ticketCost(); points < daily.scoreGoal(); points += daily.ticketCost()) {
-			int x = PAD + Math.round(BODY_W * points / (float) daily.scoreGoal());
+		for (int n = 1; n <= daily.maxTickets(); n++) {
+			double points = CarnageTracker.ticketThreshold(daily, n);
+			if (points >= daily.scoreGoal()) {
+				return;
+			}
+			int x = PAD + (int) Math.round(BODY_W * points / daily.scoreGoal());
 			context.fill(x, y, x + 1, y + h, c(0xFF1A1D24));
 		}
 	}
@@ -329,8 +342,8 @@ public final class CarnageBoard extends CasinoPanel {
 			String rest = " of " + daily.maxTickets() + " raffle tickets";
 			text(context, font, rest, x, y, TEXT_DIM);
 			x += font.getWidth(rest);
-			if (daily.ticketCost() > 0) {
-				text(context, font, " · next at " + number((daily.tickets() + 1L) * daily.ticketCost()), x, y, TEXT_FAINT);
+			if (daily.ticketBase() > 0) {
+				text(context, font, " · next at " + number(CarnageTracker.ticketThreshold(daily, daily.tickets() + 1)), x, y, TEXT_FAINT);
 			}
 		}
 		String draws = loreValue(slots, "Daily Raffle", "Drawing in:");
