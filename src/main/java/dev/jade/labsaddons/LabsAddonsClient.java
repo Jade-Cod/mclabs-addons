@@ -24,6 +24,7 @@ import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.carnage.CarnageBooster;
 import dev.jade.labsaddons.carnage.CarnageHudObject;
 import dev.jade.labsaddons.carnage.CarnageReader;
+import dev.jade.labsaddons.carnage.CarnageTracker;
 import dev.jade.labsaddons.bounty.BountyTracker;
 import dev.jade.labsaddons.bounty.SunkenTreasureReader;
 import dev.jade.labsaddons.bounty.SunkenTreasureTracker;
@@ -564,6 +565,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		McLabsWorld.onMessage(text);
 		BoosterTracker.onMessage(text);
 		CarnageBooster.onMessage(text);
+		CarnageTracker.onMessage(text);
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
 		RaidMineTracker.onMessage(text);
