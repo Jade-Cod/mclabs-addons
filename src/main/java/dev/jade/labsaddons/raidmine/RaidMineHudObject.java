@@ -1,11 +1,13 @@
 package dev.jade.labsaddons.raidmine;
 
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.hud.TimeFormat;
 import dev.jade.labsaddons.server.McLabsSession;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -104,7 +106,13 @@ public class RaidMineHudObject extends HudObject {
 		return preview || RaidMineTracker.isActive();
 	}
 
+	private final FrameValue<List<RaidMineSession.Row>> rowsCache = new FrameValue<>();
+
 	private List<RaidMineSession.Row> rows(boolean preview) {
+		return rowsCache.get(Util.getMeasuringTimeMs(), preview, () -> buildRows(preview));
+	}
+
+	private List<RaidMineSession.Row> buildRows(boolean preview) {
 		List<RaidMineSession.Row> rows = RaidMineSession.rows().stream()
 				.filter(row -> !RaidMineSession.isHidden(row.code()))
 				.toList();

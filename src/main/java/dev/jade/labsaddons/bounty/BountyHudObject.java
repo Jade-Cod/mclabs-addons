@@ -1,9 +1,11 @@
 package dev.jade.labsaddons.bounty;
 
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.HudObjects;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.item.ItemStack;
@@ -65,7 +67,13 @@ public class BountyHudObject extends HudObject {
 	private record Row(@Nullable ItemStack icon, Text text) {
 	}
 
+	private final FrameValue<List<Row>> rowsCache = new FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return rowsCache.get(Util.getMeasuringTimeMs(), preview, () -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
 		rows.add(new Row(null, Text.translatable("labsaddons.hud.bounty.name")));
 		if (BountyTracker.isActive()) {

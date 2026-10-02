@@ -1,8 +1,10 @@
 package dev.jade.labsaddons.runner;
 
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.Util;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -52,7 +54,13 @@ public class RunnerHudObject extends HudObject {
     private record Row(String text, int color) {
     }
 
+    private final FrameValue<List<Row>> rowsCache = new FrameValue<>();
+
     private List<Row> rows(boolean preview) {
+        return rowsCache.get(Util.getMeasuringTimeMs(), preview, () -> buildRows(preview));
+    }
+
+    private List<Row> buildRows(boolean preview) {
         if (preview && !RunnerTracker.hasActivity()) {
             return sampleRows();
         }
