@@ -130,7 +130,7 @@ public class E2eTest implements FabricClientGameTest {
 		} else {
 			JsonObject expected = JsonParser.parseString(read(expectedFile)).getAsJsonObject();
 			result.add("expected", expected);
-			status = expected.equals(actual) ? "PASS" : "FAIL";
+			status = StateSnapshot.matches(expected, actual) ? "PASS" : "FAIL";
 		}
 		if (!problems.isEmpty()) {
 			status = "FAIL";
