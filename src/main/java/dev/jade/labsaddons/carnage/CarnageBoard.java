@@ -52,6 +52,7 @@ public final class CarnageBoard extends CasinoPanel {
 	private static final int BRONZE = 0xFFE0915A;
 	private static final int CARD = 0x12FFFFFF;
 	private static final int CARD_HOT = 0x22FFFFFF;
+	private static final String SOUL_NAME = "Soul of Fright";
 	/** Lighter than the casino track: an empty bar has to read against the panel, not vanish into it. */
 	private static final int RAIL = 0xFF333947;
 
@@ -510,6 +511,7 @@ public final class CarnageBoard extends CasinoPanel {
 
 	private void shop(GuiGraphicsExtractor context, Font font, List<SlotView> slots) {
 		List<CarnageMenu.ShopItem> items = CarnageMenu.shop(slots);
+		int souls = soulsHeld();
 		int cols = 2;
 		int cardW = (BODY_W - 6) / cols;
 		int cardH = 23;
@@ -530,8 +532,10 @@ public final class CarnageBoard extends CasinoPanel {
 			}
 			icon(context, stackAt(item.slot()), x + 4, y + 4);
 			String cost = item.cost() + (item.cost() == 1 ? " soul" : " souls");
-			text(context, font, fit(font, item.name(), cardW - 30), x + 24, y + 3, hot ? 0xFFFFFFFF : TEXT);
-			text(context, font, cost, x + 24, y + 13, PUMPKIN);
+			boolean affordable = souls >= item.cost();
+			text(context, font, fit(font, item.name(), cardW - 30), x + 24, y + 3,
+					hot ? 0xFFFFFFFF : affordable ? TEXT : TEXT_FAINT);
+			text(context, font, cost, x + 24, y + 13, affordable ? PUMPKIN : LOSS);
 			clickable(x, y, cardW, cardH, item.slot());
 			leave(context);
 			if (hot) {
@@ -539,7 +543,9 @@ public final class CarnageBoard extends CasinoPanel {
 			}
 		}
 		enter(context, 5);
-		text(context, font, "new stock each stage · click to buy", PAD, FOOT_Y + 3, TEXT_FAINT);
+		String held = souls + (souls == 1 ? " soul" : " souls");
+		text(context, font, "You have ", PAD, FOOT_Y + 3, TEXT_FAINT);
+		text(context, font, held, PAD + font.width("You have "), FOOT_Y + 3, PUMPKIN);
 		claimButton(context, font, CarnageMenu.has(slots, CarnageMenu.SHOP_CLAIM, "Carnage Shop")
 				? CarnageMenu.SHOP_CLAIM : CarnageMenu.CLAIM_SOULS);
 		leave(context);
@@ -686,7 +692,33 @@ public final class CarnageBoard extends CasinoPanel {
 		button(context, font, x + arrowW + labelW, FOOT_Y, arrowW, 13, "▶", hasNext ? CarnageMenu.NEXT_PAGE : -1, PUMPKIN);
 	}
 
+	/**
+	 * Souls of Fright in your inventory: fermented spider eyes the server names "Soul of Fright"
+	 * (a plain spider eye doesn't count). The menu never states the balance, so it's counted here.
+	 */
+	// ponytail: matched by name; the stack also carries mythicmobs:type=SoulOfFright in its
+	// custom data, the sturdier key if MCLabs ever renames it.
+	private static int soulsHeld() {
+		var player = Minecraft.getInstance().player;
+		if (player == null) {
+			return 0;
+		}
+		var inventory = player.getInventory();
+		int souls = 0;
+		for (int i = 0; i < inventory.getContainerSize(); i++) {
+			ItemStack stack = inventory.getItem(i);
+			if (stack.is(Items.FERMENTED_SPIDER_EYE) && stack.getHoverName().getString().equals(SOUL_NAME)) {
+				souls += stack.getCount();
+			}
+		}
+		return souls;
+	}
+
+	/** Hidden once you've claimed: the menu offers it forever, but it's once per event. */
 	private void claimButton(GuiGraphicsExtractor context, Font font, int slot) {
+		if (CarnageTracker.freeSoulsClaimed()) {
+			return;
+		}
 		int w = 78;
 		button(context, font, PANEL_W - PAD - w, FOOT_Y, w, 13, "FREE SOULS", slot, PUMPKIN);
 	}
