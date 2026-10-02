@@ -61,8 +61,10 @@ final class PillRenderState implements GuiElementRenderState {
 		float solidR = Math.max(0f, r - FEATHER);
 		float outerR = r + FEATHER;
 		for (int i = 0; i < SLICES; i++) {
-			double a0 = Math.PI * i / SLICES;
-			double a1 = Math.PI * (i + 1) / SLICES;
+			// Walk the left end the other way round: mirrored, its quads would wind backwards and
+			// be culled, leaving that end flat.
+			double a0 = Math.PI * (side < 0 ? i + 1 : i) / SLICES;
+			double a1 = Math.PI * (side < 0 ? i : i + 1) / SLICES;
 			float dx0 = side * (float) Math.sin(a0);
 			float dy0 = (float) -Math.cos(a0);
 			float dx1 = side * (float) Math.sin(a1);
