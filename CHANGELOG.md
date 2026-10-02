@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.18.0] - 2026-10-01
+
+### Added
+- **Minecraft 26.3.** The mod now has a build for 26.3 alongside 1.21.11 and 26.2.
+- **Halloween Carnage gets its own screen.** Every `/carnage` page is drawn as one screen with Today, Hunt, Shop, Leaders, Bestiary and Tags tabs, and the stage and time left in the header.
+  - **Today:** your daily score against the goal, then the 50,000 repeatable goal once the daily one is done. Below that, your raffle tickets with how far off the next one is, and your three missions with their rewards.
+  - **Hunt:** every set with its count and a bar.
+  - **Shop:** how many Souls of Fright you are carrying, with anything you cannot afford dimmed. The free-souls button goes away once you have claimed them.
+  - **Leaders:** the board names the scope its button actually switches to.
+  - **Tags:** drawn in the server's own colours. The ones you have earned are marked, and the next one stands out.
+
+  Every button is a real click on the menu underneath. Switch the screen off under **Custom GUIs** in Mod Menu to get the chest menus back.
+- **A Halloween Carnage widget.** It appears when you gain points or move a mission, the same way the Mastery progress widget does, and fades out again.
+  - **Score row:** your daily score, with marks on the bar where each raffle ticket lands. Once the daily goal is done it switches to the repeatable goal.
+  - **Mission row:** shows up when a kill moves that mission.
+
+  Pin either row in the HUD editor to keep it on screen. It keeps itself current from the points on your actionbar (boosted points included), your kills, and the server's goal, mission and raffle-ticket lines. **Open `/carnage` to sync it.**
+- **Halloween Hunt progress** is read from `/carnage hunt` and kept current from the "found!" and "found all" chat lines.
+- **Carnage tracking switches itself off when the event ends**, at midnight Eastern on November 1. After that the widget leaves the HUD editor and the mod stops reading Carnage chat, actionbar lines and menus. The `/carnage` screen stays, because the menus are still there to look at.
+- **The Carnage booster is on the Boosters widget**, with its multiplier and time left from the server's broadcasts. It clears when the server says the boost has ended, which can be well before its stated time.
+- **Create a coinflip from the `/cf` board.** **Create** sits beside Refresh. To set your stake, type an amount or tap chips that add up; the chips are 500k, 1m, 5m and 10m out of the box, and the cog sets your own, up to 100m. **Balance** goes all in. Pick heads or tails and confirm, and the mod sends `/cf create` for you. Your last side is remembered.
+- **The Halloween Carnage mini-event has a jack-o'-lantern icon** on the Mini-Event widget.
+
+### Changed
+- **The custom screens have their own Custom GUIs tab in Mod Menu.** It holds every board toggle (casino games, crates, coinflip, Carnage) along with Hold the Coinflip Result.
+- **Carnage mobs no longer flood your log.** Minecraft logs a warning for every Carnage mob that spawns, because the server gives those mobs attributes the game does not know. Those warnings are now muted. The toggle is under General in Mod Menu.
+- **The widgets cost much less to draw.** Cooldown rings and rounded bars are each drawn as one shape instead of a fill per pixel, and widgets build their rows once a frame. In the in-game performance test the whole HUD went from about 1.7 ms a frame to under 0.15 ms.
+
+### Fixed
+- **Rounded bars are round at both ends again.** The left end of every rounded bar was being drawn flat.
+- **The Carnage tabs' underline and hover box sit centred on their labels.** Both were drawn a pixel or two to the right.
+
 ## [1.17.1] - 2026-09-24
 
 ### Fixed
