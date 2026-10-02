@@ -188,4 +188,67 @@ public class CarnageTest {
 		assertFalse(CarnageTracker.claimedFreeSouls(line, "Bob"));
 		assertFalse(CarnageTracker.claimedFreeSouls("[VIP] Bob: MCLabs Ophiliah just claimed their 5 Free Souls of Fright", "Ophiliah"));
 	}
+
+	/** The dashboard at 19:47 on day one, after the daily goal and two missions. */
+	private static final List<SlotView> AFTER_GOAL = List.of(
+			item("Daily Missions", List.of(
+					"[2/3] Complete all daily missions for:", "  • 0.2 Event Points", "  • 100 Store Points", "",
+					"[2/4] Kill 4x Poltergeist", BAR, "• 1x Halloween Crate Key", "",
+					"✔ Kill 125x Geist", "Complete!", "• Next Tag: [Mummy] ", "",
+					"✔ Kill 3x Scarecrow", "Complete!", "• 200 Store Points")),
+			item("Daily Score Goal", List.of("", "Daily Goal Complete!", "", "Repeatable Goal:",
+					"Progress: 391.65/50,000", BAR, "", "Reward:", "• Next Tag: [Mummy] ")),
+			item("Daily Raffle", List.of("You have 5/10 tickets.", "", "Next Ticket: 1,448.09/1,525.79", BAR)),
+			item("Daily Score Goal Bonus", List.of("", "Goals Completed: 1/16", "")),
+			// Same day as DASHBOARD, so a known total carries across.
+			item("Carnage Countdown", List.of("", "Current day ends in: 1d:06h:06m", "", "Stage I ends in: 8d:06h:06m")));
+
+	@Test
+	public void afterTheGoalTheDashboardTracksTheRepeatGoal() {
+		Daily synced = CarnageReader.dashboard(AFTER_GOAL, NOW);
+		assertTrue(synced.goalDone());
+		assertEquals(50_000, synced.repeatGoal());
+		assertEquals(391.65, synced.repeatProgress(), 1e-9);
+		assertEquals(List.of(
+				new Mission("Kill 4x Poltergeist", "poltergeist", 2, 4, "1x Halloween Crate Key"),
+				new Mission("Kill 125x Geist", "geist", 125, 125, "Next Tag: [Mummy]"),
+				new Mission("Kill 3x Scarecrow", "scarecrow", 3, 3, "200 Store Points")), synced.missions());
+	}
+
+	@Test
+	public void aKnownTotalAnchorsTheRepeatGoalAndKillsMoveIt() {
+		Daily known = CarnageTracker.withScore(CarnageReader.dashboard(DASHBOARD, NOW), 5_551.6);
+		Daily merged = CarnageTracker.merge(known, CarnageReader.dashboard(AFTER_GOAL, NOW));
+		assertEquals(5_551.6, merged.score(), 1e-9);
+		assertEquals(391.65, merged.repeatProgress(), 1e-6);
+		assertEquals(401.65, CarnageTracker.withScore(merged, 5_561.6).repeatProgress(), 1e-6);
+	}
+
+	@Test
+	public void withNoTotalTheNextKillAnchorsTheRepeatGoal() {
+		Daily pending = CarnageTracker.merge(null, CarnageReader.dashboard(AFTER_GOAL, NOW));
+		assertEquals(391.65, pending.repeatProgress(), 1e-9);
+		Daily anchored = CarnageTracker.withScore(pending, 5_560);
+		assertEquals(391.65, anchored.repeatProgress(), 1e-6);
+		assertEquals(401.65, CarnageTracker.withScore(anchored, 5_570).repeatProgress(), 1e-6);
+	}
+
+	@Test
+	public void theGoalCompletesOnceAndTheRepeatStartsThere() {
+		Daily daily = CarnageReader.dashboard(DASHBOARD, NOW);
+		Daily crossed = CarnageTracker.withScore(daily, 5_160);
+		assertTrue(crossed.goalDone());
+		assertEquals(1, crossed.goalsDone());
+		assertEquals(0, crossed.repeatProgress(), 1e-9);
+		assertEquals(1, CarnageTracker.goalCompleted(crossed).goalsDone());
+		assertEquals(40, CarnageTracker.withScore(crossed, 5_200).repeatProgress(), 1e-9);
+	}
+
+	@Test
+	public void theServerSaysWhenAMissionIsDone() {
+		Daily daily = CarnageReader.dashboard(DASHBOARD, NOW);
+		Daily after = CarnageTracker.missionCompleted(daily, "Kill 125x Geist");
+		assertTrue(after.missions().get(1).done());
+		assertEquals(0, after.missions().get(0).current());
+	}
 }

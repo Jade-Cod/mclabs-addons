@@ -281,21 +281,25 @@ public final class CarnageBoard extends CasinoPanel {
 		context.pose().pushMatrix();
 		context.pose().translate(PAD, y);
 		context.pose().scale(2f, 2f);
-		String score = number(daily.score());
+		// After the daily goal the menu tracks the repeatable goal it turned into, so this does too.
+		boolean repeat = daily.goalDone();
+		double current = repeat ? daily.repeatProgress() : daily.score();
+		int target = repeat ? daily.repeatGoal() : daily.scoreGoal();
+		String score = number(current);
 		text(context, font, score, 0, 0, 0xFFFFFFFF);
 		context.pose().popMatrix();
-		String ofGoal = "/ " + number(daily.scoreGoal());
+		String ofGoal = "/ " + number(target);
 		int ofGoalX = PAD + font.width(score) * 2 + 5;
 		text(context, font, ofGoal, ofGoalX, y + 7, TEXT_FAINT);
 
 		// The reward takes what is left of the line; a five-figure score leaves less, so the
 		// "Goal →" label goes first and then the reward is trimmed, rather than overlapping.
-		boolean goalMet = daily.scoreGoal() > 0 && daily.score() >= daily.scoreGoal();
+		boolean goalMet = target > 0 && current >= target;
 		String reward = loreAfter(slots, "Daily Score Goal", "Reward:");
 		if (!reward.isEmpty()) {
 			int right = PANEL_W - PAD;
 			int room = right - (ofGoalX + font.width(ofGoal) + 8);
-			String label = goalMet ? "✔ " : "Goal → ";
+			String label = goalMet ? "✔ " : repeat ? "Repeat → " : "Goal → ";
 			if (font.width(label + reward) > room) {
 				label = goalMet ? "✔ " : "";
 			}
@@ -306,8 +310,10 @@ public final class CarnageBoard extends CasinoPanel {
 		}
 		int barY = y + 20;
 		int barH = 6;
-		bar(context, PAD, barY, BODY_W, barH, fraction(daily.score(), daily.scoreGoal()), goalMet ? WIN : PUMPKIN, 0);
-		notches(context, barY, barH, daily);
+		bar(context, PAD, barY, BODY_W, barH, fraction(current, target), goalMet ? WIN : PUMPKIN, 0);
+		if (!repeat) {
+			notches(context, barY, barH, daily);
+		}
 		leave(context);
 		int goalSlot = slotNamed(slots, "Daily Score Goal");
 		if (goalSlot >= 0 && hovered(PAD, y, BODY_W, 28)) {
@@ -343,8 +349,10 @@ public final class CarnageBoard extends CasinoPanel {
 			String rest = " of " + daily.maxTickets() + " raffle tickets";
 			text(context, font, rest, x, y, TEXT_DIM);
 			x += font.width(rest);
-			if (daily.ticketBase() > 0) {
-				text(context, font, " · next at " + number(CarnageTracker.ticketThreshold(daily, daily.tickets() + 1)), x, y, TEXT_FAINT);
+			// The menu's own "Next Ticket: 1,448.09/1,525.79", so this needs no cost schedule.
+			double[] next = parseFraction(loreValue(slots, "Daily Raffle", "Next Ticket:"));
+			if (next != null && next[1] > next[0]) {
+				text(context, font, " · next in " + number(Math.ceil(next[1] - next[0])), x, y, TEXT_FAINT);
 			}
 		}
 		String draws = loreValue(slots, "Daily Raffle", "Drawing in:");
@@ -868,6 +876,17 @@ public final class CarnageBoard extends CasinoPanel {
 			}
 		}
 		return "";
+	}
+
+	/** "1,448.09/1,525.79" as {have, of}, or null. */
+	private static double[] parseFraction(String text) {
+		int slash = text.indexOf('/');
+		if (slash < 0) {
+			return null;
+		}
+		Double have = CarnageTracker.parseNumber(text.substring(0, slash).trim());
+		Double of = CarnageTracker.parseNumber(text.substring(slash + 1).trim());
+		return have == null || of == null ? null : new double[]{have, of};
 	}
 
 	private static double fraction(double have, double of) {

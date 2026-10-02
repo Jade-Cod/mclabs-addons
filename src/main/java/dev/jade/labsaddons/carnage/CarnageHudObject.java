@@ -177,7 +177,11 @@ public class CarnageHudObject extends HudObject {
 	private static List<Row> rows(Daily daily, boolean showAll) {
 		List<Row> rows = new ArrayList<>();
 		float scoreAlpha = showAll ? 1f : visibility(PIN_SCORE, CarnageTracker.SCORE_GAIN);
-		if (scoreAlpha > 0 && daily.scoreGoal() > 0) {
+		if (scoreAlpha > 0 && daily.goalDone()) {
+			// The daily goal is done: the row follows the repeatable goal it turned into.
+			rows.add(row(scoreIcon(), "Repeat goal", daily.repeatProgress(), daily.repeatGoal(),
+					MasteryGains.delta(CarnageTracker.SCORE_GAIN), NO_NOTCHES, scoreAlpha));
+		} else if (scoreAlpha > 0 && daily.scoreGoal() > 0) {
 			rows.add(row(scoreIcon(), "Daily score", daily.score(), daily.scoreGoal(),
 					MasteryGains.delta(CarnageTracker.SCORE_GAIN), ticketNotches(daily), scoreAlpha));
 		}
