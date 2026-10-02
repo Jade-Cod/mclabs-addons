@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -177,5 +178,13 @@ public class CarnageTest {
 		assertEquals(1, ticket[0]);
 		assertEquals(10, ticket[1]);
 		assertNull(CarnageTracker.ticketEarned("[VIP] Bob: Carnage » Carnage Daily Raffle Ticket 9/10 earned!"));
+	}
+
+	@Test
+	public void onlyYourOwnFreeSoulsClaimCounts() {
+		String line = "MCLabs Ophiliah just claimed their 5 Free Souls of Fright. Click this message to get yours.";
+		assertTrue(CarnageTracker.claimedFreeSouls(line, "Ophiliah"));
+		assertFalse(CarnageTracker.claimedFreeSouls(line, "Bob"));
+		assertFalse(CarnageTracker.claimedFreeSouls("[VIP] Bob: MCLabs Ophiliah just claimed their 5 Free Souls of Fright", "Ophiliah"));
 	}
 }

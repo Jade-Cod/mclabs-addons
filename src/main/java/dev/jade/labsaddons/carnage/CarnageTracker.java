@@ -34,6 +34,15 @@ public final class CarnageTracker {
 	// ponytail: inferred from three tickets, not stated anywhere; if a later ticket's
 	// "Next Ticket" disagrees, this is the number to change.
 	static final double RAFFLE_RATIO = 1.25;
+	/** "MCLabs Ophiliah just claimed their 5 Free Souls of Fright. Click this message to get yours." */
+	private static final Pattern FREE_SOULS = Pattern.compile(
+			"^MCLabs\\s*»?\\s*(\\w+) just claimed their \\d+ Free Souls of Fright");
+	/**
+	 * The free souls are once per event, and the event runs a month: a claim older than this is
+	 * a past year's, and the button comes back.
+	 */
+	// ponytail: a fixed window; key it off the event's end date if MCLabs states one.
+	static final long FREE_SOULS_MS = 45L * DAY_MS;
 	/** "Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score." */
 	private static final Pattern TICKET_EARNED = Pattern.compile(
 			"^Carnage »\\s+Carnage Daily Raffle Ticket (\\d+)/(\\d+) earned!");
@@ -131,8 +140,30 @@ public final class CarnageTracker {
 		}
 	}
 
+	public static boolean freeSoulsClaimed() {
+		long at = LabsAddonsConfig.get().carnageFreeSoulsClaimedMs;
+		return at > 0 && System.currentTimeMillis() - at < FREE_SOULS_MS;
+	}
+
+	/** Whether this line is the server saying {@code self} claimed the free souls. */
+	static boolean claimedFreeSouls(String text, String self) {
+		Matcher matcher = FREE_SOULS.matcher(text.trim());
+		return self != null && matcher.find() && matcher.group(1).equalsIgnoreCase(self);
+	}
+
+	/** Raffle tickets earned, and your own free-souls claim. */
+	public static void onMessage(String text, String self) {
+		if (claimedFreeSouls(text, self)) {
+			LabsAddonsConfig config = LabsAddonsConfig.get();
+			config.carnageFreeSoulsClaimedMs = System.currentTimeMillis();
+			config.save();
+			return;
+		}
+		onTicket(text);
+	}
+
 	/** The server's own count when a ticket is earned, which beats our arithmetic. */
-	public static void onMessage(String text) {
+	private static void onTicket(String text) {
 		int[] ticket = ticketEarned(text);
 		Daily daily = ticket == null ? null : daily();
 		if (daily == null) {
