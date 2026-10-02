@@ -7,9 +7,13 @@ scripts/e2e-all.sh              # unit + in-game tests on 1.21.11, 26.2 and 26.3
 scripts/e2e-all.sh pit,bounty   # only scenarios whose names contain pit or bounty
 ./gradlew runClientGameTest     # this version only
 ./gradlew runClientGameTest -Pe2eUpdate   # rewrite every expected/*.json, then review the diff
+./gradlew runClientGameTest -Pperf        # PerformanceGameTest alone: frame, chat, tick budgets and leaks
 ```
 
 Results land in `build/e2e-all/` (one log, report and screenshot folder per version).
+A full `e2e-all.sh` run then runs the performance test on each version in turn, since its
+budgets are microseconds a frame and three clients at once would blow them. Add `-Pjfr` to
+record a profile (`build/gametest.jfr`) when a budget fails.
 
 ## What a run checks
 
