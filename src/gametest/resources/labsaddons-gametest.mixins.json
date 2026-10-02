@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "dev.jade.labsaddons.gametest.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ChatTimingMixin",
+		"HudTimingMixin",
+		"VanillaHudTimingMixin",
+		"WidgetTimingMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

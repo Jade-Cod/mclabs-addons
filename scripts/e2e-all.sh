@@ -4,6 +4,9 @@
 #   scripts/e2e-all.sh              # all three, in parallel
 #   scripts/e2e-all.sh pit          # only scenarios whose name contains "pit"
 #
+# A full run then runs PerformanceGameTest on each version, one at a time: its budgets are
+# microseconds a frame, which three clients sharing the machine would blow on their own.
+#
 # Scenarios and goldens are authored here, on the 1.21.11 checkout, and copied into
 # the 26.x worktrees before each run, so every version is held to the same result.
 # Point E2E_262 / E2E_263 elsewhere if those worktrees live somewhere else.
@@ -32,6 +35,15 @@ for entry in "${VERSIONS[@]}"; do
 done
 wait "${pids[@]}"
 
+if [ -z "$ONLY" ]; then
+	for entry in "${VERSIONS[@]}"; do
+		version=${entry%%=*} dir=${entry#*=}
+		[ -d "$dir" ] || continue
+		(cd "$dir" && ./gradlew runClientGameTest -Pperf --console=plain >"$OUT/$version-perf.log" 2>&1
+			echo $? >"$OUT/$version-perf.exit")
+	done
+fi
+
 python3 - "$OUT" <<'PY'
 import json, os, sys
 out = sys.argv[1]
@@ -54,6 +66,17 @@ for version in ("1.21.11", "26.2", "26.3"):
             print(f"         FAIL {r['scenario']}: {'; '.join(r['problems'][:2]) or 'state differs from expected'}")
     if code != "0":
         worst = 1
+    perf_exit = os.path.join(out, version + "-perf.exit")
+    if os.path.exists(perf_exit):
+        lines = open(os.path.join(out, version + "-perf.log"), errors="replace").read().splitlines()
+        hud = next((l.split("[perf] ", 1)[1] for l in lines if "[perf] HUD render pass" in l), "no HUD figures")
+        over = [l.split("OVER BUDGET: ", 1)[1] for l in lines if "OVER BUDGET" in l]
+        perf_code = open(perf_exit).read().strip()
+        print(f"         perf {'PASS' if perf_code == '0' else 'FAIL'}: {hud}")
+        for miss in over:
+            print(f"         perf over budget: {miss}")
+        if perf_code != "0":
+            worst = 1
 print(f"\nLogs, reports and screenshots: {out}")
 sys.exit(worst)
 PY
