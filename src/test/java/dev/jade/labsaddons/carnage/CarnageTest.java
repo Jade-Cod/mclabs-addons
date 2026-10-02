@@ -286,6 +286,11 @@ public class CarnageTest {
 		assertEquals(0, cat.sets().get(2).found());
 		assertEquals(3, cat.found());
 
+		Hunt done = CarnageTracker.huntFound(hunt,
+				"Halloween Hunt » You have found all Skulls and Bones! Claim your tags with /claim.");
+		assertEquals(10, done.sets().get(1).found());
+		assertEquals(12, done.found());
+
 		assertNull(CarnageTracker.huntFound(hunt, "Halloween Hunt » Ghost found! [1/7]"));
 		assertNull(CarnageTracker.huntFound(hunt, "Carnage » Daily goal completed!"));
 		assertNull(CarnageTracker.huntFound(null, "Halloween Hunt » Cat found! [1/5]"));
