@@ -58,13 +58,15 @@ public final class CarnageTracker {
 	}
 
 	/**
-	 * "+4.3 Carnage Points (67 - 67)". The first figure in the brackets is taken as today's
-	 * score, the one the Daily Score Goal and the raffle count against.
+	 * "+4.3 Carnage Points (67 - 67)", or with a booster running "+6.6 Carnage Points [1.5x]
+	 * (1,740 - 1,740)": anything but a bracket may sit between the words and the figures. The
+	 * first figure in the brackets is taken as today's score, the one the Daily Score Goal and
+	 * the raffle count against.
 	 */
 	// ponytail: both figures were equal in the only sample (day one of stage one), so which
 	// is daily and which is stage is a guess. Swap the group if the goal bar runs away.
 	private static final Pattern POINTS = Pattern.compile(
-			"\\+\\s*[\\d.,]+\\s+Carnage Points\\s*\\(\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE);
+			"\\+\\s*[\\d.,]+\\s+Carnage Points[^(]*\\(\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern KILL = Pattern.compile("^Kill\\s+[\\d,]+x\\s+(.+)$", Pattern.CASE_INSENSITIVE);
 
 	/** {@code mob} is the lowercase mob a "Kill Nx Mob" mission counts, or null for any other kind. */
