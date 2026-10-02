@@ -664,7 +664,10 @@ public final class CarnageBoard extends CasinoPanel {
 			enter(context, 1 + i / cols + i % cols);
 			boolean hot = hovered(x, y, cardW, cardH);
 			HudObject.drawRoundedRect(context, x, y, cardW, cardH,
-					c(tag.unlocked() ? shade(WIN, 0x22) : hot ? CARD_HOT : CARD));
+					c(tag.unlocked() ? shade(WIN, 0x22) : tag.next() ? shade(PUMPKIN, 0x26) : hot ? CARD_HOT : CARD));
+			if (tag.next()) {
+				EditorPainter.outline(context, x, y, cardW, cardH, c(shade(PUMPKIN, 0x90)));
+			}
 			Component name = tagLabel(stackAt(tag.slot()), tag.name());
 			int nameW = font.width(name);
 			if (nameW <= cardW - 8) {
@@ -674,7 +677,8 @@ public final class CarnageBoard extends CasinoPanel {
 				text(context, font, plain, x + (cardW - font.width(plain)) / 2, y + 8, TEXT);
 			}
 			String status = tag.unlocked() ? "✔ unlocked" : tag.status();
-			text(context, font, status, x + (cardW - font.width(status)) / 2, y + 20, tag.unlocked() ? WIN : TEXT_FAINT);
+			text(context, font, status, x + (cardW - font.width(status)) / 2, y + 20,
+					tag.unlocked() ? WIN : tag.next() ? PUMPKIN : TEXT_FAINT);
 			leave(context);
 			if (hot) {
 				tooltip(context, font, stackAt(tag.slot()));
