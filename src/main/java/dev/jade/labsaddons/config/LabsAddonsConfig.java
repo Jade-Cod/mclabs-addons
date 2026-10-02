@@ -278,6 +278,11 @@ public class LabsAddonsConfig {
 	/** Draw the mod's own Halloween Carnage screen over the /carnage menus. */
 	public boolean carnageOverlay = true;
 	/**
+	 * Skip the client's "Entity ... does not have attribute ..." warning. MCLabs' custom mobs
+	 * are sent player-only attributes, and the warning was three lines in four of the log.
+	 */
+	public boolean quietMobAttributeWarnings = true;
+	/**
 	 * A voter crate's published odds, scraped from the menu punching one opens. Server-derived
 	 * and useless to a player editing a file, so it lives in state.json — and it is the only
 	 * place those figures exist once the roll has started.
@@ -566,6 +571,7 @@ public class LabsAddonsConfig {
 		clean.coinflipChips = dev.jade.labsaddons.coinflip.CfChips.sanitize(this.coinflipChips);
 		clean.crateOverlay = this.crateOverlay;
 		clean.carnageOverlay = this.carnageOverlay;
+		clean.quietMobAttributeWarnings = this.quietMobAttributeWarnings;
 		if (this.voteCrateOdds != null) {
 			for (dev.jade.labsaddons.crate.VoteOddsEntry entry : this.voteCrateOdds) {
 				// A hand-edited or part-written entry would show a figure against the wrong

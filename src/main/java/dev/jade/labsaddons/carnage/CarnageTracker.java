@@ -43,6 +43,16 @@ public final class CarnageTracker {
 	 */
 	// ponytail: a fixed window; key it off the event's end date if MCLabs states one.
 	static final long FREE_SOULS_MS = 45L * DAY_MS;
+	/** "Carnage » Daily goal completed! Claim your reward with /claim" */
+	private static final Pattern GOAL_DONE = Pattern.compile("^Carnage »\\s+Daily goal completed!");
+	/** "Carnage » Daily mission complete! (Kill 125x Geist). Claim your reward with /claim" */
+	private static final Pattern MISSION_DONE = Pattern.compile("^Carnage »\\s+Daily mission complete! \\((.+?)\\)");
+	/**
+	 * The repeatable goal that follows the daily one, until a dashboard sync states it: the
+	 * menu's "Progress: 391.65/50,000" on day one of Stage I.
+	 */
+	static final int REPEAT_GOAL = 50_000;
+	private static final long SAME_DAY_SLACK_MS = 10 * 60_000L;
 	/** "Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score." */
 	private static final Pattern TICKET_EARNED = Pattern.compile(
 			"^Carnage »\\s+Carnage Daily Raffle Ticket (\\d+)/(\\d+) earned!");
@@ -80,12 +90,46 @@ public final class CarnageTracker {
 		}
 	}
 
-	/** What the dashboard said, moved on by kills since. {@code score} is today's. */
+	/**
+	 * What the dashboard said, moved on by kills since. {@code score} is today's total.
+	 *
+	 * <p>Once the daily goal is done the dashboard swaps it for a repeatable one: {@code
+	 * repeatGoal} is its size (0 until then), and {@code repeatStart} the total score it
+	 * started counting from. It starts at the moment the goal completes, with whatever the
+	 * finishing kill overshot by thrown away, which is what the menu's figures fit. A
+	 * {@code repeatStart} below zero means the total isn't known yet: {@code score} then holds
+	 * the menu's repeat progress, and the next kill anchors it.
+	 */
 	public record Daily(long dayEndMs, String stage, long stageEndMs, double score, int scoreGoal,
-			int tickets, int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions) {
+			int tickets, int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions,
+			int repeatGoal, double repeatStart) {
 		public Daily {
 			missions = missions == null ? List.of() : List.copyOf(missions);
 			stage = stage == null ? "" : stage;
+		}
+
+		public Daily(long dayEndMs, String stage, long stageEndMs, double score, int scoreGoal, int tickets,
+				int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions) {
+			this(dayEndMs, stage, stageEndMs, score, scoreGoal, tickets, maxTickets, ticketBase, goalsDone,
+					goalsTotal, missions, 0, 0);
+		}
+
+		public boolean goalDone() {
+			return repeatGoal > 0;
+		}
+
+		/** Progress toward the repeatable goal; 0 before the daily goal is done. */
+		public double repeatProgress() {
+			if (!goalDone()) {
+				return 0;
+			}
+			return repeatStart < 0 ? score : Math.max(0, score - repeatStart);
+		}
+
+		Daily with(double score, int tickets, int goalsDone, List<Mission> missions, int repeatGoal,
+				double repeatStart) {
+			return new Daily(dayEndMs, stage, stageEndMs, score, scoreGoal, tickets, maxTickets, ticketBase,
+					goalsDone, goalsTotal, missions, repeatGoal, repeatStart);
 		}
 	}
 
@@ -120,8 +164,31 @@ public final class CarnageTracker {
 		return LabsAddonsConfig.get().carnageHunt;
 	}
 
-	public static void onDashboard(Daily daily) {
-		store(daily);
+	/**
+	 * A dashboard sync. Before the goal it states the total outright. After it, it states only
+	 * the repeat progress, so the total we already know is kept and the repeat anchored to it;
+	 * without one, the next kill anchors it.
+	 */
+	public static void onDashboard(Daily synced) {
+		store(merge(daily(), synced));
+	}
+
+	static Daily merge(Daily known, Daily synced) {
+		if (!synced.goalDone()) {
+			return synced;
+		}
+		int scoreGoal = synced.scoreGoal() > 0 ? synced.scoreGoal() : known == null ? 0 : known.scoreGoal();
+		double progress = synced.score();
+		Daily base = new Daily(synced.dayEndMs(), synced.stage(), synced.stageEndMs(), progress, scoreGoal,
+				synced.tickets(), synced.maxTickets(), synced.ticketBase(), synced.goalsDone(), synced.goalsTotal(),
+				synced.missions(), synced.repeatGoal(), -1);
+		// Same day: both day ends come from a minutes-only countdown read at different times.
+		boolean sameDay = known != null && Math.abs(known.dayEndMs() - synced.dayEndMs()) < SAME_DAY_SLACK_MS;
+		if (sameDay && known.score() >= progress) {
+			return base.with(known.score(), synced.tickets(), synced.goalsDone(), synced.missions(),
+					synced.repeatGoal(), known.score() - progress);
+		}
+		return base;
 	}
 
 	public static void onHunt(Hunt hunt) {
@@ -161,6 +228,19 @@ public final class CarnageTracker {
 			config.save();
 			return;
 		}
+		Daily daily = daily();
+		if (daily == null) {
+			return;
+		}
+		if (GOAL_DONE.matcher(text.trim()).find()) {
+			store(goalCompleted(daily));
+			return;
+		}
+		Matcher mission = MISSION_DONE.matcher(text.trim());
+		if (mission.find()) {
+			store(missionCompleted(daily, mission.group(1)));
+			return;
+		}
 		onTicket(text);
 	}
 
@@ -172,7 +252,8 @@ public final class CarnageTracker {
 			return;
 		}
 		store(new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(), daily.scoreGoal(),
-				ticket[0], ticket[1], daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), daily.missions()));
+				ticket[0], ticket[1], daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), daily.missions(),
+				daily.repeatGoal(), daily.repeatStart()));
 	}
 
 	/** {held, max} from a "Raffle Ticket 1/10 earned!" line, or null for any other line. */
@@ -271,16 +352,58 @@ public final class CarnageTracker {
 			dayEnd += DAY_MS;
 		}
 		return new Daily(dayEnd, daily.stage(), daily.stageEndMs(), 0, daily.scoreGoal(),
-				0, daily.maxTickets(), daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), List.of());
+				0, daily.maxTickets(), daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), List.of(), 0, 0);
 	}
 
-	/** Raffle tickets earned at this score, up to the cap; never fewer than already counted. */
+	/**
+	 * A new total from a kill. Raffle tickets follow it, and crossing the daily goal finishes
+	 * it (once). After the goal, a total that drops below the last one means the actionbar is
+	 * counting the repeat goal itself rather than the day, and is taken as such.
+	 */
 	static Daily withScore(Daily daily, double score) {
-		boolean crossedGoal = daily.scoreGoal() > 0 && daily.score() < daily.scoreGoal() && score >= daily.scoreGoal();
 		int tickets = Math.max(daily.tickets(), ticketsAt(daily, score));
-		int goalsDone = crossedGoal ? Math.min(daily.goalsTotal(), daily.goalsDone() + 1) : daily.goalsDone();
-		return new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), score, daily.scoreGoal(),
-				tickets, daily.maxTickets(), daily.ticketBase(), goalsDone, daily.goalsTotal(), daily.missions());
+		if (daily.goalDone()) {
+			if (daily.repeatStart() < 0) {
+				// The dashboard gave repeat progress with no total: this kill anchors it.
+				double start = score >= daily.score() ? score - daily.score() : 0;
+				return daily.with(score, tickets, daily.goalsDone(), daily.missions(), daily.repeatGoal(), start);
+			}
+			if (score + 0.5 < daily.score()) {
+				return daily.with(score, daily.tickets(), daily.goalsDone(), daily.missions(), daily.repeatGoal(), 0);
+			}
+			return daily.with(score, tickets, daily.goalsDone(), daily.missions(), daily.repeatGoal(), daily.repeatStart());
+		}
+		Daily moved = daily.with(score, tickets, daily.goalsDone(), daily.missions(), 0, 0);
+		boolean crossed = daily.scoreGoal() > 0 && score >= daily.scoreGoal();
+		return crossed ? goalCompleted(moved) : moved;
+	}
+
+	/**
+	 * The daily goal is done: counted once toward the streak, and the repeatable goal starts
+	 * from the current total. Called by whichever arrives first, the crossing kill or the
+	 * server's "Daily goal completed!" line.
+	 */
+	static Daily goalCompleted(Daily daily) {
+		if (daily.goalDone()) {
+			return daily;
+		}
+		return daily.with(daily.score(), daily.tickets(), Math.min(daily.goalsTotal(), daily.goalsDone() + 1),
+				daily.missions(), REPEAT_GOAL, daily.score());
+	}
+
+	/** "Daily mission complete! (Kill 125x Geist)": that mission is done, whatever we'd counted. */
+	static Daily missionCompleted(Daily daily, String missionName) {
+		List<Mission> missions = new ArrayList<>(daily.missions());
+		for (int i = 0; i < missions.size(); i++) {
+			Mission mission = missions.get(i);
+			if (mission.name().equalsIgnoreCase(missionName.trim()) && !mission.done()) {
+				missions.set(i, new Mission(mission.name(), mission.mob(), mission.target(), mission.target(),
+						mission.reward()));
+				return daily.with(daily.score(), daily.tickets(), daily.goalsDone(), missions, daily.repeatGoal(),
+						daily.repeatStart());
+			}
+		}
+		return daily;
 	}
 
 	/** Credits the first open Kill mission for this mob; returns the same instance if none. */
@@ -291,9 +414,8 @@ public final class CarnageTracker {
 			Mission mission = missions.get(i);
 			if (key.equals(mission.mob()) && !mission.done()) {
 				missions.set(i, mission.plusOne());
-				return new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(),
-						daily.scoreGoal(), daily.tickets(), daily.maxTickets(), daily.ticketBase(),
-						daily.goalsDone(), daily.goalsTotal(), missions);
+				return daily.with(daily.score(), daily.tickets(), daily.goalsDone(), missions, daily.repeatGoal(),
+						daily.repeatStart());
 			}
 		}
 		return daily;
