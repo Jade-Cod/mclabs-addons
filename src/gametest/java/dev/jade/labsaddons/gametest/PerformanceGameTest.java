@@ -259,7 +259,7 @@ public class PerformanceGameTest implements FabricClientGameTest {
 							new dev.jade.labsaddons.carnage.CarnageTracker.Mission("Kill 125x Geist", "geist", 61, 125, ""),
 							new dev.jade.labsaddons.carnage.CarnageTracker.Mission("Kill 3x Scarecrow", "scarecrow", 0, 3, ""))));
 			dev.jade.labsaddons.carnage.CarnageTracker.onHunt(new dev.jade.labsaddons.carnage.CarnageTracker.Hunt(12, 60, List.of()));
-			LabsAddonsConfig.get().pinnedProgressRows.addAll(List.of("carnage:score", "carnage:missions", "carnage:hunt"));
+			LabsAddonsConfig.get().pinnedProgressRows.addAll(List.of("carnage:score", "carnage:missions"));
 		});
 		for (int i = 0; i < 60; i++) {
 			world.getServer().runCommand("summon zombie ~" + (i % 10 - 5) + " ~ ~" + (i / 10 + 3)

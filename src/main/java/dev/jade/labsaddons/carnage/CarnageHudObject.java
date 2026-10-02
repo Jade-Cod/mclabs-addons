@@ -1,80 +1,82 @@
 package dev.jade.labsaddons.carnage;
 
 import dev.jade.labsaddons.carnage.CarnageTracker.Daily;
-import dev.jade.labsaddons.carnage.CarnageTracker.Hunt;
 import dev.jade.labsaddons.carnage.CarnageTracker.Mission;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
-import dev.jade.labsaddons.mastery.MasteryGains;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.HudObjects;
-import dev.jade.labsaddons.hud.TimeFormat;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
+import dev.jade.labsaddons.mastery.MasteryGains;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.network.chat.Component;
-
 import net.minecraft.util.Util;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
- * Halloween Carnage at a glance: today's score toward the goal, raffle tickets, each daily
- * mission with a bar, when the day and stage end, and Halloween Hunt progress.
+ * Halloween Carnage while you grind, laid out like the Mastery and prestige progress widget:
+ * an icon, a name, the figures, what you just gained, and one bar.
  *
  * <pre>
- * Carnage · Stage I · 8d 6h left
- * Daily score  67/5,000
- * ====-------------------
- * Raffle  0/10 tickets · next 67/500
- * Kill 4x Poltergeist  1/4
- * =====-----------------
- * Day resets in 1d 6h · Goals 0/16
- * Hunt  12/60
+ * [skull] Daily score  920/5,000  18%  +4.3
+ *         ###|#---|----|----|----|----|----
+ * [sword] Poltergeist  1/4  25%  +1
+ *         #######----------------------
  * </pre>
+ *
+ * <p>Two questions only: am I close to today's goal, and is the mission I'm on moving. The
+ * score bar is notched at each raffle ticket, since tickets are earned from the same score. A
+ * mission row comes up when you kill its mob. Rows show while they gain and fade like the
+ * progress widget's; the editor can pin either kind to keep it up. Everything else (stage
+ * and day timers, the goal streak, the hunt) is in the {@code /carnage} screen.
  */
 public class CarnageHudObject extends HudObject {
 	public static final String ID = "carnage";
 	private static final int DEFAULT_TEXT_COLOR = 0xFFFF8C1A;
-	private static final int DONE_COLOR = 0xFF7BE06B;
-	private static final int MUTED_COLOR = 0xFFAAAAAA;
+	private static final int GAIN_COLOR = 0xFF7BE06B;
 	private static final int TRACK_COLOR = 0xFF3A4150;
-	private static final int BAR_H = 4;
+	private static final int NOTCH_COLOR = 0xFF1A1D24;
+	private static final int ICON_SIZE = 16;
+	private static final int GAP = 4;
 	private static final int BAR_GAP = 2;
-	private static final int ROW_GAP = 3;
-	private static final int MIN_BAR_W = 110;
-	/** No bar under this row. */
-	private static final double NO_BAR = -1;
+	private static final int ROW_GAP = 5;
+	private static final int BAR_H = 6;
+	/** Icons cannot be drawn translucent, so hide them once a fading row is mostly gone. */
+	private static final float ICON_FADE_CUTOFF = 0.45f;
+	/** Component this faint is skipped: Minecraft draws near-zero alpha as fully opaque. */
+	private static final float MIN_TEXT_ALPHA = 0.05f;
 
 	/** Pin keys in the progress widget's own pin set, so pins follow the HUD profile the same way. */
 	private static final String PIN_SCORE = "carnage:score";
 	private static final String PIN_MISSIONS = "carnage:missions";
-	private static final String PIN_HUNT = "carnage:hunt";
-	/** Component this faint is skipped: Minecraft draws near-zero alpha as fully opaque. */
-	private static final float MIN_TEXT_ALPHA = 0.05f;
+	private static final Pattern KILL_PREFIX = Pattern.compile("^Kill\\s+[\\d,]+x\\s+", Pattern.CASE_INSENSITIVE);
+
+	private static final ItemStack SCORE_ICON = new ItemStack(Items.SKULL_POTTERY_SHERD);
+	private static final ItemStack MISSION_ICON = new ItemStack(Items.IRON_SWORD);
 
 	/**
-	 * {@code color} 0 means the widget's own text colour. The text is resolved and measured once,
-	 * as the row is built, rather than on every measure and draw of the frame.
+	 * One row, its text resolved and measured as it is built. {@code notch} is the bar fraction
+	 * between raffle-ticket cuts, or 0 for none.
 	 */
-	private record Row(String text, int width, int color, double fraction, float alpha) {
-		Row(Component text, int color, double fraction, float alpha) {
-			this(text.getString(), font().width(text.getString()), color, fraction, alpha);
-		}
-
-		Row(Component text, int color, double fraction) {
-			this(text, color, fraction, 1f);
-		}
-
-		Row faded(float to) {
-			return new Row(text, width, color, fraction, to);
-		}
+	private record Row(ItemStack icon, String label, String gain, int width, double fraction, double notch,
+			float alpha) {
 	}
+
+	/**
+	 * Built once a frame: the HUD asks for the rows four times (shouldRender, width, height,
+	 * draw), and rebuilding them each time is what made the old version the costliest widget.
+	 */
+	private static final FrameValue<List<Row>> ROWS = new FrameValue<>();
 
 	@Override
 	public String id() {
@@ -95,14 +97,14 @@ public class CarnageHudObject extends HudObject {
 		return defaults;
 	}
 
-	/**
-	 * Like the progress widget: a notification by default, not a dashboard. A row shows while
-	 * it is gaining and fades {@link MasteryGains#LIFE_MS} after its last gain. Pinning a group
-	 * in the editor keeps it up for good.
-	 */
 	@Override
 	public boolean shouldRender() {
 		return !rows(false).isEmpty();
+	}
+
+	@Override
+	public EditorAction editorAction() {
+		return new EditorAction(Component.translatable("labsaddons.hud.carnage.clear"), CarnageTracker::clear);
 	}
 
 	@Override
@@ -114,8 +116,7 @@ public class CarnageHudObject extends HudObject {
 	public List<ToggleGroup> toggleGroups() {
 		return List.of(new ToggleGroup(Component.translatable("labsaddons.hud.carnage.name"), List.of(
 				pinOption("labsaddons.hud.carnage.pin.score", PIN_SCORE),
-				pinOption("labsaddons.hud.carnage.pin.missions", PIN_MISSIONS),
-				pinOption("labsaddons.hud.carnage.pin.hunt", PIN_HUNT))));
+				pinOption("labsaddons.hud.carnage.pin.missions", PIN_MISSIONS))));
 	}
 
 	private static ToggleOption pinOption(String labelKey, String pin) {
@@ -139,132 +140,75 @@ public class CarnageHudObject extends HudObject {
 		return isPinned(pin) ? 1f : MasteryGains.alpha(gain);
 	}
 
-	@Override
-	public EditorAction editorAction() {
-		return new EditorAction(Component.translatable("labsaddons.hud.carnage.clear"), CarnageTracker::clear);
-	}
-
-	/**
-	 * The rows to draw. In the editor, with nothing gaining or pinned, every row is shown so
-	 * there is something to place, and a sample stands in before the first sync.
-	 */
-	/**
-	 * Built once a frame: the HUD asks for the rows four times (shouldRender, width, height,
-	 * draw), and rebuilding them each time made this the costliest widget after the cooldown
-	 * rings, about 136 us and 100 KB of garbage a frame with every group pinned.
-	 */
-	private static final FrameValue<List<Row>> ROWS = new FrameValue<>();
+	// --- rows ---
 
 	private List<Row> rows(boolean preview) {
 		return ROWS.get(Util.getMillis(), preview, () -> buildRows(preview));
 	}
 
+	/** In the editor, with nothing gaining or pinned, every row shows so there is something to place. */
 	private static List<Row> buildRows(boolean preview) {
 		Daily daily = CarnageTracker.daily();
-		Hunt hunt = CarnageTracker.hunt();
-		long now = System.currentTimeMillis();
-		if (daily != null && now >= daily.stageEndMs() + CarnageTracker.DAY_MS) {
-			// The stage it last saw ended over a day ago: the event, or that stage, is over.
-			daily = null;
+		List<Row> rows = daily == null ? new ArrayList<>() : rows(daily, false);
+		if (rows.isEmpty() && preview) {
+			rows = rows(daily != null ? daily : sampleDaily(), true);
 		}
-		List<Row> body = new ArrayList<>();
-		if (daily != null) {
-			addDaily(body, daily, now, false);
-		}
-		if (hunt != null) {
-			float alpha = visibility(PIN_HUNT, CarnageTracker.HUNT_GAIN);
-			if (alpha > 0) {
-				body.add(huntRow(hunt).faded(alpha));
-			}
-		}
-		if (body.isEmpty() && preview) {
-			Daily shown = daily == null && hunt == null ? sampleDaily() : daily;
-			if (shown != null) {
-				addDaily(body, shown, now, true);
-			}
-			body.add(huntRow(hunt == null ? new Hunt(12, 60, List.of()) : hunt));
-			daily = shown;
-		}
-		if (body.isEmpty()) {
-			return List.of();
-		}
-		float captionAlpha = (float) body.stream().mapToDouble(Row::alpha).max().orElse(1);
-		List<Row> rows = new ArrayList<>();
-		rows.add(caption(daily, now).faded(captionAlpha));
-		rows.addAll(body);
 		return rows;
 	}
 
-	private static Row caption(Daily daily, long now) {
-		return daily != null && now < daily.stageEndMs()
-				? new Row(Component.translatable("labsaddons.hud.carnage.caption", daily.stage(),
-						TimeFormat.hms(daily.stageEndMs() - now)), 0, NO_BAR)
-				: new Row(Component.translatable("labsaddons.hud.carnage.caption_stale"), 0, NO_BAR);
-	}
-
-	private static Row huntRow(Hunt hunt) {
-		return new Row(Component.translatable("labsaddons.hud.carnage.hunt", hunt.found(), hunt.total()),
-				hunt.found() >= hunt.total() ? DONE_COLOR : 0, fraction(hunt.found(), hunt.total()));
-	}
-
-	/**
-	 * The score group (score, raffle, day reset) shows together off a score gain. Each mission
-	 * shows on its own kill, or all of them while Missions is pinned.
-	 */
-	private static void addDaily(List<Row> rows, Daily daily, long now, boolean showAll) {
+	private static List<Row> rows(Daily daily, boolean showAll) {
+		List<Row> rows = new ArrayList<>();
 		float scoreAlpha = showAll ? 1f : visibility(PIN_SCORE, CarnageTracker.SCORE_GAIN);
 		if (scoreAlpha > 0 && daily.scoreGoal() > 0) {
-			rows.add(new Row(Component.translatable("labsaddons.hud.carnage.score",
-					number(daily.score()), number(daily.scoreGoal())),
-					daily.score() >= daily.scoreGoal() ? DONE_COLOR : 0,
-					fraction(daily.score(), daily.scoreGoal()), scoreAlpha));
-		}
-		if (scoreAlpha > 0 && daily.maxTickets() > 0) {
-			boolean full = daily.tickets() >= daily.maxTickets() || daily.ticketCost() <= 0;
-			Component raffle = full
-					? Component.translatable("labsaddons.hud.carnage.raffle_full", daily.tickets(), daily.maxTickets())
-					: Component.translatable("labsaddons.hud.carnage.raffle", daily.tickets(), daily.maxTickets(),
-							number(daily.score() % daily.ticketCost()), number(daily.ticketCost()));
-			rows.add(new Row(raffle, full ? DONE_COLOR : 0, NO_BAR, scoreAlpha));
+			double notch = daily.ticketCost() > 0 && daily.ticketCost() < daily.scoreGoal()
+					? daily.ticketCost() / (double) daily.scoreGoal() : 0;
+			rows.add(row(SCORE_ICON, "Daily score", daily.score(), daily.scoreGoal(),
+					MasteryGains.delta(CarnageTracker.SCORE_GAIN), notch, scoreAlpha));
 		}
 		boolean allMissions = showAll || isPinned(PIN_MISSIONS);
-		if (allMissions && daily.missions().isEmpty()) {
-			rows.add(new Row(Component.translatable("labsaddons.hud.carnage.no_missions"), MUTED_COLOR, NO_BAR));
-		}
 		for (Mission mission : daily.missions()) {
-			float alpha = allMissions ? 1f : MasteryGains.alpha(CarnageTracker.missionGain(mission.name()));
+			String key = CarnageTracker.missionGain(mission.name());
+			float alpha = allMissions ? 1f : MasteryGains.alpha(key);
 			if (alpha > 0) {
-				rows.add(new Row(Component.literal(mission.name() + "  " + mission.current() + "/" + mission.target()),
-						mission.done() ? DONE_COLOR : 0, fraction(mission.current(), mission.target()), alpha));
+				rows.add(row(MISSION_ICON, shortName(mission.name()), mission.current(), mission.target(),
+						MasteryGains.delta(key), 0, alpha));
 			}
 		}
-		if (scoreAlpha > 0 && daily.dayEndMs() > now) {
-			rows.add(new Row(Component.translatable("labsaddons.hud.carnage.day",
-					TimeFormat.hms(daily.dayEndMs() - now), daily.goalsDone(), daily.goalsTotal()),
-					MUTED_COLOR, NO_BAR, scoreAlpha));
-		}
+		return rows;
+	}
+
+	private static Row row(ItemStack icon, String name, double current, double target, double gain,
+			double notch, float alpha) {
+		String label = name + "  " + number(current) + "/" + number(target) + "  " + percent(current, target) + "%";
+		String gainText = gain > 0 ? "  +" + trim(gain) : "";
+		int width = ICON_SIZE + GAP + font().width(label + gainText);
+		double fraction = target <= 0 ? 0 : Math.clamp(current / target, 0.0, 1.0);
+		return new Row(icon, label, gainText, width, fraction, notch, alpha);
+	}
+
+	/** "Kill 4x Poltergeist" reads as "Poltergeist": the icon and the figures say the rest. */
+	static String shortName(String missionName) {
+		return KILL_PREFIX.matcher(missionName).replaceFirst("");
 	}
 
 	private static Daily sampleDaily() {
 		long now = System.currentTimeMillis();
-		return new Daily(now + 30 * 3_600_000L, "Stage I", now + 8 * CarnageTracker.DAY_MS, 1_840, 5_000,
-				3, 10, 500, 2, 16, List.of(
-						new Mission("Kill 4x Poltergeist", "poltergeist", 4, 4, "1x Halloween Crate Key"),
-						new Mission("Kill 125x Geist", "geist", 61, 125, ""),
-						new Mission("Kill 3x Scarecrow", "scarecrow", 1, 3, "")));
-	}
-
-	private static double fraction(double have, double of) {
-		return of <= 0 ? 0 : Math.clamp(have / of, 0.0, 1.0);
+		return new Daily(now + 30 * 3_600_000L, "Stage I", now + 8 * CarnageTracker.DAY_MS, 920, 5_000,
+				1, 10, 625, 0, 16, List.of(new Mission("Kill 4x Poltergeist", "poltergeist", 1, 4, "")));
 	}
 
 	private static String number(double value) {
 		return String.format(Locale.ROOT, "%,d", (long) Math.floor(value));
 	}
 
-	private static int faded(int argb, float alpha) {
-		int a = Math.round(((argb >>> 24) & 0xFF) * Math.clamp(alpha, 0f, 1f));
-		return (a << 24) | (argb & 0x00FFFFFF);
+	private static int percent(double current, double target) {
+		return target <= 0 ? 0 : (int) Math.min(100, Math.floor(current * 100 / target));
+	}
+
+	private static String trim(double value) {
+		return value == Math.rint(value)
+				? String.format(Locale.ROOT, "%,d", (long) value)
+				: String.format(Locale.ROOT, "%,.1f", value);
 	}
 
 	// --- layout ---
@@ -273,46 +217,61 @@ public class CarnageHudObject extends HudObject {
 		return Minecraft.getInstance().font;
 	}
 
-	private static int heightOf(Row row) {
-		return font().lineHeight + (row.fraction() < 0 ? 0 : BAR_GAP + BAR_H);
+	private static int rowHeight() {
+		return Math.max(ICON_SIZE, font().lineHeight) + BAR_GAP + BAR_H;
 	}
 
 	@Override
 	public int contentWidth(boolean preview) {
-		List<Row> rows = rows(preview);
-		int text = rows.stream().mapToInt(row -> row.width()).max().orElse(0);
-		boolean hasBar = rows.stream().anyMatch(row -> row.fraction() >= 0);
-		return hasBar ? Math.max(MIN_BAR_W, text) : text;
+		return rows(preview).stream().mapToInt(Row::width).max().orElse(0);
 	}
 
 	@Override
 	public int contentHeight(boolean preview) {
-		List<Row> rows = rows(preview);
-		return rows.stream().mapToInt(CarnageHudObject::heightOf).sum() + Math.max(0, rows.size() - 1) * ROW_GAP;
+		int rows = rows(preview).size();
+		return rows == 0 ? 0 : rows * rowHeight() + (rows - 1) * ROW_GAP;
+	}
+
+	private static int faded(int argb, float alpha) {
+		int a = Math.round(((argb >>> 24) & 0xFF) * Math.clamp(alpha, 0f, 1f));
+		return (a << 24) | (argb & 0x00FFFFFF);
 	}
 
 	@Override
 	protected void renderContent(GuiGraphicsExtractor context, boolean preview) {
 		Font font = font();
 		int baseColor = settings().textColor | 0xFF000000;
-		int width = contentWidth(preview);
+		int textTop = Math.max(0, (ICON_SIZE - font.lineHeight) / 2);
+		int barX = ICON_SIZE + GAP;
+		int barW = Math.max(BAR_H, contentWidth(preview) - barX);
 		int y = 0;
 		for (Row row : rows(preview)) {
-			int color = faded(row.color() == 0 ? baseColor : row.color(), row.alpha());
-			if (row.alpha() >= MIN_TEXT_ALPHA) {
-				context.text(font, row.text(), 0, y, color, true);
+			float alpha = row.alpha();
+			if (alpha > ICON_FADE_CUTOFF) {
+				context.item(row.icon(), 0, y);
 			}
-			if (row.fraction() >= 0) {
-				int barY = y + font.lineHeight + BAR_GAP;
-				EditorPainter.pill(context, 0, barY, width, BAR_H, faded(TRACK_COLOR, row.alpha()));
-				int filled = (int) Math.round(width * row.fraction());
-				if (filled >= BAR_H) {
-					EditorPainter.pill(context, 0, barY, filled, BAR_H, color);
-				} else if (filled > 0) {
-					context.fill(0, barY, filled, barY + BAR_H, color);
+			if (alpha >= MIN_TEXT_ALPHA) {
+				context.text(font, row.label(), barX, y + textTop, faded(baseColor, alpha), true);
+				if (!row.gain().isEmpty()) {
+					context.text(font, row.gain(), barX + font.width(row.label()), y + textTop,
+							faded(GAIN_COLOR, alpha), true);
 				}
 			}
-			y += heightOf(row) + ROW_GAP;
+			int barY = y + Math.max(ICON_SIZE, font.lineHeight) + BAR_GAP;
+			EditorPainter.pill(context, barX, barY, barW, BAR_H, faded(TRACK_COLOR, alpha));
+			int filled = (int) Math.round(barW * row.fraction());
+			if (filled >= BAR_H) {
+				EditorPainter.pill(context, barX, barY, filled, BAR_H, faded(baseColor, alpha));
+			} else if (filled > 0) {
+				context.fill(barX, barY, barX + filled, barY + BAR_H, faded(baseColor, alpha));
+			}
+			if (row.notch() > 0) {
+				for (double at = row.notch(); at < 1.0 - 1e-6; at += row.notch()) {
+					int nx = barX + (int) Math.round(barW * at);
+					context.fill(nx, barY, nx + 1, barY + BAR_H, faded(NOTCH_COLOR, alpha));
+				}
+			}
+			y += rowHeight() + ROW_GAP;
 		}
 	}
 }
