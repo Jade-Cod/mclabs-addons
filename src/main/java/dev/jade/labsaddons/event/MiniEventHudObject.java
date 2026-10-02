@@ -101,6 +101,9 @@ public class MiniEventHudObject extends LabeledTimerHudObject {
 		if (lower.contains("selling") || lower.contains("sell")) {
 			return new ItemStack(Items.LEATHER_HORSE_ARMOR);
 		}
+		if (lower.contains("carnage")) {
+			return new ItemStack(Items.JACK_O_LANTERN);
+		}
 		if (lower.contains("fishing")) {
 			return new ItemStack(Items.FISHING_ROD);
 		}
