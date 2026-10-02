@@ -201,6 +201,9 @@ public class LabsAddonsConfig {
 	public dev.jade.labsaddons.carnage.CarnageTracker.Hunt carnageHunt = null;
 	@Section(ConfigSection.STATE)
 	public dev.jade.labsaddons.carnage.CarnageBooster.State carnageBooster = null;
+	/** When you claimed the event's free Souls of Fright (epoch ms); 0 = not yet. */
+	@Section(ConfigSection.STATE)
+	public long carnageFreeSoulsClaimedMs = 0L;
 
 	// --- Mastery challenges (progress widget) ---
 	/** Last known board, restored on launch so chat reactions count before the first /mastery. */
@@ -496,6 +499,7 @@ public class LabsAddonsConfig {
 		clean.carnageDaily = this.carnageDaily;
 		clean.carnageHunt = this.carnageHunt;
 		clean.carnageBooster = this.carnageBooster;
+		clean.carnageFreeSoulsClaimedMs = Math.max(0L, this.carnageFreeSoulsClaimedMs);
 		if (this.prestigeChems != null) {
 			for (dev.jade.labsaddons.prestige.PrestigeChemEntry entry : this.prestigeChems) {
 				// A nameless chem can never be matched by a sale; a non-positive target

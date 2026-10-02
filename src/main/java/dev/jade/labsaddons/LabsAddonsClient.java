@@ -566,7 +566,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		McLabsWorld.onMessage(text);
 		BoosterTracker.onMessage(text);
 		CarnageBooster.onMessage(text);
-		CarnageTracker.onMessage(text);
+		CarnageTracker.onMessage(text, selfName());
 		MiniEventTracker.onMessage(text);
 		PitTracker.onMessage(text);
 		RaidMineTracker.onMessage(text);

@@ -61,8 +61,26 @@ public class CarnageHudObject extends HudObject {
 	private static final String PIN_MISSIONS = "carnage:missions";
 	private static final Pattern KILL_PREFIX = Pattern.compile("^Kill\\s+[\\d,]+x\\s+", Pattern.CASE_INSENSITIVE);
 
-	private static final ItemStack SCORE_ICON = new ItemStack(Items.SKULL_POTTERY_SHERD);
-	private static final ItemStack MISSION_ICON = new ItemStack(Items.IRON_SWORD);
+	/**
+	 * Made on first draw, not at class load: the widget is registered while the game is still
+	 * starting, and 26.3 refuses to build an item stack before its components are bound.
+	 */
+	private static ItemStack scoreIcon;
+	private static ItemStack missionIcon;
+
+	private static ItemStack scoreIcon() {
+		if (scoreIcon == null) {
+			scoreIcon = new ItemStack(Items.SKULL_POTTERY_SHERD);
+		}
+		return scoreIcon;
+	}
+
+	private static ItemStack missionIcon() {
+		if (missionIcon == null) {
+			missionIcon = new ItemStack(Items.IRON_SWORD);
+		}
+		return missionIcon;
+	}
 
 	/**
 	 * One row, its text resolved and measured as it is built. {@code notches} are where on the
@@ -160,7 +178,7 @@ public class CarnageHudObject extends HudObject {
 		List<Row> rows = new ArrayList<>();
 		float scoreAlpha = showAll ? 1f : visibility(PIN_SCORE, CarnageTracker.SCORE_GAIN);
 		if (scoreAlpha > 0 && daily.scoreGoal() > 0) {
-			rows.add(row(SCORE_ICON, "Daily score", daily.score(), daily.scoreGoal(),
+			rows.add(row(scoreIcon(), "Daily score", daily.score(), daily.scoreGoal(),
 					MasteryGains.delta(CarnageTracker.SCORE_GAIN), ticketNotches(daily), scoreAlpha));
 		}
 		boolean allMissions = showAll || isPinned(PIN_MISSIONS);
@@ -168,7 +186,7 @@ public class CarnageHudObject extends HudObject {
 			String key = CarnageTracker.missionGain(mission.name());
 			float alpha = allMissions ? 1f : MasteryGains.alpha(key);
 			if (alpha > 0) {
-				rows.add(row(MISSION_ICON, shortName(mission.name()), mission.current(), mission.target(),
+				rows.add(row(missionIcon(), shortName(mission.name()), mission.current(), mission.target(),
 						MasteryGains.delta(key), NO_NOTCHES, alpha));
 			}
 		}
