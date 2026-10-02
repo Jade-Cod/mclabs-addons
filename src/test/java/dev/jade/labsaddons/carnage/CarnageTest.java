@@ -74,6 +74,7 @@ public class CarnageTest {
 	@Test
 	public void theActionbarCarriesTodaysScore() {
 		assertEquals(67.0, CarnageTracker.parseScore("+4.3 Carnage Points (67 - 67)"));
+		assertEquals(1740.0, CarnageTracker.parseScore("+6.6 Carnage Points [1.5x] (1,740 - 1,740)"));
 		assertEquals(1234.5, CarnageTracker.parseScore("+12 Carnage Points (1,234.5 ➜ 9,999)"));
 		assertNull(CarnageTracker.parseScore("+4.3 Mastery Points (67)"));
 	}
