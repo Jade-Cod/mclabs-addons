@@ -266,6 +266,8 @@ public class LabsAddonsConfig {
 	public boolean coinflipHoldResult = true;
 	/** The side the /cf create form last used, so it starts there next time. */
 	public String coinflipLastSide = "heads";
+	/** The /cf create form's four quick-add chips, set from its cog. */
+	public java.util.List<Long> coinflipChips = new java.util.ArrayList<>(dev.jade.labsaddons.coinflip.CfChips.DEFAULTS);
 
 	// --- Crate chamber (drawn over the crate menus at /warp crates) ---
 	/** Covers both the supply-crate spin and the voter crate's three-way choice. */
@@ -557,6 +559,7 @@ public class LabsAddonsConfig {
 		clean.coinflipOverlay = this.coinflipOverlay;
 		clean.coinflipHoldResult = this.coinflipHoldResult;
 		clean.coinflipLastSide = "tails".equals(this.coinflipLastSide) ? "tails" : "heads";
+		clean.coinflipChips = dev.jade.labsaddons.coinflip.CfChips.sanitize(this.coinflipChips);
 		clean.crateOverlay = this.crateOverlay;
 		clean.carnageOverlay = this.carnageOverlay;
 		if (this.voteCrateOdds != null) {

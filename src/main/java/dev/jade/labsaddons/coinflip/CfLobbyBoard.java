@@ -17,6 +17,7 @@ import net.minecraft.util.Util;
 
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -67,18 +68,14 @@ public final class CfLobbyBoard extends CasinoPanel {
 
 	// --- create form ---
 	private static final int CREATE_GAP = 6;
-	private static final long MIN_WAGER = 200;
-	private static final long MAX_WAGER = 1_000_000;
-	/** Seven digits covers the max; anything longer is already invalid. */
-	private static final int MAX_DIGITS = 7;
+	/** Nine digits covers the $100M max; anything longer is already invalid. */
+	private static final int MAX_DIGITS = 9;
 	private static final long CONFIRM_MS = 4_000;
 	/** How long after /cf create the lobby is refreshed, so the new flip is listed. */
 	// ponytail: a fixed wait; key off the server's reply once its wording is known.
 	private static final long REFRESH_AFTER_MS = 750;
 	/** A gap this long between frames means the lobby was closed; the form starts fresh. */
 	private static final long REOPEN_GAP_MS = 250;
-	private static final String[] CHIP_LABELS = {"1k", "10k", "100k", "1M"};
-	private static final long[] CHIP_VALUES = {1_000, 10_000, 100_000, 1_000_000};
 
 	private final Map<Integer, CfLobbyReader.Row> rowsBySlot = new HashMap<>();
 	private int scroll;
@@ -88,6 +85,10 @@ public final class CfLobbyBoard extends CasinoPanel {
 	private long confirmUntilMs;
 	private long refreshAtMs;
 	private long lastFrameMs;
+	/** The cog's chip editor: four typed values, one focused, saved on Done. */
+	private boolean editingChips;
+	private int focusedChip;
+	private final String[] chipDrafts = new String[CfChips.COUNT];
 
 	private CfLobbyBoard() {
 	}
@@ -146,6 +147,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 		if (!creating) {
 			return false;
 		}
+		if (editingChips) {
+			return onChipKey(keyCode);
+		}
 		int digit = digitOf(keyCode);
 		if (digit >= 0) {
 			if (allIn) {
@@ -164,6 +168,24 @@ public final class CfLobbyBoard extends CasinoPanel {
 			submit();
 		} else if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
 			closeForm();
+		}
+		return true;
+	}
+
+	/** Typing in the chip editor: into the focused chip; Enter saves, Escape discards. */
+	private boolean onChipKey(int keyCode) {
+		int digit = digitOf(keyCode);
+		String draft = chipDrafts[focusedChip];
+		if (digit >= 0) {
+			if (draft.length() < MAX_DIGITS && !(draft.isEmpty() && digit == 0)) {
+				chipDrafts[focusedChip] = draft + digit;
+			}
+		} else if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+			chipDrafts[focusedChip] = draft.isEmpty() ? "" : draft.substring(0, draft.length() - 1);
+		} else if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+			saveChips();
+		} else if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+			editingChips = false;
 		}
 		return true;
 	}
@@ -329,6 +351,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 
 	private void openForm() {
 		creating = true;
+		editingChips = false;
 		digits = "";
 		allIn = false;
 		confirmUntilMs = 0;
@@ -361,15 +384,15 @@ public final class CfLobbyBoard extends CasinoPanel {
 		if (wager == 0) {
 			return "";
 		}
-		if (wager < MIN_WAGER) {
-			return "min " + Money.format(Money.fromDollars(MIN_WAGER));
+		if (wager < CfChips.MIN) {
+			return "min " + Money.format(Money.fromDollars(CfChips.MIN));
 		}
-		return wager > MAX_WAGER ? "max " + Money.format(Money.fromDollars(MAX_WAGER)) : null;
+		return wager > CfChips.MAX ? "max " + Money.format(Money.fromDollars(CfChips.MAX)) : null;
 	}
 
 	/** First press asks, a second within {@link #CONFIRM_MS} sends. */
 	private void submit() {
-		if (problem() != null) {
+		if (editingChips || problem() != null) {
 			return;
 		}
 		long now = Util.getMeasuringTimeMs();
@@ -387,50 +410,112 @@ public final class CfLobbyBoard extends CasinoPanel {
 		refreshAtMs = now + REFRESH_AFTER_MS;
 	}
 
+	private static List<Long> chips() {
+		return LabsAddonsConfig.get().coinflipChips;
+	}
+
+	private void editChips() {
+		List<Long> chips = chips();
+		for (int i = 0; i < CfChips.COUNT; i++) {
+			chipDrafts[i] = String.valueOf(chips.get(i));
+		}
+		focusedChip = 0;
+		editingChips = true;
+	}
+
+	/** Keeps the editor open if any value is out of range, so nothing half-valid is saved. */
+	private void saveChips() {
+		List<Long> values = new ArrayList<>();
+		for (String draft : chipDrafts) {
+			long value = draft.isEmpty() ? 0 : Long.parseLong(draft);
+			if (!CfChips.valid(value)) {
+				return;
+			}
+			values.add(value);
+		}
+		LabsAddonsConfig.get().coinflipChips = values;
+		LabsAddonsConfig.get().save();
+		editingChips = false;
+	}
+
+	private boolean draftsValid() {
+		for (String draft : chipDrafts) {
+			if (draft.isEmpty() || !CfChips.valid(Long.parseLong(draft))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
-	 * The rail as a form: the amount, quick picks, the side, and a create button that asks
-	 * once before it spends anything.
+	 * The rail as a form: the amount, chips that add to it, the side, and a create button
+	 * that asks once before it spends anything. The cog swaps the chips for the editor that
+	 * sets their values.
 	 */
 	private void createForm(DrawContext context, TextRenderer font, long now) {
 		int x = RAIL_X;
 		int w = PANEL_W - PAD - RAIL_X;
 		int y = CONTENT_Y;
 		caption(context, font, x, y, "NEW FLIP");
+		localButton(context, font, x + w - 13, y - 2, 13, 11, "⚙", true, editingChips,
+				editingChips ? () -> editingChips = false : this::editChips);
 		y += ROW_GAP;
 
-		// The amount box. It always has focus while the form is open, so the caret always blinks.
+		// The amount box. Focused unless the chip editor is open, so its caret blinks.
 		context.fill(x, y, x + w, y + 14, ROW_HOVER);
-		EditorPainter.outline(context, x, y, w, 14, accent());
+		EditorPainter.outline(context, x, y, w, 14, editingChips ? BUTTON_BORDER : accent());
 		String shown = allIn ? "Balance" : digits.isEmpty() ? "" : Money.format(Money.fromDollars(wager()));
 		if (shown.isEmpty()) {
 			context.drawText(font, "type an amount", x + 4, y + 3, TEXT_FAINT, false);
 		} else {
 			context.drawText(font, shown, x + 4, y + 3, TEXT, false);
 		}
-		if (!allIn && (now / 500) % 2 == 0) {
+		if (!editingChips && !allIn && (now / 500) % 2 == 0) {
 			int caretX = x + 4 + (shown.isEmpty() ? 0 : font.getWidth(shown) + 1);
 			context.fill(caretX, y + 3, caretX + 1, y + 11, TEXT);
 		}
 		y += 18;
 
-		int chipW = (w - 4) / 3;
-		for (int i = 0; i < CHIP_LABELS.length; i++) {
-			long value = CHIP_VALUES[i];
-			int cx = x + (i % 3) * (chipW + 2);
-			int cy = y + (i / 3) * 14;
-			boolean picked = !allIn && wager() == value;
-			localButton(context, font, cx, cy, chipW, 12, CHIP_LABELS[i], true, picked, () -> {
-				digits = String.valueOf(value);
+		int chipW = (w - 2) / 2;
+		List<Long> chips = chips();
+		for (int i = 0; i < CfChips.COUNT; i++) {
+			int cx = x + (i % 2) * (chipW + 2);
+			int cy = y + (i / 2) * 14;
+			if (editingChips) {
+				chipBox(context, font, cx, cy, chipW, i, now);
+			} else {
+				long value = chips.get(i);
+				localButton(context, font, cx, cy, chipW, 12, "+" + CfChips.label(value), true, false, () -> {
+					digits = String.valueOf(CfChips.add(allIn ? 0 : wager(), value));
+					allIn = false;
+					confirmUntilMs = 0;
+				});
+			}
+		}
+		int rowY = y + 28;
+		int halfW = (w - 2) / 2;
+		if (editingChips) {
+			localButton(context, font, x, rowY, halfW, 12, "Reset", true, false, () -> {
+				for (int i = 0; i < CfChips.COUNT; i++) {
+					chipDrafts[i] = String.valueOf(CfChips.DEFAULTS.get(i));
+				}
+			});
+			localButton(context, font, x + halfW + 2, rowY, w - halfW - 2, 12, "Done", draftsValid(), false,
+					this::saveChips);
+		} else {
+			// Balance is the all-in, wide enough to read as one; Clear starts the sum over.
+			int clearW = 34;
+			localButton(context, font, x, rowY, w - clearW - 2, 12, "Balance", true, allIn, () -> {
+				allIn = true;
+				confirmUntilMs = 0;
+			});
+			localButton(context, font, x + w - clearW, rowY, clearW, 12, "Clear", true, false, () -> {
+				digits = "";
 				allIn = false;
 				confirmUntilMs = 0;
 			});
 		}
-		// Balance is last, and wide enough to read as the all-in it is.
-		localButton(context, font, x + chipW + 2, y + 14, w - chipW - 2, 12, "Balance", true, allIn, () -> {
-			allIn = true;
-			confirmUntilMs = 0;
-		});
-		y += 32;
+		y += 46;
 
 		boolean heads = heads();
 		int sideW = (w - 2) / 2;
@@ -445,20 +530,40 @@ public final class CfLobbyBoard extends CasinoPanel {
 		y += 19;
 
 		String problem = problem();
-		boolean confirming = problem == null && now < confirmUntilMs;
-		if (confirming) {
-			String what = (allIn ? "Balance" : Money.format(Money.fromDollars(wager()))) + " on " + (heads ? "Heads" : "Tails") + "?";
-			context.drawText(font, font.trimToWidth(what, w), x, y, WARN, false);
+		boolean confirming = !editingChips && problem == null && now < confirmUntilMs;
+		if (editingChips) {
+			context.drawText(font, draftsValid() ? "type each chip" : "each $200 – $100m",
+					x, y, draftsValid() ? TEXT_FAINT : LOSS, false);
+		} else if (confirming) {
+			// The side is on the button, so the full amount always fits: "$100,000,000?" at most.
+			String what = (allIn ? "Whole balance" : Money.format(Money.fromDollars(wager()))) + "?";
+			context.drawText(font, what, x, y, WARN, false);
 		} else if (problem != null && !problem.isEmpty()) {
 			context.drawText(font, problem, x, y, LOSS, false);
 		} else if (allIn) {
 			context.drawText(font, "your whole balance", x, y, TEXT_FAINT, false);
 		}
 		y += 12;
-		localButton(context, font, x, y, w, 15, confirming ? "CONFIRM" : "CREATE", problem == null,
-				confirming, this::submit);
+		localButton(context, font, x, y, w, 15, confirming ? (heads ? "CONFIRM HEADS" : "CONFIRM TAILS") : "CREATE",
+				!editingChips && problem == null, confirming, this::submit);
 		y += 20;
-		context.drawText(font, "esc to cancel", x, y, TEXT_FAINT, false);
+		context.drawText(font, editingChips ? "esc to discard" : "esc to cancel", x, y, TEXT_FAINT, false);
+	}
+
+	/** One chip in the editor: a typed box that takes focus on click. */
+	private void chipBox(DrawContext context, TextRenderer font, int x, int y, int w, int index, long now) {
+		boolean focused = index == focusedChip;
+		String draft = chipDrafts[index];
+		boolean ok = !draft.isEmpty() && CfChips.valid(Long.parseLong(draft));
+		context.fill(x, y, x + w, y + 12, ROW_HOVER);
+		EditorPainter.outline(context, x, y, w, 12, focused ? accent() : ok ? BUTTON_BORDER : LOSS);
+		String shown = draft.isEmpty() ? "" : CfChips.label(Long.parseLong(draft));
+		context.drawText(font, shown, x + 3, y + 2, ok ? TEXT : LOSS, false);
+		if (focused && (now / 500) % 2 == 0) {
+			int caretX = x + 3 + (shown.isEmpty() ? 0 : font.getWidth(shown) + 1);
+			context.fill(caretX, y + 2, caretX + 1, y + 10, TEXT);
+		}
+		action(x, y, w, 12, () -> focusedChip = index);
 	}
 
 	/**
