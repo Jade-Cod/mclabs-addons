@@ -180,13 +180,36 @@ public class E2eTest implements FabricClientGameTest {
 	}
 
 	/** Anything logged at ERROR, or any stack trace, while the scenario played. */
+	/**
+	 * The error lines in a stretch of log, minus Minecraft's own skin and profile downloads.
+	 *
+	 * <p>Player heads on the leaderboard and the coinflip lobby are fetched from Mojang by the
+	 * game's download threads, and a Mojang hiccup (a timeout, an HTTP 500) logs an error with
+	 * a stack trace there. That is the network, not the mod, and it failed whole runs. A
+	 * logged block, its header line and the stack lines under it, is dropped when it comes
+	 * from a Download thread or is about a mojang.com address; everything else still counts.
+	 */
+	static List<String> errorLines(List<String> lines) {
+		List<String> errors = new ArrayList<>();
+		boolean network = false;
+		for (String line : lines) {
+			if (line.startsWith("[")) {
+				network = line.contains("[Download-") || line.contains("mojang.com");
+			} else if (line.contains("mojang.com")) {
+				network = true;
+			}
+			if (!network && (line.contains("/ERROR]") || line.contains("Exception") || line.startsWith("Caused by"))) {
+				errors.add(line);
+			}
+		}
+		return errors;
+	}
+
 	private static List<String> logErrorsSince(long offset) {
 		try {
 			byte[] all = Files.readAllBytes(log());
 			String since = new String(all, (int) Math.min(offset, all.length), (int) Math.max(0, all.length - offset), StandardCharsets.UTF_8);
-			return since.lines()
-					.filter(l -> l.contains("/ERROR]") || l.contains("Exception") || l.startsWith("Caused by"))
-					.toList();
+			return errorLines(since.lines().toList());
 		} catch (IOException e) {
 			return List.of("could not read log: " + e);
 		}
