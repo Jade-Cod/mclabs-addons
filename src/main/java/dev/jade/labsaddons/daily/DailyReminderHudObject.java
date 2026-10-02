@@ -1,9 +1,11 @@
 package dev.jade.labsaddons.daily;
 
+import dev.jade.labsaddons.hud.FrameValue;
 import dev.jade.labsaddons.hud.HudObject;
 import dev.jade.labsaddons.hud.HudObjectSettings;
 import dev.jade.labsaddons.hud.HudObjects;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Util;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
@@ -48,7 +50,13 @@ public class DailyReminderHudObject extends HudObject {
 	private record Row(ItemStack icon, String text) {
 	}
 
+	private final FrameValue<List<Row>> rowsCache = new FrameValue<>();
+
 	private List<Row> rows(boolean preview) {
+		return rowsCache.get(Util.getMillis(), preview, () -> buildRows(preview));
+	}
+
+	private List<Row> buildRows(boolean preview) {
 		List<Row> rows = new ArrayList<>();
 		if (preview || DailyTracker.dailyPending()) {
 			rows.add(new Row(new ItemStack(Items.CLOCK), "Daily Spin: /daily"));
