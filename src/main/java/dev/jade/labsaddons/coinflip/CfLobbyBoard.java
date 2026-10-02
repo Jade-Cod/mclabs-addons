@@ -457,8 +457,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 		int w = PANEL_W - PAD - RAIL_X;
 		int y = CONTENT_Y;
 		caption(context, font, x, y, "NEW FLIP");
-		localButton(context, font, x + w - 13, y - 2, 13, 11, "⚙", true, editingChips,
-				editingChips ? () -> editingChips = false : this::editChips);
+		cog(context, font, x + w, y);
 		y += ROW_GAP;
 
 		// The amount box. Focused unless the chip editor is open, so its caret blinks.
@@ -548,6 +547,20 @@ public final class CfLobbyBoard extends CasinoPanel {
 				!editingChips && problem == null, confirming, this::submit);
 		y += 20;
 		context.drawText(font, editingChips ? "esc to discard" : "esc to cancel", x, y, TEXT_FAINT, false);
+	}
+
+	/**
+	 * The chip editor's toggle: a bare gear on the caption's line, right-aligned with the amount
+	 * box under it. A boxed button there was taller than the caption and sat on the box's top
+	 * edge. Faint like the caption, brighter on hover, accent while the editor is open.
+	 */
+	private void cog(DrawContext context, TextRenderer font, int right, int y) {
+		String gear = "⚙";
+		int gearW = font.getWidth(gear);
+		int hitX = right - gearW - 3;
+		boolean hot = hovered(hitX, y - 2, gearW + 3, font.fontHeight + 2);
+		context.drawText(font, gear, right - gearW, y, editingChips ? accent() : hot ? TEXT : TEXT_FAINT, false);
+		action(hitX, y - 2, gearW + 3, font.fontHeight + 2, editingChips ? () -> editingChips = false : this::editChips);
 	}
 
 	/** One chip in the editor: a typed box that takes focus on click. */
