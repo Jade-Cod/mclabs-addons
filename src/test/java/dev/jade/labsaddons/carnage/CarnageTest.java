@@ -44,7 +44,7 @@ public class CarnageTest {
 		assertEquals(NOW + 8 * 24 * HOUR + 6 * HOUR + 6 * 60_000L, daily.stageEndMs());
 		assertEquals(5_000, daily.scoreGoal());
 		assertEquals(10, daily.maxTickets());
-		assertEquals(500, daily.ticketCost());
+		assertEquals(500, daily.ticketBase());
 		assertEquals(16, daily.goalsTotal());
 		assertEquals(List.of(
 				new Mission("Kill 4x Poltergeist", "poltergeist", 0, 4, "1x Halloween Crate Key"),
@@ -157,5 +157,25 @@ public class CarnageTest {
 				List.of("Viewing this stage's leaderboard.", "", "Click to switch to", "overall leaderboard."), 1)));
 		assertEquals("DAILY", CarnageMenu.nextScope(new SlotView(29, "Overall Leaderboard", List.of(), 1)));
 		assertEquals("THIS STAGE", CarnageMenu.nextScope(new SlotView(29, "Daily Leaderboard", List.of(), 1)));
+	}
+
+	/** Read off one day: "Next Ticket: 298.6/781.25" with two held at 1,423.6. */
+	@Test
+	public void ticketsCostMoreAsTheyGo() {
+		Daily daily = CarnageReader.dashboard(DASHBOARD, NOW);
+		assertEquals(500, CarnageTracker.ticketThreshold(daily, 1), 1e-9);
+		assertEquals(1_125, CarnageTracker.ticketThreshold(daily, 2), 1e-9);
+		assertEquals(1_906.25, CarnageTracker.ticketThreshold(daily, 3), 1e-9);
+		assertEquals(2, CarnageTracker.withScore(daily, 1_423.6).tickets());
+		assertEquals(500, CarnageReader.ticketBase(781.25, 2), 1e-9);
+	}
+
+	@Test
+	public void theServerSaysWhenATicketIsEarned() {
+		int[] ticket = CarnageTracker.ticketEarned(
+				"Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score.");
+		assertEquals(1, ticket[0]);
+		assertEquals(10, ticket[1]);
+		assertNull(CarnageTracker.ticketEarned("[VIP] Bob: Carnage » Carnage Daily Raffle Ticket 9/10 earned!"));
 	}
 }

@@ -112,8 +112,17 @@ public final class CarnageReader {
 		double[] nextTicket = fraction(find(items, "Daily Raffle"), "Next Ticket");
 		double[] goals = fraction(find(items, "Daily Score Goal Bonus"), "Goals Completed");
 		return new Daily(dayEnd, stage, stageEnd, score[0], (int) score[1],
-				(int) tickets[0], (int) tickets[1], (int) nextTicket[1],
+				(int) tickets[0], (int) tickets[1], ticketBase(nextTicket[1], (int) tickets[0]),
 				(int) goals[0], (int) goals[1], missions(missions.lore()));
+	}
+
+	/**
+	 * "Next Ticket: 298.6/781.25" states the cost of the ticket after the ones you hold. Each
+	 * costs {@link CarnageTracker#RAFFLE_RATIO} times the last, so the first one's cost is that
+	 * figure scaled back down.
+	 */
+	static double ticketBase(double nextCost, int held) {
+		return nextCost <= 0 ? 0 : nextCost / Math.pow(CarnageTracker.RAFFLE_RATIO, held);
 	}
 
 	/** Each "[a/b] text" line after the summary, with the "• reward" line under its bar. */
