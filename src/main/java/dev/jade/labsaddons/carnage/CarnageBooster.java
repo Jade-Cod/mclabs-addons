@@ -44,6 +44,9 @@ public final class CarnageBooster {
 	}
 
 	public static void onMessage(String text) {
+		if (!CarnageEvent.isOn()) {
+			return;
+		}
 		if (ended(text)) {
 			clear();
 			return;
@@ -59,7 +62,7 @@ public final class CarnageBooster {
 	/** The running booster, or null. */
 	public static State active() {
 		State state = LabsAddonsConfig.get().carnageBooster;
-		return isActive(state, System.currentTimeMillis()) ? state : null;
+		return CarnageEvent.isOn() && isActive(state, System.currentTimeMillis()) ? state : null;
 	}
 
 	public static void clear() {
