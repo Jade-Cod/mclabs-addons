@@ -8,7 +8,7 @@
       "scoreGoal": 5000,
       "tickets": 0,
       "maxTickets": 10,
-      "ticketCost": 500,
+      "ticketBase": 500.0,
       "goalsDone": 0,
       "goalsTotal": 16,
       "missions": [
