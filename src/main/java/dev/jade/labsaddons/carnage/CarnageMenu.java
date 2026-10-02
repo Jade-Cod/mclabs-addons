@@ -84,7 +84,8 @@ public final class CarnageMenu {
 	public record Monster(int slot, String name, boolean discovered, String stage) {
 	}
 
-	public record Tag(int slot, String name, boolean unlocked, String status) {
+	/** {@code next} is the one tag the menu marks "Next tag!": the next to unlock. */
+	public record Tag(int slot, String name, boolean unlocked, boolean next, String status) {
 	}
 
 	private static final Pattern LEADER = Pattern.compile("^#(\\d+)\\.\\s*(\\S+)$");
@@ -172,17 +173,18 @@ public final class CarnageMenu {
 			}
 			String name = slot.name().trim();
 			name = name.substring(0, name.length() - " Tag".length());
-			String status = "";
-			boolean unlocked = true;
+			// Three states, each its own lore line: "Earned!", "Next tag!", or "3 tags away!".
+			boolean unlocked = slot.loreContains("Earned!");
+			boolean next = !unlocked && slot.loreContains("Next tag!");
+			String status = unlocked ? "unlocked" : next ? "next up" : "";
 			for (String line : slot.lore()) {
 				Matcher m = TAGS_AWAY.matcher(line);
-				if (m.find()) {
-					unlocked = false;
+				if (!unlocked && !next && m.find()) {
 					status = m.group(1) + " away";
 					break;
 				}
 			}
-			out.add(new Tag(i, name, unlocked, unlocked ? "unlocked" : status));
+			out.add(new Tag(i, name, unlocked, next, status));
 		}
 		return out;
 	}
