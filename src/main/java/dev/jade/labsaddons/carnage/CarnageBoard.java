@@ -203,6 +203,20 @@ public final class CarnageBoard extends CasinoPanel {
 		return new int[]{x, font.getWidth(TAB_LABELS[i]) + spare};
 	}
 
+	/**
+	 * Where tab {@code i}'s label starts, centred on its ink. The underline and hover box are
+	 * drawn out from this, so all three share one centre.
+	 */
+	private static int labelX(TextRenderer font, int i) {
+		int[] bounds = tab(font, i);
+		return bounds[0] + (bounds[1] - ink(font, TAB_LABELS[i])) / 2;
+	}
+
+	/** A label's drawn width: the measured width ends with the gap after the last letter. */
+	private static int ink(TextRenderer font, String label) {
+		return font.getWidth(label) - 1;
+	}
+
 	private void tabs(DrawContext context, TextRenderer font, Page active) {
 		Page[] pages = Page.values();
 		for (int i = 0; i < pages.length; i++) {
@@ -212,13 +226,16 @@ public final class CarnageBoard extends CasinoPanel {
 			boolean isActive = pages[i] == active;
 			boolean hot = !isActive && hovered(x, TAB_Y, w, TAB_H + 2);
 			float press = pressAmount(pages[i].navSlot);
-			if (press > 0) {
-				HudObject.drawRoundedRect(context, x + 1, TAB_Y - 1, w - 2, TAB_H + 2, shade(PUMPKIN, (int) (0x40 * press)));
-			} else if (hot) {
-				HudObject.drawRoundedRect(context, x + 1, TAB_Y - 1, w - 2, TAB_H + 2, ROW_HOVER);
-			}
 			String label = TAB_LABELS[i];
-			text(context, font, label, x + (w - font.getWidth(label)) / 2, TAB_Y + 2,
+			int labelX = labelX(font, i);
+			int pad = labelX - x - 1;
+			int boxW = ink(font, label) + 2 * pad;
+			if (press > 0) {
+				HudObject.drawRoundedRect(context, labelX - pad, TAB_Y - 1, boxW, TAB_H + 2, shade(PUMPKIN, (int) (0x40 * press)));
+			} else if (hot) {
+				HudObject.drawRoundedRect(context, labelX - pad, TAB_Y - 1, boxW, TAB_H + 2, ROW_HOVER);
+			}
+			text(context, font, label, labelX, TAB_Y + 2,
 					isActive ? 0xFFFFFFFF : hot ? TEXT : TEXT_DIM);
 			if (!isActive) {
 				clickable(x, TAB_Y - 1, w, TAB_H + 2, pages[i].navSlot);
@@ -234,9 +251,8 @@ public final class CarnageBoard extends CasinoPanel {
 	/** Slides from wherever the underline is drawn right now, so a quick second click retargets smoothly. */
 	private void moveUnderline(TextRenderer font, Page page, boolean jump) {
 		int i = page.ordinal();
-		float toW = font.getWidth(TAB_LABELS[i]) + 6;
-		int[] bounds = tab(font, i);
-		float toX = bounds[0] + (bounds[1] - toW) / 2f;
+		float toW = ink(font, TAB_LABELS[i]) + 6;
+		float toX = labelX(font, i) - 3;
 		if (jump || underlineX < 0) {
 			slideFromX = toX;
 			slideFromW = toW;

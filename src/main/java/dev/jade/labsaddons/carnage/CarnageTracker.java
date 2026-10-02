@@ -58,6 +58,8 @@ public final class CarnageTracker {
 			"^Carnage »\\s+Carnage Daily Raffle Ticket (\\d+)/(\\d+) earned!");
 	/** "Halloween Hunt » Skull/Bone found! [1/10]": a set's singular name, and its new count. */
 	private static final Pattern HUNT_FOUND = Pattern.compile("^Halloween Hunt »\\s+(.+?) found! \\[(\\d+)/(\\d+)]");
+	/** "Halloween Hunt » You have found all Bats! Claim your tags with /claim." */
+	private static final Pattern HUNT_SET_DONE = Pattern.compile("^Halloween Hunt »\\s+You have found all (.+?)!");
 
 	/**
 	 * Keys in {@link MasteryGains}, so the HUD rows pop up on a gain and fade exactly like the
@@ -264,24 +266,32 @@ public final class CarnageTracker {
 	}
 
 	/**
-	 * The hunt after a "found!" line, or null for any other line or a set we haven't synced. The
-	 * line names the set in the singular ("Skull/Bone" for "Skulls and Bones"), so a set matches
-	 * when its name holds every word and its total is the same.
+	 * The hunt after a "found!" or "found all" line, or null for any other line or a set we
+	 * haven't synced. A find names the set in the singular ("Skull/Bone" for "Skulls and Bones"),
+	 * so a set matches when its name holds every word and, for a find, its total is the same.
 	 */
 	static Hunt huntFound(Hunt hunt, String text) {
-		Matcher matcher = HUNT_FOUND.matcher(text.trim());
-		if (hunt == null || !matcher.find()) {
+		if (hunt == null) {
 			return null;
 		}
-		String[] words = matcher.group(1).toLowerCase(Locale.ROOT).split("[/\\s]+");
-		int found = Integer.parseInt(matcher.group(2));
-		int total = Integer.parseInt(matcher.group(3));
+		Matcher one = HUNT_FOUND.matcher(text.trim());
+		if (one.find()) {
+			return withFound(hunt, one.group(1), Integer.parseInt(one.group(2)), Integer.parseInt(one.group(3)));
+		}
+		Matcher all = HUNT_SET_DONE.matcher(text.trim());
+		return all.find() ? withFound(hunt, all.group(1), -1, -1) : null;
+	}
+
+	/** {@code total} -1 matches any total and completes the set. */
+	private static Hunt withFound(Hunt hunt, String name, int found, int total) {
+		String[] words = name.toLowerCase(Locale.ROOT).split("[/\\s]+");
 		List<HuntSet> sets = new ArrayList<>(hunt.sets());
 		for (int i = 0; i < sets.size(); i++) {
 			HuntSet set = sets.get(i);
-			if (set.total() == total && containsAll(set.name().toLowerCase(Locale.ROOT), words)) {
-				sets.set(i, new HuntSet(set.name(), found, total));
-				return new Hunt(hunt.found() + found - set.found(), hunt.total(), sets);
+			if ((total < 0 || set.total() == total) && containsAll(set.name().toLowerCase(Locale.ROOT), words)) {
+				int now = total < 0 ? set.total() : found;
+				sets.set(i, new HuntSet(set.name(), now, set.total()));
+				return new Hunt(hunt.found() + now - set.found(), hunt.total(), sets);
 			}
 		}
 		return null;
