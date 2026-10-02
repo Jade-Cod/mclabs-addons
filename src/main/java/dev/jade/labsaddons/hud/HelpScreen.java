@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.hud;
 
+import dev.jade.labsaddons.carnage.CarnageEvent;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
 import dev.jade.labsaddons.hud.editor.EditorPainter;
 import dev.jade.labsaddons.hud.editor.EditorTheme;
@@ -137,6 +138,9 @@ public class HelpScreen extends Screen {
 		add(Text.literal("Run these so the HUD matches the server:"),
 				EditorTheme.TEXT_DIM, 0, 2, innerW);
 		for (String[] command : SYNC_COMMANDS) {
+			if (command[0].startsWith("/carnage") && !CarnageEvent.isOn()) {
+				continue;
+			}
 			add(Text.literal(command[0]), EditorTheme.TEXT_ACCENT, 0, 4, innerW);
 			add(Text.literal(command[1]), EditorTheme.TEXT_DIM, INDENT, 1, innerW - INDENT);
 		}

@@ -153,6 +153,9 @@ public final class CarnageTracker {
 
 	/** Today's board, rolled over to the current day if a reset has passed since. Null until synced. */
 	public static Daily daily() {
+		if (!CarnageEvent.isOn()) {
+			return null;
+		}
 		Daily stored = LabsAddonsConfig.get().carnageDaily;
 		if (stored == null) {
 			return null;
@@ -203,6 +206,9 @@ public final class CarnageTracker {
 
 	/** Actionbar text. Moves the score, and the raffle and goal with it. */
 	public static void onActionbar(String text) {
+		if (!CarnageEvent.isOn()) {
+			return;
+		}
 		Double score = parseScore(text);
 		Daily daily = daily();
 		if (score != null && daily != null) {
@@ -226,6 +232,9 @@ public final class CarnageTracker {
 
 	/** Raffle tickets earned, and your own free-souls claim. */
 	public static void onMessage(String text, String self) {
+		if (!CarnageEvent.isOn()) {
+			return;
+		}
 		if (claimedFreeSouls(text, self)) {
 			LabsAddonsConfig config = LabsAddonsConfig.get();
 			config.carnageFreeSoulsClaimedMs = System.currentTimeMillis();
