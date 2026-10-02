@@ -251,4 +251,20 @@ public class CarnageTest {
 		assertTrue(after.missions().get(1).done());
 		assertEquals(0, after.missions().get(0).current());
 	}
+
+	/** Page one of the tags on day one's evening: earned, next, and still to come. */
+	@Test
+	public void tagsAreEarnedNextOrSomeWayOff() {
+		List<SlotView> slots = menu(
+				new SlotView(18, "[October] Tag", List.of("", "Earned!"), 1),
+				new SlotView(19, "[Mummy] Tag", List.of("", "Next tag!", "", "Complete your daily goal"), 1),
+				new SlotView(20, "[Ghost] Tag", List.of("", "1 tags away!", "", "Complete your daily goal"), 1));
+		List<CarnageMenu.Tag> tags = CarnageMenu.tags(slots);
+		assertTrue(tags.get(0).unlocked());
+		assertFalse(tags.get(1).unlocked());
+		assertTrue(tags.get(1).next());
+		assertEquals("next up", tags.get(1).status());
+		assertFalse(tags.get(2).unlocked());
+		assertEquals("1 away", tags.get(2).status());
+	}
 }
