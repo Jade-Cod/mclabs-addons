@@ -53,6 +53,9 @@ public final class CarnageReader {
 
 	/** @return true if this was a Carnage menu we read. */
 	public static boolean tryRead(AbstractContainerScreen<?> screen) {
+		if (!CarnageEvent.isOn()) {
+			return false;
+		}
 		String title = screen.getTitle().getString().trim();
 		if (title.equals(DASHBOARD_TITLE)) {
 			Daily daily = dashboard(items(screen), System.currentTimeMillis());

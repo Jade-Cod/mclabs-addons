@@ -47,6 +47,7 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	systemProperty 'labsaddons.carnage.always', 'true'
 }
 
 // In-game end-to-end tests: ./gradlew runClientGameTest launches the real client
@@ -72,6 +73,8 @@ loom.runs.matching { it.name == 'clientGameTest' }.configureEach {
 	// -Pperf runs PerformanceGameTest too. Its budgets are microseconds a frame, so it is
 	// left out of the parallel e2e-all run and run on its own afterwards.
 	vmArg "-Dlabsaddons.perf=${project.hasProperty('perf')}"
+	// Carnage stands down outside its event dates; the captures replay whatever the date.
+	vmArg "-Dlabsaddons.carnage.always=true"
 	// The name the captures were recorded under, so "Welcome to MCLabs Spawn, Ophiliah!"
 	// and every "you" line replay as the local player's own without rewriting them.
 	programArgs '--username', 'Ophiliah'

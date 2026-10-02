@@ -22,6 +22,7 @@ import dev.jade.labsaddons.booster.BoosterRatesReader;
 import dev.jade.labsaddons.booster.BoosterTracker;
 import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.carnage.CarnageBooster;
+import dev.jade.labsaddons.carnage.CarnageEvent;
 import dev.jade.labsaddons.carnage.CarnageHudObject;
 import dev.jade.labsaddons.carnage.CarnageReader;
 import dev.jade.labsaddons.carnage.CarnageTracker;
@@ -173,7 +174,9 @@ public class LabsAddonsClient implements ClientModInitializer {
 		HudObjects.register(new RentalHudObject());
 		HudObjects.register(new PersonalBoosterHudObject());
 		HudObjects.register(new BountyHudObject());
-		HudObjects.register(new CarnageHudObject());
+		if (CarnageEvent.isOn()) {
+			HudObjects.register(new CarnageHudObject());
+		}
 		HudObjects.register(new DailyReminderHudObject());
 		HudObjects.register(new VoteReminderHudObject());
 		HudObjects.register(new ChemtainerHudObject());
