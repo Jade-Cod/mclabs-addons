@@ -31,6 +31,9 @@ public final class CarnageMenu {
 	public static final int NEXT_PAGE = 32;
 	/** The shop's own "claim 5 free souls" head. */
 	public static final int SHOP_CLAIM = 40;
+	/** Each stage's items are their own page, with arrows either side of the "Stage II Items" head at 13. */
+	public static final int SHOP_PREVIOUS_STAGE = 12;
+	public static final int SHOP_NEXT_STAGE = 14;
 	private static final int LIST_FIRST = 18;
 	private static final int LIST_LAST = 26;
 	private static final int GRID_FIRST = 9;
@@ -98,6 +101,7 @@ public final class CarnageMenu {
 			"switch to\\s+(?:the\\s+)?(?:this\\s+)?(\\w+)(?:'s)?\\s+leaderboard", Pattern.CASE_INSENSITIVE);
 	/** "(1/2)" or "[1/7]" at the end of a title. */
 	private static final Pattern PAGE_OF = Pattern.compile("[(\\[](\\d+)/(\\d+)[)\\]]\\s*$");
+	private static final Pattern SHOP_STAGE = Pattern.compile("\\((Stage\\s+\\S+)\\)\\s*$");
 
 	private CarnageMenu() {
 	}
@@ -126,6 +130,18 @@ public final class CarnageMenu {
 			out.add(new Leader(i, Integer.parseInt(name.group(1)), name.group(2), points));
 		}
 		return out;
+	}
+
+	/** How many rows on the page carry a "Set to win:" prize line: the paid places for this scope. */
+	public static int paidPlaces(List<SlotView> slots) {
+		int paid = 0;
+		for (Leader leader : leaders(slots)) {
+			SlotView slot = SlotView.at(slots, leader.slot());
+			if (slot != null && slot.loreContains("Set to win:")) {
+				paid++;
+			}
+		}
+		return paid;
 	}
 
 	public static List<ShopItem> shop(List<SlotView> slots) {
@@ -162,6 +178,14 @@ public final class CarnageMenu {
 			out.add(new Monster(i, name, !name.equals("???"), stage));
 		}
 		return out;
+	}
+
+	/** Only the stages actually still locked on the page are named. */
+	public static String bestiaryFooter(List<CarnageMenu.Monster> monsters) {
+		List<String> locked = monsters.stream().map(CarnageMenu.Monster::stage)
+				.filter(s -> !s.isEmpty()).distinct().toList();
+		String base = "? can be hunted now";
+		return locked.isEmpty() ? base : base + " · " + String.join(", ", locked) + " arrive in later stages";
 	}
 
 	public static List<Tag> tags(List<SlotView> slots) {
@@ -214,6 +238,12 @@ public final class CarnageMenu {
 	public static int[] pageOf(String title) {
 		Matcher m = PAGE_OF.matcher(title == null ? "" : title.trim());
 		return m.find() ? new int[]{Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2))} : null;
+	}
+
+	/** "Stage II" out of "Carnage Shop (Stage II)", or "" for a title without one. */
+	public static String shopStage(String title) {
+		Matcher m = SHOP_STAGE.matcher(title == null ? "" : title.trim());
+		return m.find() ? m.group(1) : "";
 	}
 
 	/** Whether a paging head is really there: these menus leave the slot empty on the first and last page. */

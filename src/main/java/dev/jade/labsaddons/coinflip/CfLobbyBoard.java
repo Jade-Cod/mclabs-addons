@@ -11,6 +11,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.PlayerSkinDrawer;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.util.Util;
@@ -83,6 +84,10 @@ public final class CfLobbyBoard extends CasinoPanel {
 	private String digits = "";
 	private boolean allIn;
 	private long confirmUntilMs;
+	private long armedAtMs;
+	/** Key that armed the confirm step, or -1 for a mouse press. */
+	private int armingKey = -1;
+	private boolean armingKeyHeld;
 	private long refreshAtMs;
 	private long lastFrameMs;
 	/** The cog's chip editor: four typed values, one focused, saved on Done. */
@@ -165,7 +170,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 			allIn = false;
 			confirmUntilMs = 0;
 		} else if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
-			submit();
+			submit(keyCode);
 		} else if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
 			closeForm();
 		}
@@ -208,6 +213,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 			closeForm();
 		}
 		lastFrameMs = now;
+		if (armingKeyHeld && !InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), armingKey)) {
+			armingKeyHeld = false;
+		}
 		if (refreshAtMs > 0 && now >= refreshAtMs) {
 			refreshAtMs = 0;
 			clickSlot(CfLobbyReader.REFRESH_SLOT);
@@ -391,13 +399,19 @@ public final class CfLobbyBoard extends CasinoPanel {
 	}
 
 	/** First press asks, a second within {@link #CONFIRM_MS} sends. */
-	private void submit() {
+	private void submit(int key) {
 		if (editingChips || problem() != null) {
 			return;
 		}
 		long now = Util.getMeasuringTimeMs();
 		if (now >= confirmUntilMs) {
 			confirmUntilMs = now + CONFIRM_MS;
+			armedAtMs = now;
+			armingKey = key;
+			armingKeyHeld = key >= 0;
+			return;
+		}
+		if (!CfConfirmGate.mayConfirm(now, armedAtMs, armingKeyHeld)) {
 			return;
 		}
 		ClientPlayNetworkHandler network = MinecraftClient.getInstance().getNetworkHandler();
@@ -544,7 +558,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 		}
 		y += 12;
 		localButton(context, font, x, y, w, 15, confirming ? (heads ? "CONFIRM HEADS" : "CONFIRM TAILS") : "CREATE",
-				!editingChips && problem == null, confirming, this::submit);
+				!editingChips && problem == null, confirming, () -> submit(-1));
 		y += 20;
 		context.drawText(font, editingChips ? "esc to discard" : "esc to cancel", x, y, TEXT_FAINT, false);
 	}

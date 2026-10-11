@@ -7,6 +7,11 @@
 	"authors": [
 		"Jade"
 	],
+	"contact": {
+		"homepage": "https://modrinth.com/mod/mclabs-addons",
+		"sources": "https://github.com/Jade-Cod/mclabs-addons",
+		"issues": "https://github.com/Jade-Cod/mclabs-addons/issues"
+	},
 	"license": "MIT",
 	"icon": "assets/labsaddons/icon.png",
 	"environment": "client",

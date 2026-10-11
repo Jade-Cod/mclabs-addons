@@ -23,14 +23,14 @@ import java.util.regex.Pattern;
  */
 public final class RunnerMessages {
 	private static final Pattern POSTED = Pattern.compile(
-			"MCLabs.*Runner job posted:", Pattern.CASE_INSENSITIVE);
+			"^MCLabs\\s*».*Runner job posted:", Pattern.CASE_INSENSITIVE);
 	private static final Pattern TAKEN = Pattern.compile(
-			"([A-Za-z0-9_]{3,16}) has taken your runner job", Pattern.CASE_INSENSITIVE);
+			"^Runner\\s*»\\s*([A-Za-z0-9_]{3,16}) has taken your runner job", Pattern.CASE_INSENSITIVE);
 	private static final Pattern COMPLETED = Pattern.compile(
-			"([A-Za-z0-9_]{3,16}) (?:has )?completed your runner job.*you've earned \\$([0-9,.]+[kmbKMB]?)",
+			"^Runner\\s*»\\s*([A-Za-z0-9_]{3,16}) (?:has )?completed your runner job.*you've earned \\$([0-9,.]+[kmbKMB]?)",
 			Pattern.CASE_INSENSITIVE);
 	private static final Pattern FAILED = Pattern.compile(
-			"([A-Za-z0-9_]{3,16}) failed your runner job", Pattern.CASE_INSENSITIVE);
+			"^Runner\\s*»\\s*([A-Za-z0-9_]{3,16}) failed your runner job", Pattern.CASE_INSENSITIVE);
 
 	/** Trailing "(Drug-p-p-p xN)" detail on the taken/failed lines. */
 	private static final Pattern PAREN = Pattern.compile("\\(([^)]*)\\)");
@@ -53,7 +53,8 @@ public final class RunnerMessages {
 	}
 
 	/** Parse one chat line into an {@link Event}, or {@code null} if it isn't a runner event. */
-	public static Event parse(String text) {
+	public static Event parse(String raw) {
+		String text = raw.strip();
 		if (POSTED.matcher(text).find()) {
 			return new Event(Type.POSTED, "", 0.0, "", 0);
 		}

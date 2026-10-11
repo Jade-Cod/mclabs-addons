@@ -278,4 +278,11 @@ public class PrestigeChatTest {
 		assertEquals(0, new PrestigeChem("Wheatium", 0, 806_400).fraction());
 		assertEquals(0, new PrestigeChem("Wheatium", 0, 806_400).percent());
 	}
+
+	@Test
+	public void aSaleQuotedInPlayerChatMovesNothing() {
+		PrestigeChat.onMessage(net.minecraft.text.Text.literal(
+				"[S] [VIP] bob: Earned 104 prestige progress for Cactium."));
+		assertFalse(PrestigeTracker.hasData());
+	}
 }

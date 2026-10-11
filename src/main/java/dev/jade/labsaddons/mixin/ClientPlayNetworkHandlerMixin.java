@@ -3,6 +3,7 @@ package dev.jade.labsaddons.mixin;
 import dev.jade.labsaddons.coinflip.CfChat;
 import dev.jade.labsaddons.coinflip.CfFlipBoard;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.carnage.CarnageKillTracker;
 import dev.jade.labsaddons.mastery.MasteryKillTracker;
 import dev.jade.labsaddons.server.McLabsSession;
 import net.minecraft.client.MinecraftClient;
@@ -88,6 +89,7 @@ public abstract class ClientPlayNetworkHandlerMixin {
 		ClientPlayerEntity player = MinecraftClient.getInstance().player;
 		if (player != null && packet.sourceCauseId() == player.getId() && McLabsSession.isActive()) {
 			MasteryKillTracker.onPlayerHit(packet.entityId());
+			CarnageKillTracker.onPlayerHit(packet.entityId());
 		}
 	}
 

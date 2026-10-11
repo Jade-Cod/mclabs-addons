@@ -30,7 +30,7 @@ public final class LabWarsTracker {
 	private static final double MULT_EPSILON = 0.005;
 
 	private static final Pattern ACTIVATED = Pattern.compile(
-			"revenue rate of\\s+(.+?)\\s+has been boosted by\\s+([0-9.]+)x\\s+for the next\\s+(.+?)\\s+by",
+			"revenue rate of\\s+(.+?)\\s+has been boosted by\\s+([0-9.]+)x\\s+for the next\\s+(.+?)(?:\\s+by\\s|\\.?\\s*$)",
 			Pattern.CASE_INSENSITIVE);
 	private static final Pattern EXTENDED = Pattern.compile(
 			"The\\s+([0-9.]+)x\\s+revenue rate of\\s+(.+?)\\s+has been extended\\s+(?:another\\s+)?(.+?)\\s+by",
@@ -115,6 +115,8 @@ public final class LabWarsTracker {
 				continue;
 			}
 			listed.add(key);
+			// A timer-less placeholder only holds a stale combined multiplier, so the fresh one replaces it.
+			config.labWarsActive.removeIf(b -> b.key.equals(key) && !b.timerKnown && b.expiryEpochMs == 0L);
 			boolean known = config.labWarsActive.stream().anyMatch(b -> b.key.equals(key));
 			if (!known) {
 				config.labWarsActive.add(new LabWarsBooster(key, parseDouble(line.group(2)), 0L, false));

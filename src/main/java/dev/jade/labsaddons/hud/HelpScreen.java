@@ -26,7 +26,8 @@ import java.util.List;
  * the mod, add a row here</b> (see the rule in CLAUDE.md).
  */
 public class HelpScreen extends Screen {
-	private static final int CARD_W = 332;
+	private static final int MAX_CARD_W = 332;
+	private static final int SCREEN_MARGIN = 8;
 	private static final int PAD = 14;
 	private static final int LINE_H = 11;
 	private static final int SECTION_GAP = 9;
@@ -43,6 +44,7 @@ public class HelpScreen extends Screen {
 	private static final String[][] SYNC_COMMANDS = {
 			{"/checkboost", "Syncs your Personal boost timers (chem price + prestige)."},
 			{"/mccooldown", "Run it any time to sync exact mcMMO ability cooldowns."},
+			{"/chum", "Run it any time to sync your exact Chum timer."},
 			{"/lw rates", "Open it once to sync your Lab Wars revenue boosters."},
 			{"/chems booster", "Open it once to sync server-wide booster rates."},
 			{"/sm claim", "Auto-marks your daily SM claim the instant you send it."},
@@ -71,6 +73,7 @@ public class HelpScreen extends Screen {
 	private final boolean firstRun;
 	private final List<Line> lines = new ArrayList<>();
 	private long openTimeMs;
+	private int cardW = MAX_CARD_W;
 	private int cardX;
 	private int cardY;
 	private int cardH;
@@ -99,6 +102,7 @@ public class HelpScreen extends Screen {
 	@Override
 	protected void init() {
 		this.openTimeMs = System.currentTimeMillis();
+		this.cardW = Math.min(MAX_CARD_W, this.width - 2 * SCREEN_MARGIN);
 		buildLines();
 
 		this.linesContentH = 0;
@@ -110,7 +114,7 @@ public class HelpScreen extends Screen {
 		// scale "Auto" picking a low resolution) the full content wouldn't fit and
 		// the dismiss button would render below the visible screen.
 		this.cardH = Math.min(desiredCardH, Math.max(8, this.height - 16));
-		this.cardX = (this.width - CARD_W) / 2;
+		this.cardX = (this.width - cardW) / 2;
 		this.cardY = Math.max(8, (this.height - cardH) / 2);
 
 		int buttonY = cardY + cardH - PAD - BUTTON_H;
@@ -126,7 +130,7 @@ public class HelpScreen extends Screen {
 
 	private void buildLines() {
 		lines.clear();
-		int innerW = CARD_W - 2 * PAD;
+		int innerW = cardW - 2 * PAD;
 
 		add(bold("MCLabs Addons"), EditorTheme.TITLE, 0, 0, innerW);
 		add(Text.literal(firstRun
@@ -183,15 +187,15 @@ public class HelpScreen extends Screen {
 		float fade = fade();
 
 		// Layered, transparent drop shadow so the card reads above the dimmed editor.
-		HudObject.drawRoundedRect(context, cardX - 1, cardY + 2, CARD_W + 2, cardH, mul(SHADOW, fade));
-		HudObject.drawRoundedRect(context, cardX, cardY + 4, CARD_W, cardH, mul(SHADOW, fade));
+		HudObject.drawRoundedRect(context, cardX - 1, cardY + 2, cardW + 2, cardH, mul(SHADOW, fade));
+		HudObject.drawRoundedRect(context, cardX, cardY + 4, cardW, cardH, mul(SHADOW, fade));
 
-		HudObject.drawRoundedRect(context, cardX, cardY, CARD_W, cardH, mul(EditorTheme.PANEL_BG, fade));
-		EditorPainter.outline(context, cardX, cardY, CARD_W, cardH, mul(EditorTheme.PANEL_BORDER, fade));
+		HudObject.drawRoundedRect(context, cardX, cardY, cardW, cardH, mul(EditorTheme.PANEL_BG, fade));
+		EditorPainter.outline(context, cardX, cardY, cardW, cardH, mul(EditorTheme.PANEL_BORDER, fade));
 
 		int x = cardX + PAD;
 		int y = linesViewTop - scrollOffset;
-		context.enableScissor(cardX, linesViewTop, cardX + CARD_W, linesViewBottom);
+		context.enableScissor(cardX, linesViewTop, cardX + cardW, linesViewBottom);
 		for (Line line : lines) {
 			y += line.gapAbove();
 			if (y + LINE_H >= linesViewTop && y <= linesViewBottom) {

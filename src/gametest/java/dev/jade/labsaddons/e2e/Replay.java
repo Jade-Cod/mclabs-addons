@@ -34,7 +34,8 @@ import java.util.Map;
  *
  * <p>Record shapes are gui-dumper's (chat, actionbar, screen, full, delta, close) plus a
  * few the harness adds to set a scene or poke the client (sidebar, command,
- * playerCommand, key, mouse, button, window, wait, screenshot).
+ * playerCommand, key, mouse, button, window, wait, screenshot). A screen record with
+ * {@code "reuseSyncId": true} opens under the previous menu's sync id.
  */
 final class Replay {
 	private static final ScreenHandlerType<?>[] ROWS = {
@@ -50,6 +51,8 @@ final class Replay {
 	private int menus;
 	/** The open replay menu's contents. Only touched on the server thread. */
 	private SimpleInventory menu;
+	/** The id the last replay menu opened under. Server thread only, like {@link #menu}. */
+	private int lastSyncId;
 
 	Replay(ClientGameTestContext context, TestSingleplayerContext world) {
 		this.context = context;
@@ -63,7 +66,8 @@ final class Replay {
 			case "capture", "end", "note", "satchel" -> { }
 			case "chat" -> send(record, record.has("overlay") && record.get("overlay").getAsBoolean());
 			case "actionbar" -> send(record, true);
-			case "screen" -> open(record.get("title"), record.get("containerSlots").getAsInt());
+			case "screen" -> open(record.get("title"), record.get("containerSlots").getAsInt(),
+					record.has("reuseSyncId") && record.get("reuseSyncId").getAsBoolean());
 			case "full", "delta" -> fill(record.getAsJsonObject("slots"), type.equals("full"));
 			case "close" -> {
 				// A menu's last frame is where the mod's overlays sit (crate result, a
@@ -119,14 +123,22 @@ final class Replay {
 		context.waitTicks(2);
 	}
 
-	private void open(JsonElement title, int containerSlots) {
+	/**
+	 * @param reuseSyncId open under the last menu's id. The server hands out ids 1 to 100 and
+	 *                    wraps, so a long session meets an old id again; the open packet carries
+	 *                    the menu's own id, so building the menu with the old one is enough.
+	 */
+	private void open(JsonElement title, int containerSlots, boolean reuseSyncId) {
 		int rows = Math.max(1, Math.min(6, (containerSlots + 8) / 9));
 		world.getServer().runOnServer(server -> {
 			SimpleInventory inventory = new SimpleInventory(rows * 9);
 			menu = inventory;
-			player(server).openHandledScreen(new SimpleNamedScreenHandlerFactory(
-					(syncId, playerInventory, player) -> new ReplayMenu(rows, syncId, playerInventory, inventory),
+			ServerPlayerEntity player = player(server);
+			player.openHandledScreen(new SimpleNamedScreenHandlerFactory(
+					(syncId, playerInventory, p) -> new ReplayMenu(rows, reuseSyncId ? lastSyncId : syncId,
+							playerInventory, inventory),
 					text(server, title)));
+			lastSyncId = player.currentScreenHandler.syncId;
 		});
 		context.waitTicks(2);
 	}

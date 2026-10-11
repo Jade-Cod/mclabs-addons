@@ -12,6 +12,8 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +59,8 @@ public final class ConfigStore {
 
 	/** Latest content per target file, replaced in place so a burst writes once. */
 	private final Map<Path, String> pending = new ConcurrentHashMap<>();
+	/** The section files the last {@link #loadMerged} read, for {@link #backUpLoaded}. */
+	private final List<Path> lastLoaded = new ArrayList<>();
 	private final AtomicBoolean flushScheduled = new AtomicBoolean();
 	/** Set by {@link #loadMerged} when any section file was absent or unreadable. */
 	private volatile boolean sectionsMissing;
@@ -175,6 +179,7 @@ public final class ConfigStore {
 	 */
 	public JsonObject loadMerged(String profileOverride) {
 		sectionsMissing = false;
+		lastLoaded.clear();
 		JsonObject merged = new JsonObject();
 		mergeInto(merged, ConfigFolderMigration.legacyBase(this, configDir));
 
@@ -207,8 +212,32 @@ public final class ConfigStore {
 		JsonObject loaded = readObject(path);
 		if (loaded == null) {
 			sectionsMissing = true;
+		} else {
+			lastLoaded.add(path);
 		}
 		return loaded;
+	}
+
+	/**
+	 * Copies every file the last {@link #loadMerged} read to {@code .corrupt}: the caller couldn't
+	 * bind them and is about to save defaults over the top.
+	 */
+	public void backUpLoaded() {
+		lastLoaded.forEach(ConfigStore::backUp);
+	}
+
+	/**
+	 * A file we're about to replace with defaults gets a copy first, so a typo in a hand edit
+	 * costs a rename rather than the runner board or the coinflip record.
+	 */
+	private static void backUp(Path path) {
+		Path copy = path.resolveSibling(path.getFileName() + ".corrupt");
+		try {
+			Files.copy(path, copy, StandardCopyOption.REPLACE_EXISTING);
+			LOGGER.warn("[labsaddons] Kept a copy of {} as {}.", path.getFileName(), copy.getFileName());
+		} catch (IOException e) {
+			LOGGER.warn("[labsaddons] Could not back up {}.", path, e);
+		}
 	}
 
 	/** Copies every key of {@code source} into {@code target}, dropping the format stamp. */
@@ -241,6 +270,8 @@ public final class ConfigStore {
 		} catch (IOException | JsonParseException e) {
 			LOGGER.warn("[labsaddons] Could not read {}; continuing without it.", path, e);
 		}
+		// Treated as missing, so the load is about to write defaults over it.
+		backUp(path);
 		return null;
 	}
 
@@ -278,14 +309,17 @@ public final class ConfigStore {
 	private synchronized void drain() {
 		for (Path path : pending.keySet().toArray(new Path[0])) {
 			String json = pending.remove(path);
-			if (json != null) {
-				writeAtomic(path, json);
+			// A failed write goes back in the queue unless a newer one took its place. The
+			// config skips saving content it thinks is already on disk, so dropping it here
+			// would lose that change until something else in the section moved.
+			if (json != null && !writeAtomic(path, json)) {
+				pending.putIfAbsent(path, json);
 			}
 		}
 	}
 
 	/** Writes via a temp file and a move, so the target is never seen half-written. */
-	void writeAtomic(Path path, String json) {
+	boolean writeAtomic(Path path, String json) {
 		Path tmp = path.resolveSibling(path.getFileName() + ".tmp");
 		try {
 			Files.createDirectories(path.getParent());
@@ -297,6 +331,7 @@ public final class ConfigStore {
 				// replace is still better than truncating the live file in place.
 				Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING);
 			}
+			return true;
 		} catch (IOException e) {
 			LOGGER.warn("[labsaddons] Failed to write {}.", path, e);
 			try {
@@ -304,6 +339,7 @@ public final class ConfigStore {
 			} catch (IOException suppressed) {
 				LOGGER.warn("[labsaddons] Also failed to clean up {}.", tmp, suppressed);
 			}
+			return false;
 		}
 	}
 }

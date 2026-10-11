@@ -64,6 +64,8 @@ public final class CarnageBoard extends CasinoPanel {
 	private static final int BODY_W = PANEL_W - PAD * 2;
 	private static final int FOOT_Y = H - PAD - 13;
 	private static final int BAR_H = 4;
+	private static final int CLAIM_W = 78;
+	private static final int ARROW_W = 18;
 	private static final String[] TAB_LABELS = {"Today", "Hunt", "Shop", "Leaders", "Bestiary", "Tags"};
 
 	// --- motion ---
@@ -160,7 +162,7 @@ public final class CarnageBoard extends CasinoPanel {
 		switch (page) {
 			case DASHBOARD -> dashboard(context, font, slots);
 			case HUNT -> hunt(context, font, slots);
-			case SHOP -> shop(context, font, slots);
+			case SHOP -> shop(context, font, slots, title);
 			case LEADERBOARD -> leaderboard(context, font, slots, title);
 			case BESTIARY -> bestiary(context, font, slots);
 			case TAGS -> tags(context, font, slots, title);
@@ -178,7 +180,7 @@ public final class CarnageBoard extends CasinoPanel {
 
 		String[] stage = CarnageMenu.stageLine(slots);
 		if (stage != null) {
-			String left = TimeFormat.hms(Durations.parseMs(stage[1])) + " left";
+			String left = TimeFormat.hm(Durations.parseMs(stage[1])) + " left";
 			int x = PANEL_W - PAD - font.getWidth(left);
 			text(context, font, left, x, 5, TEXT_DIM);
 			String name = stage[0].toUpperCase(Locale.ROOT) + "  ";
@@ -373,7 +375,7 @@ public final class CarnageBoard extends CasinoPanel {
 		}
 		String draws = loreValue(slots, "Daily Raffle", "Drawing in:");
 		if (!draws.isEmpty()) {
-			String when = "draws in " + TimeFormat.hms(Durations.parseMs(draws));
+			String when = "draws in " + TimeFormat.hm(Durations.parseMs(draws));
 			text(context, font, when, PANEL_W - PAD - font.getWidth(when), y, TEXT_FAINT);
 		}
 		leave(context);
@@ -440,7 +442,7 @@ public final class CarnageBoard extends CasinoPanel {
 		if (!dayEnds.isEmpty()) {
 			text(context, font, "  ·  ", x, y, TEXT_FAINT);
 			x += font.getWidth("  ·  ");
-			pair(context, font, x, y, "resets in ", TimeFormat.hms(Durations.parseMs(dayEnds)));
+			pair(context, font, x, y, "resets in ", TimeFormat.hm(Durations.parseMs(dayEnds)));
 		}
 		claimButton(context, font, CarnageMenu.CLAIM_SOULS);
 		leave(context);
@@ -533,7 +535,7 @@ public final class CarnageBoard extends CasinoPanel {
 
 	// --- Shop ---
 
-	private void shop(DrawContext context, TextRenderer font, List<SlotView> slots) {
+	private void shop(DrawContext context, TextRenderer font, List<SlotView> slots, String title) {
 		List<CarnageMenu.ShopItem> items = CarnageMenu.shop(slots);
 		int souls = soulsHeld();
 		int cols = 2;
@@ -570,6 +572,16 @@ public final class CarnageBoard extends CasinoPanel {
 		String held = souls + (souls == 1 ? " soul" : " souls");
 		text(context, font, "You have ", PAD, FOOT_Y + 3, TEXT_FAINT);
 		text(context, font, held, PAD + font.getWidth("You have "), FOOT_Y + 3, PUMPKIN);
+		// Matched on the arrow, since the server can't decide on a word: "<- Phase I" going
+		// back, "Stage II ->" going on.
+		int prev = SlotView.nameAt(slots, CarnageMenu.SHOP_PREVIOUS_STAGE).contains("<-") ? CarnageMenu.SHOP_PREVIOUS_STAGE : -1;
+		int next = SlotView.nameAt(slots, CarnageMenu.SHOP_NEXT_STAGE).contains("->") ? CarnageMenu.SHOP_NEXT_STAGE : -1;
+		if (prev >= 0 || next >= 0) {
+			// Up against FREE SOULS rather than centred, where a three-digit soul count runs into it.
+			String stage = CarnageMenu.shopStage(title);
+			int right = CarnageTracker.freeSoulsClaimed() ? PANEL_W - PAD : PANEL_W - PAD - CLAIM_W - 4;
+			pager(context, font, right - pagerW(font, stage), stage, prev, next);
+		}
 		claimButton(context, font, CarnageMenu.has(slots, CarnageMenu.SHOP_CLAIM, "Carnage Shop")
 				? CarnageMenu.SHOP_CLAIM : CarnageMenu.CLAIM_SOULS);
 		leave(context);
@@ -580,9 +592,10 @@ public final class CarnageBoard extends CasinoPanel {
 	private void leaderboard(DrawContext context, TextRenderer font, List<SlotView> slots, String title) {
 		List<CarnageMenu.Leader> leaders = CarnageMenu.leaders(slots);
 		String scope = SlotView.nameAt(slots, CarnageMenu.LEADERBOARD_SCOPE).trim();
+		int paid = CarnageMenu.paidPlaces(slots);
 		enter(context, 0);
 		caption(context, font, PAD, BODY_Y, BODY_W, scope.isEmpty() ? "LEADERBOARD" : scope.toUpperCase(Locale.ROOT),
-				"top 3 win daily");
+				paid == 0 ? "" : "top " + paid + " set to win");
 		leave(context);
 		String self = MinecraftClient.getInstance().getSession().getUsername();
 		int rowH = 13;
@@ -659,7 +672,7 @@ public final class CarnageBoard extends CasinoPanel {
 			}
 		}
 		enter(context, 6);
-		text(context, font, "? can be hunted now · II, III, IV arrive in later stages", PAD, FOOT_Y + 3, TEXT_FAINT);
+		text(context, font, CarnageMenu.bestiaryFooter(monsters), PAD, FOOT_Y + 3, TEXT_FAINT);
 		leave(context);
 	}
 
@@ -707,17 +720,24 @@ public final class CarnageBoard extends CasinoPanel {
 
 	// --- shared pieces ---
 
-	/** ◀ page n/m ▶, centred in the footer; a missing arrow is drawn dead rather than hidden. */
+	/** ◀ page n/m ▶, centred in the footer. */
 	private void pager(DrawContext context, TextRenderer font, List<SlotView> slots, int[] pages) {
-		int arrowW = 18;
 		String label = pages == null ? "" : pages[0] + " / " + pages[1];
-		int labelW = Math.max(36, font.getWidth(label) + 10);
-		int x = (PANEL_W - labelW - arrowW * 2) / 2;
-		boolean hasPrev = CarnageMenu.has(slots, CarnageMenu.PREVIOUS_PAGE, "Previous Page");
-		boolean hasNext = CarnageMenu.has(slots, CarnageMenu.NEXT_PAGE, "Next Page");
-		button(context, font, x, FOOT_Y, arrowW, 13, "◀", hasPrev ? CarnageMenu.PREVIOUS_PAGE : -1, PUMPKIN);
-		text(context, font, label, x + arrowW + (labelW - font.getWidth(label)) / 2, FOOT_Y + 3, TEXT_DIM);
-		button(context, font, x + arrowW + labelW, FOOT_Y, arrowW, 13, "▶", hasNext ? CarnageMenu.NEXT_PAGE : -1, PUMPKIN);
+		pager(context, font, (PANEL_W - pagerW(font, label)) / 2, label,
+				CarnageMenu.has(slots, CarnageMenu.PREVIOUS_PAGE, "Previous Page") ? CarnageMenu.PREVIOUS_PAGE : -1,
+				CarnageMenu.has(slots, CarnageMenu.NEXT_PAGE, "Next Page") ? CarnageMenu.NEXT_PAGE : -1);
+	}
+
+	/** ◀ label ▶ in the footer from {@code x}; a missing arrow (slot -1) is drawn dead rather than hidden. */
+	private void pager(DrawContext context, TextRenderer font, int x, String label, int prevSlot, int nextSlot) {
+		int labelW = pagerW(font, label) - ARROW_W * 2;
+		button(context, font, x, FOOT_Y, ARROW_W, 13, "◀", prevSlot, PUMPKIN);
+		text(context, font, label, x + ARROW_W + (labelW - font.getWidth(label)) / 2, FOOT_Y + 3, TEXT_DIM);
+		button(context, font, x + ARROW_W + labelW, FOOT_Y, ARROW_W, 13, "▶", nextSlot, PUMPKIN);
+	}
+
+	private static int pagerW(TextRenderer font, String label) {
+		return Math.max(36, font.getWidth(label) + 10) + ARROW_W * 2;
 	}
 
 	/**
@@ -747,8 +767,7 @@ public final class CarnageBoard extends CasinoPanel {
 		if (CarnageTracker.freeSoulsClaimed()) {
 			return;
 		}
-		int w = 78;
-		button(context, font, PANEL_W - PAD - w, FOOT_Y, w, 13, "FREE SOULS", slot, PUMPKIN);
+		button(context, font, PANEL_W - PAD - CLAIM_W, FOOT_Y, CLAIM_W, 13, "FREE SOULS", slot, PUMPKIN);
 	}
 
 	/** A small section label with a note right-aligned at {@code width}. */

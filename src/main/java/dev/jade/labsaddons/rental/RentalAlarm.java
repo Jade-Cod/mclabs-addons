@@ -6,7 +6,9 @@ import dev.jade.labsaddons.runner.RunnerAlarm;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -27,16 +29,26 @@ public final class RentalAlarm {
 	public static synchronized void check(long nowMs) {
 		LabsAddonsConfig config = LabsAddonsConfig.get();
 		long thresholdMs = config.rentalAlarmMinutes * 60_000L;
-		for (RentalEntry entry : RentalTracker.entries()) {
+		for (RentalEntry entry : due(RentalTracker.entries(), nowMs, thresholdMs, config.rentalAlarmEnabled)) {
+			long leftMs = entry.endMs - nowMs;
+			RunnerAlarm.ring(
+					Text.translatable("labsaddons.hud.rentals.alarm.title").formatted(Formatting.RED),
+					Text.translatable("labsaddons.hud.rentals.alarm.subtitle", entry.name, TimeFormat.hms(leftMs)),
+					config.rentalAlarmSound);
+		}
+	}
+
+	/** Rentals that should ring now; marks them alerted and rearms any that are back over the threshold. */
+	static synchronized List<RentalEntry> due(List<RentalEntry> entries, long nowMs, long thresholdMs, boolean enabled) {
+		List<RentalEntry> ringing = new ArrayList<>();
+		for (RentalEntry entry : entries) {
 			long leftMs = entry.endMs - nowMs;
 			if (leftMs > thresholdMs) {
 				alerted.remove(entry.key());
-			} else if (config.rentalAlarmEnabled && leftMs > 0 && alerted.add(entry.key())) {
-				RunnerAlarm.ring(
-						Text.translatable("labsaddons.hud.rentals.alarm.title").formatted(Formatting.RED),
-						Text.translatable("labsaddons.hud.rentals.alarm.subtitle", entry.name, TimeFormat.hms(leftMs)),
-						config.rentalAlarmSound);
+			} else if (enabled && leftMs > 0 && alerted.add(entry.key())) {
+				ringing.add(entry);
 			}
 		}
+		return ringing;
 	}
 }

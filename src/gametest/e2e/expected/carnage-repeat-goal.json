@@ -1,0 +1,21 @@
+{
+  "state": {
+    "state.json/carnageDaily": {
+      "dayEndMs": "now+2866m0s",
+      "stage": "Stage II",
+      "stageEndMs": "now+10066m0s",
+      "score": 5.0,
+      "scoreGoal": 5000,
+      "tickets": 0,
+      "maxTickets": 10,
+      "ticketBase": 500.0,
+      "goalsDone": 8,
+      "goalsTotal": 16,
+      "missions": [],
+      "repeatGoal": 0,
+      "repeatStart": 0.0,
+      "repeatCarry": 15.0
+    }
+  },
+  "clicks": []
+}

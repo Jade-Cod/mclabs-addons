@@ -194,7 +194,10 @@ public class E2eTest implements FabricClientGameTest {
 		boolean network = false;
 		for (String line : lines) {
 			if (line.startsWith("[")) {
-				network = line.contains("[Download-") || line.contains("mojang.com");
+				// The title screen's Realms check logs an ERROR whenever the network drops (a
+				// "No route to host" failed a run mid-scenario); that's the network too.
+				network = line.contains("[Download-") || line.contains("mojang.com")
+						|| line.contains("realms") || line.contains("Realms");
 			} else if (line.contains("mojang.com")) {
 				network = true;
 			}

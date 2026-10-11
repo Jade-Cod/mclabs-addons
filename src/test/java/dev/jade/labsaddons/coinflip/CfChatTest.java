@@ -85,6 +85,34 @@ class CfChatTest {
 		assertEquals(1, CfChat.sessionPlayed());
 	}
 
+	private static String post(String who, String amount, int id) {
+		return "Coinflip » " + who + " has just created a " + amount + " Coinflip! "
+				+ "Click this message or do /cf take " + id + " to take it!";
+	}
+
+	@Test
+	void playingOneOfTwoIdenticalPostsLeavesTheOther() {
+		CfChat.onMessage(post("Bob", "$100,000", 1), SELF, NOW);
+		CfChat.onMessage(post("Bob", "$100,000", 2), SELF, NOW + 1);
+		CfChat.onMessage("Coinflip » You have lost the $100,000 coinflip against Bob.", SELF, NOW + 2);
+		assertEquals(1, CfChat.openFlips(NOW + 3).size());
+		// The public broadcast of that same flip must not take the second one too.
+		CfChat.onMessage("Coinflip » Bob has just won a $200,000 coinflip against " + SELF + "!",
+				SELF, NOW + 3);
+		assertEquals(1, CfChat.openFlips(NOW + 4).size());
+	}
+
+	@Test
+	void quotedServerLinesInPlayerChatMoveNothing() {
+		CfChat.onMessage("[S] [VIP] bob: " + post("Alice", "$1,000", 9), SELF, NOW);
+		assertTrue(CfChat.openFlips(NOW).isEmpty());
+		assertNull(CfChat.onMessage("[S] bob: Coinflip » You have lost the $5,000 coinflip "
+				+ "against Alice", SELF, NOW));
+		assertEquals(0, CfChat.sessionPlayed());
+		CfChat.onMessage("[S] bob: MCLabs » $750 has been taken from your account.", SELF, NOW);
+		assertNull(CfChat.taken(NOW));
+	}
+
 	@Test
 	void takingAFlipInTheLobbyNamesItForTheScreenThatFollows() {
 		CfChat.onMessage("Coinflip » _MikeHunt has just created a $600,000 Coinflip! "

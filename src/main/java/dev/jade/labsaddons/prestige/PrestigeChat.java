@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.prestige;
 
+import dev.jade.labsaddons.server.ChatLines;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +109,7 @@ public final class PrestigeChat {
 		// somehow failed to close.
 		String text = message.getString();
 		Matcher sale = SALE.matcher(text);
-		if (sale.find()) {
+		if (sale.find() && !ChatLines.isPlayerChat(text)) {
 			List<String> tooltips = TextHovers.tooltips(message);
 			List<Gain> gains = parseEarned(tooltips);
 			if (!gains.isEmpty()) {

@@ -47,14 +47,14 @@ public final class MasteryChatTracker {
 	 * lazy middle tolerates either time format ("38.005 seconds" or "1 minute and ...").
 	 */
 	private static final Pattern WIN = Pattern.compile(
-			"(\\w{3,16}) typed the message in .+? and won \\$[\\d,]+", Pattern.CASE_INSENSITIVE);
+			"^»\\s*(\\w{3,16}) typed the message in .+? and won \\$[\\d,]+", Pattern.CASE_INSENSITIVE);
 
 	private static final Pattern RUNNER_UP = Pattern.compile(
-			"Runner-up,.+?too late!", Pattern.CASE_INSENSITIVE);
+			"^»\\s*Runner-up,.+?too late!", Pattern.CASE_INSENSITIVE);
 
 	/** "Bounty » NAME has found a bounty chest near X in 00:51!", or "the last bounty chest". */
 	private static final Pattern BOUNTY_FOUND = Pattern.compile(
-			"Bounty\\s+»\\s+(\\w{3,16}) has found (?:a|the last) bounty chest", Pattern.CASE_INSENSITIVE);
+			"^Bounty\\s+»\\s+(\\w{3,16}) has found (?:a|the last) bounty chest", Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * The concluding standings arrive as their own message beginning " Top players:",
@@ -89,14 +89,15 @@ public final class MasteryChatTracker {
 		if (text == null || text.isEmpty()) {
 			return false;
 		}
-		if (RUNNER_UP.matcher(text).find()) {
+		String line = text.strip();
+		if (RUNNER_UP.matcher(line).find()) {
 			return MasteryTracker.advance(COMPLETE_QUEST, 1);
 		}
-		Matcher win = WIN.matcher(text);
+		Matcher win = WIN.matcher(line);
 		if (win.find()) {
 			return isSelf(selfName, win.group(1)) && advanceAll(WIN_QUEST, COMPLETE_QUEST);
 		}
-		Matcher bounty = BOUNTY_FOUND.matcher(text);
+		Matcher bounty = BOUNTY_FOUND.matcher(line);
 		if (bounty.find()) {
 			return isSelf(selfName, bounty.group(1)) && advanceAll(BOUNTY_QUEST);
 		}

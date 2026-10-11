@@ -143,4 +143,11 @@ public class PoliceContrabandTest {
 		assertNull(PolicePrestigeReader.parseTier("✘ Police - Collect Contraband III",
 				List.of("Progress:", "[|||| 518400/518400 ||||]")));
 	}
+
+	@Test
+	public void aQuotedArrestInPlayerChatMovesNothing() {
+		assertFalse(PoliceContraband.onMessage("[S] [VIP] bob: MCLPD » Earned 3,013 progress (x1.177) in "
+				+ "confiscating contraband. Click to see your total progress."));
+		assertEquals(404725, current());
+	}
 }

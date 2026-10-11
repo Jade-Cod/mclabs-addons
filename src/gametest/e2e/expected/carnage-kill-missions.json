@@ -1,0 +1,43 @@
+{
+  "state": {
+    "state.json/carnageDaily": {
+      "dayEndMs": "now+1425m50s",
+      "stage": "Stage II",
+      "stageEndMs": "now+10065m50s",
+      "score": 1917.95,
+      "scoreGoal": 5000,
+      "tickets": 3,
+      "maxTickets": 10,
+      "ticketBase": 500.0,
+      "goalsDone": 7,
+      "goalsTotal": 16,
+      "missions": [
+        {
+          "name": "Kill 30x Raider",
+          "mob": "raider",
+          "current": 3,
+          "target": 30,
+          "reward": "$100,000"
+        },
+        {
+          "name": "Kill 55x Slimer",
+          "mob": "slimer",
+          "current": 0,
+          "target": 55,
+          "reward": "Next Tag: [🐦 Crow]"
+        },
+        {
+          "name": "Kill 3x Scarecrow",
+          "mob": "scarecrow",
+          "current": 1,
+          "target": 3,
+          "reward": "4x Soul of Fright"
+        }
+      ],
+      "repeatGoal": 0,
+      "repeatStart": 0.0,
+      "repeatCarry": 0.0
+    }
+  },
+  "clicks": []
+}

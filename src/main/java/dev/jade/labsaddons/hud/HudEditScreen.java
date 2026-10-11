@@ -184,6 +184,7 @@ public class HudEditScreen extends Screen {
 	@Override
 	protected void init() {
 		this.panel = null;
+		railWidthCache = 0;
 		builtForProfile = LabsAddonsConfig.get().activeProfile;
 		// Before the inspector, which docks itself against railWidth().
 		rebuildRail();

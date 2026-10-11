@@ -21,9 +21,10 @@ import java.util.regex.Pattern;
  *
  * <p>Three things disarm it, because the spin is only a daily until it is over: the server's
  * own line saying what you chose, any other menu opening, and a timeout in case you walk
- * away from the choice without making one. Closing the screen deliberately does not — the
- * daily menu hands over to the roll within the same millisecond, and dropping the arm on a
- * frame with no screen would lose the handover.
+ * away from the choice without making one. Closing the screen does not disarm on its own,
+ * because the daily menu hands over to the roll within the same millisecond. The close is
+ * remembered instead, and a roll opening more than a second later is a voter key, not the
+ * daily spin.
  *
  * <p>Minecraft-free so both the title and the line can be tested against the real strings.
  */
@@ -36,8 +37,16 @@ public final class DailySpin {
 	/** Longest a spin can stay armed with nothing else happening. */
 	private static final long ARM_MS = 120_000L;
 
+	/**
+	 * How long after the daily menu closes a roll can still be its spin. The real handover is
+	 * the same millisecond; anything later is a voter key rolled after Esc.
+	 */
+	private static final long HANDOVER_MS = 1_000L;
+
 	private static int streak;
 	private static long armedAtMs;
+	/** When a container last closed to no screen, or 0 when none has since the arm. */
+	private static long closedAtMs;
 
 	private DailySpin() {
 	}
@@ -74,13 +83,22 @@ public final class DailySpin {
 		if (found > 0) {
 			streak = found;
 			armedAtMs = nowMs;
+			closedAtMs = 0L;
 			return;
 		}
 		// The spin itself, which is what the arm is for.
 		if (CrateTitles.isVoteRoll(title) || CrateTitles.isVoteChoice(title)) {
+			if (CrateTitles.isVoteRoll(title) && closedAtMs > 0L && nowMs - closedAtMs > HANDOVER_MS) {
+				reset();
+			}
 			return;
 		}
 		reset();
+	}
+
+	/** Call whenever a container screen closes to no screen. */
+	public static void onMenuClosed(long nowMs) {
+		closedAtMs = nowMs;
 	}
 
 	public static void onMessage(String text) {
@@ -103,6 +121,7 @@ public final class DailySpin {
 	public static void reset() {
 		streak = 0;
 		armedAtMs = 0L;
+		closedAtMs = 0L;
 	}
 
 	/** Visible for testing. */

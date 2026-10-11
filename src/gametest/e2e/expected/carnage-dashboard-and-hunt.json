@@ -35,7 +35,8 @@
         }
       ],
       "repeatGoal": 0,
-      "repeatStart": 0.0
+      "repeatStart": 0.0,
+      "repeatCarry": 0.0
     },
     "state.json/carnageHunt": {
       "found": 0,

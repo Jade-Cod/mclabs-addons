@@ -52,6 +52,10 @@ public final class CarnageTracker {
 	 * menu's "Progress: 391.65/50,000" on day one of Stage I.
 	 */
 	static final int REPEAT_GOAL = 50_000;
+	/** The daily goal every capture shows as "/5,000"; the after-goal dashboard drops it. */
+	static final int DAILY_GOAL = 5_000;
+	/** The day end comes from a minutes-only countdown, so it can read up to a minute early. */
+	private static final long DAY_END_SLACK_MS = 60_000L;
 	private static final long SAME_DAY_SLACK_MS = 10 * 60_000L;
 	/** "Carnage » Carnage Daily Raffle Ticket 1/10 earned! Next ticket in 512.32 Carnage score." */
 	private static final Pattern TICKET_EARNED = Pattern.compile(
@@ -74,14 +78,20 @@ public final class CarnageTracker {
 	/**
 	 * "+4.3 Carnage Points (67 - 67)", or with a booster running "+6.6 Carnage Points [1.5x]
 	 * (1,740 - 1,740)": anything but a bracket may sit between the words and the figures. The
-	 * first figure in the brackets is taken as today's score, the one the Daily Score Goal and
-	 * the raffle count against.
+	 * brackets are today's total, then the stage's: checked against the Today and Stage boards
+	 * through Stage I, and the board matched the line at every reading. A booster's bonus is in
+	 * both totals and in the goals alike.
 	 */
-	// ponytail: both figures were equal in the only sample (day one of stage one), so which
-	// is daily and which is stage is a guess. Swap the group if the goal bar runs away.
 	private static final Pattern POINTS = Pattern.compile(
-			"\\+\\s*[\\d.,]+\\s+Carnage Points[^(]*\\(\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE);
+			"\\+\\s*([\\d.,]+)\\s+Carnage Points[^(]*\\(\\s*([\\d.,]+)[^\\d)]*([\\d.,]+)?",
+			Pattern.CASE_INSENSITIVE);
 	private static final Pattern KILL = Pattern.compile("^Kill\\s+[\\d,]+x\\s+(.+)$", Pattern.CASE_INSENSITIVE);
+	/** Title words the Bestiary puts on a mob that its name tag leaves off: "The Slimed", "Dr. Frankenstein". */
+	private static final Pattern TITLE = Pattern.compile("^(?:the|dr\\.?)\\s+");
+
+	/** One kill's actionbar line: the points it paid, then today's and the stage's totals ({@code -1} if absent). */
+	public record Award(double points, double today, double stage) {
+	}
 
 	/** {@code mob} is the lowercase mob a "Kill Nx Mob" mission counts, or null for any other kind. */
 	public record Mission(String name, String mob, int current, int target, String reward) {
@@ -98,15 +108,20 @@ public final class CarnageTracker {
 	 * What the dashboard said, moved on by kills since. {@code score} is today's total.
 	 *
 	 * <p>Once the daily goal is done the dashboard swaps it for a repeatable one: {@code
-	 * repeatGoal} is its size (0 until then), and {@code repeatStart} the total score it
-	 * started counting from. It starts at the moment the goal completes, with whatever the
-	 * finishing kill overshot by thrown away, which is what the menu's figures fit. A
-	 * {@code repeatStart} below zero means the total isn't known yet: {@code score} then holds
-	 * the menu's repeat progress, and the next kill anchors it.
+	 * repeatGoal} is its size (0 until then), {@code repeatStart} today's total when today's
+	 * counting toward it began, and {@code repeatCarry} the progress it already had then.
+	 * <b>The repeatable goal is not a daily figure</b>: it carries over from one day to the
+	 * next and only restarts on reaching its size. Each day the first 5,000 go to the daily
+	 * goal instead, and the kill that completes it loses whatever it scored past 5,000; after
+	 * that every point counts. Measured on day seven of Stage I, when the menu said 49,721.55
+	 * against a today total of 34,558: 19,608.58 left from three days before, 563 from the day
+	 * after, and today's 34,558 less 5,009. A {@code repeatStart} below zero means today's
+	 * total isn't known yet: {@code repeatCarry} then holds the menu's progress, and the next
+	 * kill anchors it.
 	 */
 	public record Daily(long dayEndMs, String stage, long stageEndMs, double score, int scoreGoal,
 			int tickets, int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions,
-			int repeatGoal, double repeatStart) {
+			int repeatGoal, double repeatStart, double repeatCarry) {
 		public Daily {
 			missions = missions == null ? List.of() : List.copyOf(missions);
 			stage = stage == null ? "" : stage;
@@ -115,7 +130,7 @@ public final class CarnageTracker {
 		public Daily(long dayEndMs, String stage, long stageEndMs, double score, int scoreGoal, int tickets,
 				int maxTickets, double ticketBase, int goalsDone, int goalsTotal, List<Mission> missions) {
 			this(dayEndMs, stage, stageEndMs, score, scoreGoal, tickets, maxTickets, ticketBase, goalsDone,
-					goalsTotal, missions, 0, 0);
+					goalsTotal, missions, 0, 0, 0);
 		}
 
 		public boolean goalDone() {
@@ -127,13 +142,18 @@ public final class CarnageTracker {
 			if (!goalDone()) {
 				return 0;
 			}
-			return repeatStart < 0 ? score : Math.max(0, score - repeatStart);
+			return repeatStart < 0 ? repeatCarry : repeatCarry + Math.max(0, score - repeatStart);
 		}
 
 		Daily with(double score, int tickets, int goalsDone, List<Mission> missions, int repeatGoal,
 				double repeatStart) {
 			return new Daily(dayEndMs, stage, stageEndMs, score, scoreGoal, tickets, maxTickets, ticketBase,
-					goalsDone, goalsTotal, missions, repeatGoal, repeatStart);
+					goalsDone, goalsTotal, missions, repeatGoal, repeatStart, repeatCarry);
+		}
+
+		Daily withCarry(double carry) {
+			return new Daily(dayEndMs, stage, stageEndMs, score, scoreGoal, tickets, maxTickets, ticketBase,
+					goalsDone, goalsTotal, missions, repeatGoal, repeatStart, carry);
 		}
 	}
 
@@ -172,9 +192,9 @@ public final class CarnageTracker {
 	}
 
 	/**
-	 * A dashboard sync. Before the goal it states the total outright. After it, it states only
-	 * the repeat progress, so the total we already know is kept and the repeat anchored to it;
-	 * without one, the next kill anchors it.
+	 * A dashboard sync. Before the goal it states the total outright, but not the repeatable
+	 * goal's carry, which is kept. After it, it states only the repeat progress, so the total we
+	 * already know is kept and the repeat anchored to it; without one, the next kill anchors it.
 	 */
 	public static void onDashboard(Daily synced) {
 		store(merge(daily(), synced));
@@ -182,20 +202,17 @@ public final class CarnageTracker {
 
 	static Daily merge(Daily known, Daily synced) {
 		if (!synced.goalDone()) {
-			return synced;
+			return synced.withCarry(known == null ? 0 : known.repeatCarry());
 		}
-		int scoreGoal = synced.scoreGoal() > 0 ? synced.scoreGoal() : known == null ? 0 : known.scoreGoal();
-		double progress = synced.score();
-		Daily base = new Daily(synced.dayEndMs(), synced.stage(), synced.stageEndMs(), progress, scoreGoal,
-				synced.tickets(), synced.maxTickets(), synced.ticketBase(), synced.goalsDone(), synced.goalsTotal(),
-				synced.missions(), synced.repeatGoal(), -1);
+		int scoreGoal = synced.scoreGoal() > 0 ? synced.scoreGoal()
+				: known != null && known.scoreGoal() > 0 ? known.scoreGoal() : DAILY_GOAL;
+		double progress = synced.repeatCarry();
 		// Same day: both day ends come from a minutes-only countdown read at different times.
 		boolean sameDay = known != null && Math.abs(known.dayEndMs() - synced.dayEndMs()) < SAME_DAY_SLACK_MS;
-		if (sameDay && known.score() >= progress) {
-			return base.with(known.score(), synced.tickets(), synced.goalsDone(), synced.missions(),
-					synced.repeatGoal(), known.score() - progress);
-		}
-		return base;
+		double total = sameDay ? known.score() : 0;
+		return new Daily(synced.dayEndMs(), synced.stage(), synced.stageEndMs(), total, scoreGoal,
+				synced.tickets(), synced.maxTickets(), synced.ticketBase(), synced.goalsDone(), synced.goalsTotal(),
+				synced.missions(), synced.repeatGoal(), total > 0 ? total : -1, progress);
 	}
 
 	public static void onHunt(Hunt hunt) {
@@ -204,18 +221,26 @@ public final class CarnageTracker {
 		config.save();
 	}
 
-	/** Actionbar text. Moves the score, and the raffle and goal with it. */
+	/**
+	 * Actionbar text. Moves the score, and the raffle and goal with it, and hands the award to
+	 * {@link CarnageKillTracker} as the confirmation that a kill was ours.
+	 */
 	public static void onActionbar(String text) {
 		if (!CarnageEvent.isOn()) {
 			return;
 		}
-		Double score = parseScore(text);
+		Award award = parseAward(text);
+		if (award == null) {
+			return;
+		}
+		CarnageKillTracker.onAward(award);
 		Daily daily = daily();
-		if (score != null && daily != null) {
-			if (score > daily.score()) {
-				MasteryGains.record(SCORE_GAIN, score - daily.score());
+		if (daily != null) {
+			// the server re-sends the line to keep it up: only a moved total is a new kill
+			if (award.today() > daily.score()) {
+				MasteryGains.record(SCORE_GAIN, award.points());
 			}
-			store(withScore(daily, score));
+			store(withScore(daily, award.today(), award.points()));
 		}
 	}
 
@@ -271,7 +296,7 @@ public final class CarnageTracker {
 		}
 		store(new Daily(daily.dayEndMs(), daily.stage(), daily.stageEndMs(), daily.score(), daily.scoreGoal(),
 				ticket[0], ticket[1], daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), daily.missions(),
-				daily.repeatGoal(), daily.repeatStart()));
+				daily.repeatGoal(), daily.repeatStart(), daily.repeatCarry()));
 	}
 
 	/**
@@ -385,8 +410,20 @@ public final class CarnageTracker {
 	}
 
 	static Double parseScore(String text) {
+		Award award = parseAward(text);
+		return award == null ? null : award.today();
+	}
+
+	/** A kill's actionbar line, or null for any other text. */
+	static Award parseAward(String text) {
 		Matcher matcher = POINTS.matcher(text);
-		return matcher.find() ? parseNumber(matcher.group(1)) : null;
+		if (!matcher.find()) {
+			return null;
+		}
+		Double points = parseNumber(matcher.group(1));
+		Double today = parseNumber(matcher.group(2));
+		Double stage = matcher.group(3) == null ? null : parseNumber(matcher.group(3));
+		return points == null || today == null ? null : new Award(points, today, stage == null ? -1 : stage);
 	}
 
 	/** The lowercase mob of a "Kill 4x Poltergeist" mission, or null if it isn't one. */
@@ -396,41 +433,64 @@ public final class CarnageTracker {
 	}
 
 	/**
+	 * A mob's name as a mission and a name tag can both be compared on. The Bestiary and the tags
+	 * spell four mobs differently ("Bog Walker" / "Bogwalker", "The Slimed" / "Slimed",
+	 * "Dr. Frankenstein" / "Frankenstein", "Jack o' Sploder" / "Jack o' 'Sploder"), so a title
+	 * word comes off the front and only letters are kept. The names then have to be equal: a
+	 * contains test would let a Vampire Bat count for a Vampire, or a Poltergeist for a Geist.
+	 */
+	public static String mobKey(String name) {
+		String lower = name.trim().toLowerCase(Locale.ROOT);
+		return TITLE.matcher(lower).replaceFirst("").replaceAll("[^a-z]", "");
+	}
+
+	/**
 	 * A new day wipes the score, tickets and missions. The new missions are unknown until the
 	 * next {@code /carnage}, so the list goes empty rather than carrying yesterday's forward.
 	 * Goals completed is untouched: it is bumped the moment the goal is crossed, not at reset.
+	 * The repeatable goal's progress carries into the new day.
 	 */
 	// ponytail: assumes every day after the first is 24h long (day one ran 30h). The
 	// dashboard countdown re-anchors it on every open.
 	static Daily rolled(Daily daily, long nowMs) {
-		if (nowMs < daily.dayEndMs() || daily.dayEndMs() <= 0) {
+		if (nowMs < daily.dayEndMs() + DAY_END_SLACK_MS || daily.dayEndMs() <= 0) {
 			return daily;
 		}
 		long dayEnd = daily.dayEndMs();
-		while (dayEnd <= nowMs) {
+		while (dayEnd + DAY_END_SLACK_MS <= nowMs) {
 			dayEnd += DAY_MS;
 		}
-		return new Daily(dayEnd, daily.stage(), daily.stageEndMs(), 0, daily.scoreGoal(),
-				0, daily.maxTickets(), daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), List.of(), 0, 0);
+		return nextDay(daily, dayEnd);
+	}
+
+	private static Daily nextDay(Daily daily, long dayEnd) {
+		double carry = daily.goalDone() ? daily.repeatProgress() : daily.repeatCarry();
+		return new Daily(dayEnd, daily.stage(), daily.stageEndMs(), 0, daily.scoreGoal(), 0, daily.maxTickets(),
+				daily.ticketBase(), daily.goalsDone(), daily.goalsTotal(), List.of(), 0, 0, carry);
+	}
+
+	static Daily withScore(Daily daily, double score) {
+		return withScore(daily, score, 0);
 	}
 
 	/**
-	 * A new total from a kill. Raffle tickets follow it, and crossing the daily goal finishes
-	 * it (once). After the goal, a total that drops below the last one means the actionbar is
-	 * counting the repeat goal itself rather than the day, and is taken as such.
+	 * A new total from a kill worth {@code points}. Raffle tickets follow it, and crossing the
+	 * daily goal finishes it (once). Today's total going down means the day ended before our
+	 * clock said so, and the kill lands on the new day. The repeatable goal starts over at its
+	 * size, keeping the overshoot (it read 78.29 after a kill took 48,535 past 50,000).
 	 */
-	static Daily withScore(Daily daily, double score) {
+	static Daily withScore(Daily daily, double score, double points) {
+		if (score + 0.5 < daily.score()) {
+			return withScore(nextDay(daily, daily.dayEndMs() + DAY_MS), score, points);
+		}
 		int tickets = Math.max(daily.tickets(), ticketsAt(daily, score));
 		if (daily.goalDone()) {
-			if (daily.repeatStart() < 0) {
-				// The dashboard gave repeat progress with no total: this kill anchors it.
-				double start = score >= daily.score() ? score - daily.score() : 0;
-				return daily.with(score, tickets, daily.goalsDone(), daily.missions(), daily.repeatGoal(), start);
-			}
-			if (score + 0.5 < daily.score()) {
-				return daily.with(score, daily.tickets(), daily.goalsDone(), daily.missions(), daily.repeatGoal(), 0);
-			}
-			return daily.with(score, tickets, daily.goalsDone(), daily.missions(), daily.repeatGoal(), daily.repeatStart());
+			// The dashboard gave repeat progress with no total: this kill anchors it.
+			double start = daily.repeatStart() < 0 ? Math.max(0, score - points) : daily.repeatStart();
+			Daily moved = daily.with(score, tickets, daily.goalsDone(), daily.missions(), daily.repeatGoal(), start);
+			return moved.repeatProgress() >= moved.repeatGoal()
+					? moved.withCarry(moved.repeatCarry() - moved.repeatGoal())
+					: moved;
 		}
 		Daily moved = daily.with(score, tickets, daily.goalsDone(), daily.missions(), 0, 0);
 		boolean crossed = daily.scoreGoal() > 0 && score >= daily.scoreGoal();
@@ -467,11 +527,11 @@ public final class CarnageTracker {
 
 	/** Credits the first open Kill mission for this mob; returns the same instance if none. */
 	static Daily withKill(Daily daily, String mob) {
-		String key = mob.toLowerCase(Locale.ROOT);
+		String key = mobKey(mob);
 		List<Mission> missions = new ArrayList<>(daily.missions());
 		for (int i = 0; i < missions.size(); i++) {
 			Mission mission = missions.get(i);
-			if (key.equals(mission.mob()) && !mission.done()) {
+			if (mission.mob() != null && key.equals(mobKey(mission.mob())) && !mission.done()) {
 				missions.set(i, mission.plusOne());
 				return daily.with(daily.score(), daily.tickets(), daily.goalsDone(), missions, daily.repeatGoal(),
 						daily.repeatStart());

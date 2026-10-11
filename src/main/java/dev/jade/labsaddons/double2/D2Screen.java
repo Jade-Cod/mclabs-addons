@@ -60,6 +60,7 @@ public final class D2Screen extends CasinoPanel {
 	private float pointerVel;
 	private long lastPhysicsMs;
 	private float lastPointerPos = -1f;
+	private final D2PotCarry potCarry = new D2PotCarry();
 
 	private D2Screen() {
 	}
@@ -101,12 +102,13 @@ public final class D2Screen extends CasinoPanel {
 		pointerVel = 0f;
 		lastPointerPos = -1f;
 		D2Ring.resetOffset();
+		potCarry.clear();
 	}
 
 	@Override
 	protected void draw(DrawContext context, TextRenderer font, List<SlotView> slots,
 			String title, float deviceScale) {
-		D2State state = D2Reader.read(slots);
+		D2State state = potCarry.apply(D2Reader.read(slots));
 		int accent = accent();
 
 		topBar(context, font, state, accent);

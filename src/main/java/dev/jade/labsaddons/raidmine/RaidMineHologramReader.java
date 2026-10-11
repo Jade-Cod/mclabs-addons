@@ -1,5 +1,6 @@
 package dev.jade.labsaddons.raidmine;
 
+import dev.jade.labsaddons.server.McLabsSession;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -40,13 +41,17 @@ public final class RaidMineHologramReader {
 
 	/** ClientEntityEvents.ENTITY_LOAD: queue any new text display for a delayed read. */
 	public static void onEntityLoad(Entity entity, ClientWorld world) {
-		if (entity instanceof DisplayEntity.TextDisplayEntity) {
+		if (entity instanceof DisplayEntity.TextDisplayEntity && McLabsSession.isInRaid()) {
 			pending.put(entity.getId(), tickCounter + READ_DELAY_TICKS);
 		}
 	}
 
 	public static void tick(MinecraftClient client) {
 		tickCounter++;
+		if (!McLabsSession.isInRaid()) {
+			pending.clear();
+			return;
+		}
 		if (pending.isEmpty() || client.world == null) {
 			return;
 		}

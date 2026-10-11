@@ -21,12 +21,12 @@ import java.util.regex.Pattern;
  * for the HUD's "as of …" age line.
  */
 public final class ChemtainerTracker {
-	private static final Pattern DEPOSITED =
-			Pattern.compile("Deposited\\s+([\\d,]+)\\s+chems", Pattern.CASE_INSENSITIVE);
+	static final Pattern DEPOSITED =
+			Pattern.compile("Deposited\\s+([\\d,]+)\\s+chems(?!\\s+into company)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern FULL =
 			Pattern.compile("Chemtainer is full", Pattern.CASE_INSENSITIVE);
 	private static final Pattern WITHDREW =
-			Pattern.compile("Withdrew\\s+([\\d,]+)\\s+(.+?)\\s+from your chemtainer", Pattern.CASE_INSENSITIVE);
+			Pattern.compile("^MCLabs\\s*»\\s*Withdrew\\s+([\\d,]+)\\s+(.+?)\\s+from your chemtainer", Pattern.CASE_INSENSITIVE);
 
 	private ChemtainerTracker() {
 	}
@@ -38,7 +38,7 @@ public final class ChemtainerTracker {
 		} else if (FULL.matcher(text).find()) {
 			ChemtainerDepositCapture.noteFull();
 		}
-		Matcher withdrew = WITHDREW.matcher(text);
+		Matcher withdrew = WITHDREW.matcher(text.strip());
 		if (withdrew.find()) {
 			long count = parseCount(withdrew.group(1));
 			ChemKey key = ChemItems.parseLabel(withdrew.group(2));

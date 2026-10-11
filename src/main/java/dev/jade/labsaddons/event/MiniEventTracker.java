@@ -24,6 +24,7 @@ public final class MiniEventTracker {
 			Pattern.compile("([A-Za-z]+(?:[' ][A-Za-z]+)*)\\s+event has begun!", Pattern.CASE_INSENSITIVE);
 	private static final Pattern ENDS =
 			Pattern.compile("Mini-event ends in\\s+(.+?)[.\\n\\r]", Pattern.CASE_INSENSITIVE);
+	private static final Pattern CLOCK = Pattern.compile("(?:(\\d+):)?(\\d{1,2}):(\\d{2})");
 	private static final Pattern DURATION =
 			Pattern.compile("(\\d+)\\s*(day|hour|minute|second|d|h|m|s)", Pattern.CASE_INSENSITIVE);
 
@@ -81,6 +82,11 @@ public final class MiniEventTracker {
 	}
 
 	private static long parseDuration(String text) {
+		Matcher clock = CLOCK.matcher(text);
+		if (clock.matches()) {
+			long h = clock.group(1) == null ? 0 : Long.parseLong(clock.group(1));
+			return h * 3_600_000L + Long.parseLong(clock.group(2)) * 60_000L + Long.parseLong(clock.group(3)) * 1_000L;
+		}
 		long totalMs = 0;
 		Matcher part = DURATION.matcher(text.toLowerCase(Locale.ROOT));
 		while (part.find()) {

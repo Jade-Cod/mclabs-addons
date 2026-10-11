@@ -58,6 +58,14 @@ public final class CasinoBoards {
 		return false;
 	}
 
+	/** Every board lets go: on a disconnect or a server hop, nothing they hold is on screen any more. */
+	public static void releaseAll() {
+		for (CasinoPanel board : BOARDS) {
+			board.release();
+		}
+		current = null;
+	}
+
 	/** Whether any board is standing in for this menu. */
 	public static boolean recognises(HandledScreen<?> screen) {
 		if (current != null && current.owns(screen)) {

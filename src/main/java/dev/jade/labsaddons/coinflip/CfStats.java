@@ -62,14 +62,14 @@ public final class CfStats {
 
 	// Each line of /cf stats arrives as its own chat message, so each is matched alone.
 	private static final Pattern PLAYED = Pattern.compile(
-			"Coinflips\\s+Played:\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+			"^│\\s*Coinflips\\s+Played:\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern WON = Pattern.compile(
-			"Coinflips\\s+Won:\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
+			"^│\\s*Coinflips\\s+Won:\\s*([\\d,]+)", Pattern.CASE_INSENSITIVE);
 	/** Total Wagered is the one line the server prints without a dollar sign. */
 	private static final Pattern WAGERED = Pattern.compile(
-			"Total\\s+Wagered:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
+			"^│\\s*Total\\s+Wagered:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
 	private static final Pattern WINNINGS = Pattern.compile(
-			"Total\\s+Winnings:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
+			"^│\\s*Total\\s+Winnings:\\s*(\\$?[\\d,]+(?:\\.\\d{1,2})?)", Pattern.CASE_INSENSITIVE);
 
 	/**
 	 * How many of your own flips the lobby keeps. Two more than the rail has room to draw,
@@ -106,23 +106,25 @@ public final class CfStats {
 		if (line == null) {
 			return current;
 		}
+		// Anchored: a player can quote these lines in chat, behind a name and rank.
+		line = line.strip();
 		Matcher played = PLAYED.matcher(line);
-		if (played.find()) {
+		if (played.lookingAt()) {
 			return new Record(count(played.group(1)), current.won(),
 					current.wageredCents(), current.winningsCents());
 		}
 		Matcher won = WON.matcher(line);
-		if (won.find()) {
+		if (won.lookingAt()) {
 			return new Record(current.played(), count(won.group(1)),
 					current.wageredCents(), current.winningsCents());
 		}
 		Matcher wagered = WAGERED.matcher(line);
-		if (wagered.find()) {
+		if (wagered.lookingAt()) {
 			return new Record(current.played(), current.won(),
 					Money.parseCents(wagered.group(1)), current.winningsCents());
 		}
 		Matcher winnings = WINNINGS.matcher(line);
-		if (winnings.find()) {
+		if (winnings.lookingAt()) {
 			return new Record(current.played(), current.won(),
 					current.wageredCents(), Money.parseCents(winnings.group(1)));
 		}

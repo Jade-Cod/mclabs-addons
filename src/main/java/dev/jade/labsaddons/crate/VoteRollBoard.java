@@ -86,6 +86,8 @@ public final class VoteRollBoard extends CasinoPanel {
 	/** The same minus the two figures a daily has none of, plus its extra name line. */
 	private static final int DAILY_PANEL_HEIGHT =
 			NAME_Y + DAILY_NAME_LINES * LINE_H + 8;
+	/** The "what you've taken" strip under the reels: a divider, a caption and two lines of rewards. */
+	private static final int TAKEN_H = 16 + 2 * LINE_H + 4;
 	/**
 	 * The clickable card, which is the whole of a reel's column and not merely its icon.
 	 *
@@ -146,6 +148,8 @@ public final class VoteRollBoard extends CasinoPanel {
 	 * that accounts for strictly more of them is that crate.
 	 */
 	private VoteOdds.Table crate = VoteOdds.Table.EMPTY;
+	/** That crate's name, which is what the taken tally is kept under; empty until it is known. */
+	private String crateName = "";
 
 	private VoteRollBoard() {
 	}
@@ -157,9 +161,12 @@ public final class VoteRollBoard extends CasinoPanel {
 
 	@Override
 	protected int panelHeight() {
-		// Asked before draw() runs, so it reads the flag at source rather than the field.
-		return DailySpin.isSpinning(Util.getMeasuringTimeMs()) ? DAILY_PANEL_HEIGHT
-				: PANEL_HEIGHT;
+		// Asked before draw() runs, so it reads the flag at source rather than the field. The
+		// crate's name is last frame's, which only matters on the frame it is first worked out.
+		if (DailySpin.isSpinning(Util.getMeasuringTimeMs())) {
+			return DAILY_PANEL_HEIGHT + TAKEN_H;
+		}
+		return crateName.isEmpty() ? PANEL_HEIGHT : PANEL_HEIGHT + TAKEN_H;
 	}
 
 	@Override
@@ -223,6 +230,7 @@ public final class VoteRollBoard extends CasinoPanel {
 			previous[i] = null;
 		}
 		crate = VoteOdds.Table.EMPTY;
+		crateName = "";
 	}
 
 	@Override
@@ -237,7 +245,8 @@ public final class VoteRollBoard extends CasinoPanel {
 		// in three rewards — so asking the voter tables about it would put a figure under a
 		// daily reward that is simply another crate's.
 		if (!daily && crate.isEmpty()) {
-			crate = tableFor(drawn);
+			crateName = crateFor(drawn);
+			crate = crateName.isEmpty() ? VoteOdds.Table.EMPTY : tables().get(crateName);
 		}
 
 		header(context, font, daily ? "DAILY SPIN" : "VOTER CRATE", status(), TEXT_DIM);
@@ -245,7 +254,55 @@ public final class VoteRollBoard extends CasinoPanel {
 		for (int i = 0; i < REEL_COUNT; i++) {
 			reel(context, font, i, drawn.get(i), crate, now);
 		}
+		String takenFrom = daily ? RollsTaken.DAILY : crateName;
+		if (!takenFrom.isEmpty()) {
+			taken(context, font, takenFrom, daily ? DAILY_PANEL_HEIGHT : PANEL_HEIGHT);
+		}
 		hoveredTooltip(context, font);
+	}
+
+	/**
+	 * What you've taken from this crate before, most-taken first, flowed over two lines. A crate
+	 * not yet worked out from its rewards shows nothing here, since the tally is kept per crate.
+	 */
+	private void taken(DrawContext context, TextRenderer font, String crateName, int top) {
+		context.fill(PAD, top, PANEL_W - PAD, top + 1, DIVIDER);
+		List<Map.Entry<String, Integer>> rewards = RollsTaken.mostTaken(RollsTaken.forCrate(crateName));
+		int total = rewards.stream().mapToInt(Map.Entry::getValue).sum();
+		String caption = total == 0 ? "NOTHING TAKEN FROM THIS ONE YET"
+				: "YOU'VE TAKEN · " + total + (total == 1 ? " ROLL" : " ROLLS");
+		context.drawText(font, caption, PAD, top + 5, TEXT_FAINT, false);
+
+		int maxX = PANEL_W - PAD;
+		int x = PAD;
+		int y = top + 16;
+		boolean secondLine = false;
+		for (int i = 0; i < rewards.size(); i++) {
+			String sep = x == PAD ? "" : " · ";
+			String name = rewards.get(i).getKey();
+			String count = " ×" + rewards.get(i).getValue();
+			int left = rewards.size() - i - 1;
+			// On the last line an entry has to leave room for the "+N more" behind it.
+			String more = " · +" + left + " more";
+			int need = font.getWidth(sep + name + count) + (secondLine && left > 0 ? font.getWidth(more) : 0);
+			if (x + need > maxX) {
+				if (secondLine) {
+					context.drawText(font, sep.isEmpty() ? "+" + (left + 1) + " more"
+							: " · +" + (left + 1) + " more", x, y, TEXT_FAINT, false);
+					return;
+				}
+				secondLine = true;
+				x = PAD;
+				y += LINE_H;
+				sep = "";
+			}
+			context.drawText(font, sep, x, y, TEXT_FAINT, false);
+			x += font.getWidth(sep);
+			context.drawText(font, name, x, y, TEXT_DIM, false);
+			x += font.getWidth(name);
+			context.drawText(font, count, x, y, TEXT, false);
+			x += font.getWidth(count);
+		}
 	}
 
 	/** What the header says on the right: the streak for a daily, the phase for a crate. */
@@ -420,14 +477,15 @@ public final class VoteRollBoard extends CasinoPanel {
 	 *
 	 * <p>Neither the roll nor the choice names its crate, so the crate is inferred from the
 	 * rewards themselves: whichever remembered table accounts for more of the three. The two
-	 * voter crates share only a handful of rewards, so this is usually decisive — and where it
-	 * is not, an empty table shows no figures rather than the wrong crate's.
+	 * voter crates share only a handful of rewards, so this is usually decisive. Where it is not,
+	 * no crate is named: no figures and no tally, rather than the wrong crate's.
 	 */
-	private static VoteOdds.Table tableFor(List<VoteOdds.Draw> drawn) {
-		VoteOdds.Table best = VoteOdds.Table.EMPTY;
+	private static String crateFor(List<VoteOdds.Draw> drawn) {
+		String best = "";
 		int bestHits = 0;
 		boolean tied = false;
-		for (VoteOdds.Table table : tables().values()) {
+		for (Map.Entry<String, VoteOdds.Table> entry : tables().entrySet()) {
+			VoteOdds.Table table = entry.getValue();
 			int hits = 0;
 			for (VoteOdds.Draw draw : drawn) {
 				if (table.chance(draw.item(), draw.lore()) != null) {
@@ -436,13 +494,13 @@ public final class VoteRollBoard extends CasinoPanel {
 			}
 			if (hits > bestHits) {
 				bestHits = hits;
-				best = table;
+				best = entry.getKey();
 				tied = false;
 			} else if (hits == bestHits && hits > 0) {
 				tied = true;
 			}
 		}
-		return bestHits == 0 || tied ? VoteOdds.Table.EMPTY : best;
+		return bestHits == 0 || tied ? "" : best;
 	}
 
 	/**
