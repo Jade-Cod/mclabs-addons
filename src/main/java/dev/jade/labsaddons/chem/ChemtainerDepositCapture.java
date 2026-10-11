@@ -116,7 +116,17 @@ public final class ChemtainerDepositCapture {
 			if (inventory == null) {
 				return;
 			}
-			track(ChemItems.snapshot(inventory));
+			tick(ChemItems.snapshot(inventory));
+		}
+	}
+
+	/** One tick against an already-read inventory snapshot; {@link #tick()} feeds it the player's inventory. */
+	public static void tick(Map<ChemItems.ChemKey, Long> snapshot) {
+		synchronized (LOCK) {
+			if (reference == null) {
+				return;
+			}
+			track(snapshot);
 			if (!depositSeen) {
 				if (--confirmTimeout <= 0) {
 					disarm(); // never confirmed — the removals weren't a deposit

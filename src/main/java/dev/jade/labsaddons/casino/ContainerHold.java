@@ -40,6 +40,7 @@ final class ContainerHold {
 	private List<SlotView> heldSlots;
 	private String heldKey = "";
 	private long staleSinceMs;
+	private long lastOfferMs;
 
 	/**
 	 * @param parses   whether these slots are this board's menu
@@ -50,6 +51,14 @@ final class ContainerHold {
 	 */
 	Result offer(List<SlotView> slots, boolean parses, int syncId, String key, long nowMs,
 			long staleMs, long reopenMs) {
+		// Every frame with a menu up offers, so a gap longer than the stale grace means nothing
+		// was on screen to ride out: the menu we held was closed. Otherwise the hold outlives
+		// it and can meet its sync id again on something unrelated, or flash its old slots
+		// over the next menu with the same title.
+		if (heldSlots != null && nowMs - lastOfferMs > staleMs) {
+			release();
+		}
+		lastOfferMs = nowMs;
 		if (parses) {
 			boolean changed = contentSyncId != syncId;
 			heldSlots = slots;
@@ -62,15 +71,20 @@ final class ContainerHold {
 		if (heldSlots == null) {
 			return Result.NOTHING;
 		}
+		// A different key is a different menu even under the same id. Ids wrap at 100, so
+		// a hold that outlived its menu can meet that id again on something unrelated. A
+		// horse's inventory got drawn as a Carnage page this way and crashed the client.
+		if (!heldKey.equals(key)) {
+			return Result.NOTHING;
+		}
 		// Measured against the container the held slots came from, not the one we have
 		// pinned to. Pinning happens on the gap's first frame, so measuring against that
 		// would make every frame after it look like the same container quietly stopping —
 		// and hand a reopen the longer grace meant for exactly the opposite case.
 		boolean reopened = contentSyncId != syncId;
 		// A new container id is not by itself a different menu, so this holds while the new
-		// one is both empty and still calling itself what it did before — and hands over at
-		// once when it is neither.
-		if (reopened && !(isUnfilled(slots) && heldKey.equals(key))) {
+		// one is still empty, and hands over the moment it fills with something else.
+		if (reopened && !isUnfilled(slots)) {
 			return Result.NOTHING;
 		}
 		if (staleSinceMs == 0L) {

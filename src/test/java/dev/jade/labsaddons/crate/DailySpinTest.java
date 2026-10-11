@@ -102,4 +102,20 @@ class DailySpinTest {
 		DailySpin.onScreen("Daily Bonus (99 day streak)", T + 5_000L);
 		assertEquals(99, DailySpin.streak());
 	}
+
+	@Test
+	void aRollRightAfterTheDailyMenuClosesIsTheDaily() {
+		DailySpin.onScreen(MENU, T);
+		DailySpin.onMenuClosed(T + 5_000);
+		DailySpin.onScreen(ROLL, T + 5_000);
+		assertTrue(DailySpin.isSpinning(T + 5_001));
+	}
+
+	@Test
+	void aVoterKeyRolledAfterEscapingTheDailyMenuIsNot() {
+		DailySpin.onScreen(MENU, T);
+		DailySpin.onMenuClosed(T + 2_000);
+		DailySpin.onScreen(ROLL, T + 30_000);
+		assertFalse(DailySpin.isSpinning(T + 30_001));
+	}
 }

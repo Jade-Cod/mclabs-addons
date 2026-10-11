@@ -6,6 +6,7 @@
         "failed": 0,
         "valueSold": 5530.0,
         "totalCompletionMs": "0s",
+        "timedCompleted": 1,
         "recentJobs": [
           {
             "drug": "Carrotenium",
@@ -21,6 +22,7 @@
         "failed": 1,
         "valueSold": 0.0,
         "totalCompletionMs": "0s",
+        "timedCompleted": 0,
         "recentJobs": []
       }
     }

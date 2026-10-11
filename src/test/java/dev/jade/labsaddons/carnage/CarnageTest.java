@@ -128,6 +128,9 @@ public class CarnageTest {
 		assertEquals(CarnageMenu.Page.TAGS, CarnageMenu.Page.of("Halloween Tags [7/7]"));
 		assertNull(CarnageMenu.Page.of("Carnage Crate"));
 		assertEquals(7, CarnageMenu.pageOf("Halloween Tags [7/7]")[1]);
+		assertEquals(CarnageMenu.Page.SHOP, CarnageMenu.Page.of("Carnage Shop (Stage II)"));
+		assertEquals("Stage II", CarnageMenu.shopStage("Carnage Shop (Stage II)"));
+		assertEquals("", CarnageMenu.shopStage("Carnage Shop"));
 	}
 
 	@Test
@@ -150,6 +153,23 @@ public class CarnageTest {
 		List<CarnageMenu.Monster> monsters = CarnageMenu.bestiary(slots);
 		assertEquals("II", monsters.get(0).stage());
 		assertEquals("", monsters.get(1).stage());
+	}
+
+	@Test
+	public void footerNamesOnlyTheLockedStagesAndLeaderboardCountsPaidRows() {
+		List<SlotView> slots = menu(
+				new SlotView(9, "???", List.of("Stage III Monster"), 1),
+				new SlotView(10, "???", List.of("Stage IV Monster"), 1),
+				new SlotView(11, "???", List.of("Stage III Monster"), 1),
+				new SlotView(12, "Geist", List.of("Kill to discover!"), 1));
+		assertEquals("? can be hunted now · III, IV arrive in later stages",
+				CarnageMenu.bestiaryFooter(CarnageMenu.bestiary(slots)));
+		assertEquals("? can be hunted now", CarnageMenu.bestiaryFooter(List.of()));
+		List<SlotView> board = menu(
+				new SlotView(18, "#1. A", List.of("", "9 Carnage Points.", "", "Set to win:"), 1),
+				new SlotView(19, "#2. B", List.of("", "8 Carnage Points.", "", "Set to win:"), 1),
+				new SlotView(20, "#3. C", List.of("", "7 Carnage Points."), 1));
+		assertEquals(2, CarnageMenu.paidPlaces(board));
 	}
 
 	/** The scope button cycles stage, overall, daily; its label is where it goes next. */

@@ -19,6 +19,8 @@ public class RunnerStats {
 	public int failed = 0;
 	public double valueSold = 0.0;
 	public long totalCompletionMs = 0L;
+	/** Completions whose "taken" line was seen, so the duration is real. 0 in files saved before this field. */
+	public int timedCompleted = 0;
 	/** Recent completed jobs, oldest first (newest appended). Bounded to {@link #MAX_JOBS}. */
 	public java.util.List<RunnerJob> recentJobs = new java.util.ArrayList<>();
 
@@ -33,12 +35,15 @@ public class RunnerStats {
 
 	/** Mean posted&rarr;completed duration in ms (0 when nothing completed). */
 	public long avgTimeMs() {
-		return completed <= 0 ? 0L : totalCompletionMs / completed;
+		// Old saves lack timedCompleted; their totals were summed over every completion.
+		int divisor = timedCompleted > 0 ? timedCompleted : completed;
+		return divisor <= 0 ? 0L : totalCompletionMs / divisor;
 	}
 
 	/** Clamp any negative persisted values to zero. */
 	public void sanitize() {
 		completed = Math.max(0, completed);
+		timedCompleted = Math.min(Math.max(0, timedCompleted), completed);
 		failed = Math.max(0, failed);
 		valueSold = Math.max(0.0, valueSold);
 		totalCompletionMs = Math.max(0L, totalCompletionMs);

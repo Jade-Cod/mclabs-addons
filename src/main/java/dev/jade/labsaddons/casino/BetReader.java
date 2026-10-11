@@ -68,6 +68,11 @@ public final class BetReader {
 				&& PLUS_100.matcher(plusHundredName).find();
 	}
 
+	/** The add-a-mine tnt exists only on the Mines screen. */
+	public static boolean isMinesStepper(String moreMinesName) {
+		return moreMinesName != null && moreMinesName.toLowerCase(Locale.ROOT).contains("mine");
+	}
+
 	public static boolean isBet(List<SlotView> slots) {
 		if (slots == null || slots.size() < CasinoPanel.CONTAINER_SLOTS) {
 			return false;

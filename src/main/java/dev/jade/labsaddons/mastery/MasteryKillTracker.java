@@ -1,6 +1,5 @@
 package dev.jade.labsaddons.mastery;
 
-import dev.jade.labsaddons.carnage.CarnageTracker;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -44,6 +43,10 @@ import java.util.Set;
  * the Heavy Steel Chestplate summons is the responsible entity for its own hits, and the
  * client is never told whose summon it is.
  *
+ * <p>Carnage's Kill missions have their own tracker,
+ * {@link dev.jade.labsaddons.carnage.CarnageKillTracker}: its mobs are several entities each,
+ * and a name on the mob's own tag missed every Pumpkin Fiend and every NPC boss.
+ *
  * <p>Gated implicitly on an active {@code Kill} challenge: with none, nothing is
  * scanned, and {@link MasteryTracker#advance} ignores any mob whose challenge the
  * player has not selected. The bumps are optimistic; the next {@code /mastery}
@@ -62,12 +65,6 @@ public final class MasteryKillTracker {
 	public static final long LAST_HIT_WINDOW_MS = 2_000L;
 
 	private static final String KILL_PREFIX = "kill ";
-	/**
-	 * Marks a target as a Halloween Carnage daily mission rather than a Mastery challenge.
-	 * Carnage mobs are name-tagged and die to our hits the same way Pit mobs do, so the
-	 * same attribution serves both.
-	 */
-	private static final String CARNAGE_PREFIX = "carnage:";
 
 	// entity id -> the active challenge its tag matched; survives the heart-bar phase.
 	private static final Map<Integer, String> matched = new HashMap<>();
@@ -130,15 +127,9 @@ public final class MasteryKillTracker {
 			}
 		}
 		if (challenge != null && dead && weLandedTheLastHit(id, nowMs) && counted.add(id)) {
-			return credit(challenge);
+			return MasteryTracker.advance(challenge, 1);
 		}
 		return false;
-	}
-
-	private static boolean credit(String challenge) {
-		return challenge.startsWith(CARNAGE_PREFIX)
-				? CarnageTracker.onKill(challenge.substring(CARNAGE_PREFIX.length()))
-				: MasteryTracker.advance(challenge, 1);
 	}
 
 	/** Whether our own hit on this mob is recent enough to have been the killing blow. */
@@ -156,9 +147,6 @@ public final class MasteryKillTracker {
 					&& name.toLowerCase(Locale.ROOT).startsWith(KILL_PREFIX)) {
 				targets.put(name.substring(KILL_PREFIX.length()).toLowerCase(Locale.ROOT), name);
 			}
-		}
-		for (String mob : CarnageTracker.killTargets()) {
-			targets.putIfAbsent(mob, CARNAGE_PREFIX + mob);
 		}
 		return targets;
 	}

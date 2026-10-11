@@ -91,6 +91,27 @@ class ContainerHoldTest {
 	}
 
 	@Test
+	void aDifferentMenuUnderARecycledIdIsHandedBackAtOnce() {
+		// Ids wrap at 100. A horse's inventory that lands on the held menu's id is still a
+		// horse's inventory, and drawing it as a Carnage page crashed the client.
+		ContainerHold hold = new ContainerHold();
+		hold.offer(filled("GonjaMayor"), true, 7, "carnage", 0L, STALE_MS, REOPEN_MS);
+		assertNull(hold.offer(empty(), false, 7, "Bessie", 60L, STALE_MS, REOPEN_MS).slots());
+	}
+
+	@Test
+	void aHoldDoesNotOutliveItsMenu() {
+		// Esc, then the same menu much later: the old slots must not stand in for the new one,
+		// and the board has to start over rather than carry the last game's state.
+		ContainerHold hold = new ContainerHold();
+		hold.offer(filled("GonjaMayor"), true, 4, FLIP, 0L, STALE_MS, REOPEN_MS);
+		assertNull(hold.offer(empty(), false, 5, FLIP, 30_000L, STALE_MS, REOPEN_MS).slots());
+		hold.offer(filled("GonjaMayor"), true, 4, FLIP, 60_000L, STALE_MS, REOPEN_MS);
+		assertTrue(hold.offer(filled("xFunnyBone27"), true, 4, FLIP, 90_000L, STALE_MS, REOPEN_MS)
+				.containerChanged(), "a recycled id after a close is a new container");
+	}
+
+	@Test
 	void aReopenThatNeverFillsIsGivenUpOn() {
 		ContainerHold hold = new ContainerHold();
 		hold.offer(filled("GonjaMayor"), true, 4, FLIP, 0L, STALE_MS, REOPEN_MS);

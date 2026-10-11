@@ -18,7 +18,10 @@ public final class DailyReset {
 
 	/** Epoch ms of the most recent 9 PM Pacific reset that has already passed. */
 	public static long currentBoundaryMs() {
-		ZonedDateTime now = ZonedDateTime.now(RESET_ZONE);
+		return boundaryMs(ZonedDateTime.now(RESET_ZONE));
+	}
+
+	static long boundaryMs(ZonedDateTime now) {
 		ZonedDateTime todayReset = now.toLocalDate().atTime(RESET_HOUR, 0).atZone(RESET_ZONE);
 		ZonedDateTime boundary = now.isBefore(todayReset) ? todayReset.minusDays(1) : todayReset;
 		return boundary.toInstant().toEpochMilli();

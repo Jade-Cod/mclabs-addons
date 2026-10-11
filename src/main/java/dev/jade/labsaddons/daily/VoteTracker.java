@@ -13,13 +13,13 @@ public final class VoteTracker {
 	public static final int VOTE_GOAL = 7;
 
 	private static final Pattern VOTE = Pattern.compile(
-			"Vote registered! Claim your vote rewards with /claimvotes", Pattern.CASE_INSENSITIVE);
+			"^MCLabs\\s*»\\s*Vote registered! Claim your vote rewards with /claimvotes", Pattern.CASE_INSENSITIVE);
 
 	private VoteTracker() {
 	}
 
 	public static void onMessage(String text) {
-		if (!VOTE.matcher(text).find()) {
+		if (!VOTE.matcher(text.strip()).find()) {
 			return;
 		}
 		LabsAddonsConfig config = LabsAddonsConfig.get();

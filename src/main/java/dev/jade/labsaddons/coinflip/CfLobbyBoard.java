@@ -83,6 +83,10 @@ public final class CfLobbyBoard extends CasinoPanel {
 	private String digits = "";
 	private boolean allIn;
 	private long confirmUntilMs;
+	private long armedAtMs;
+	/** Key that armed the confirm step, or -1 for a mouse press. */
+	private int armingKey = -1;
+	private boolean armingKeyHeld;
 	private long refreshAtMs;
 	private long lastFrameMs;
 	/** The cog's chip editor: four typed values, one focused, saved on Done. */
@@ -165,7 +169,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 			allIn = false;
 			confirmUntilMs = 0;
 		} else if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
-			submit();
+			submit(keyCode);
 		} else if (keyCode == InputConstants.KEY_ESCAPE) {
 			closeForm();
 		}
@@ -221,6 +225,9 @@ public final class CfLobbyBoard extends CasinoPanel {
 			closeForm();
 		}
 		lastFrameMs = now;
+		if (armingKeyHeld && !InputConstants.isKeyDown(Minecraft.getInstance().getWindow(), armingKey)) {
+			armingKeyHeld = false;
+		}
 		if (refreshAtMs > 0 && now >= refreshAtMs) {
 			refreshAtMs = 0;
 			clickSlot(CfLobbyReader.REFRESH_SLOT);
@@ -404,13 +411,19 @@ public final class CfLobbyBoard extends CasinoPanel {
 	}
 
 	/** First press asks, a second within {@link #CONFIRM_MS} sends. */
-	private void submit() {
+	private void submit(int key) {
 		if (editingChips || problem() != null) {
 			return;
 		}
 		long now = Util.getMillis();
 		if (now >= confirmUntilMs) {
 			confirmUntilMs = now + CONFIRM_MS;
+			armedAtMs = now;
+			armingKey = key;
+			armingKeyHeld = key >= 0;
+			return;
+		}
+		if (!CfConfirmGate.mayConfirm(now, armedAtMs, armingKeyHeld)) {
 			return;
 		}
 		ClientPacketListener network = Minecraft.getInstance().getConnection();
@@ -557,7 +570,7 @@ public final class CfLobbyBoard extends CasinoPanel {
 		}
 		y += 12;
 		localButton(context, font, x, y, w, 15, confirming ? (heads ? "CONFIRM HEADS" : "CONFIRM TAILS") : "CREATE",
-				!editingChips && problem == null, confirming, this::submit);
+				!editingChips && problem == null, confirming, () -> submit(-1));
 		y += 20;
 		context.text(font, editingChips ? "esc to discard" : "esc to cancel", x, y, TEXT_FAINT, false);
 	}

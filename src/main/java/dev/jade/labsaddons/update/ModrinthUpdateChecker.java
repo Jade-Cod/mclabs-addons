@@ -41,12 +41,15 @@ public final class ModrinthUpdateChecker {
 	// Guards against overlapping checks (e.g. rapid rejoin/reconnect) firing duplicate
 	// requests and, worse, duplicate "update available" chat lines.
 	private static final AtomicBoolean CHECK_IN_FLIGHT = new AtomicBoolean(false);
+	// Once Modrinth has answered, the answer stands for the launch. Every subserver hop starts a
+	// new MCLabs session, and without this each one re-printed the "update available" line.
+	private static final AtomicBoolean ANSWERED = new AtomicBoolean(false);
 
 	private ModrinthUpdateChecker() {
 	}
 
 	public static void checkAndNotify() {
-		if (!CHECK_IN_FLIGHT.compareAndSet(false, true)) {
+		if (ANSWERED.get() || !CHECK_IN_FLIGHT.compareAndSet(false, true)) {
 			return;
 		}
 
@@ -76,6 +79,7 @@ public final class ModrinthUpdateChecker {
 		if (response.statusCode() != 200) {
 			return;
 		}
+		ANSWERED.set(true);
 		try {
 			String mcVersion = SharedConstants.getCurrentVersion().name();
 			JsonArray versions = JsonParser.parseString(response.body()).getAsJsonArray();

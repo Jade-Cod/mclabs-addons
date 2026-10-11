@@ -15,6 +15,18 @@ public final class TimeFormat {
 				: hms(remainingMs);
 	}
 
+	/** For minute-resolution countdowns, where {@link #hms} would invent seconds: {@code Xd Yh}, {@code Xh Ym} or {@code Ym}. */
+	public static String hm(long remainingMs) {
+		long totalMinutes = Math.max(0L, remainingMs) / 60_000L;
+		long days = totalMinutes / 1440L;
+		long hours = (totalMinutes % 1440L) / 60L;
+		long minutes = totalMinutes % 60L;
+		if (days > 0) {
+			return days + "d " + hours + "h";
+		}
+		return hours > 0 ? hours + "h " + minutes + "m" : minutes + "m";
+	}
+
 	/** {@code Xd Yh} from a day up, {@code H:MM:SS} from an hour up, otherwise {@code M:SS}. */
 	public static String hms(long remainingMs) {
 		long totalSeconds = (Math.max(0L, remainingMs) + 999L) / 1000L;
