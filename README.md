@@ -5,8 +5,9 @@ server. It started as a fishing bite indicator and grew into a suite of
 on-screen HUD timers that track server boosters and events by reading chat and
 GUIs **passively**. Tracking never automates anything on its own. The only
 commands it sends are the optional **Chemtainer deposit/withdraw keybinds** you
-press yourself, and a single `/cf stats` the first time you ever open the
-coinflip lobby, to seed your coinflip record.
+press yourself (on MCLabs only), and a single `/cf stats` the first time you ever
+open the coinflip lobby, to seed your coinflip record. Lines other players type in
+chat are ignored, so nobody can move your widgets by quoting a server message.
 
 ## Features
 
@@ -52,7 +53,8 @@ full of stained glass. The mod draws its own panel in the chest's place:
 Double²'s wheel (`/double`), a 5x5 Mines grid with its payout ladder (`/mines`),
 a blackjack card table (`/bj`), a coinflip lobby and coin (`/cf`), a crate
 chamber with your pity-ladder odds, and a voter crate's three-way choice with the
-published odds of each draw. Every control forwards a click to the slot you would
+published odds of each draw and a tally of what you have taken from that crate (or
+the daily spin) before. Every control forwards a click to the slot you would
 have clicked yourself, only when you click it, so the server sees an ordinary
 click. Each board has its own switch in Mod Menu; off gives back the server's
 chest menu, untouched.
@@ -66,8 +68,8 @@ chest menu, untouched.
    add them only if you want the Mod Menu settings screen. See *Requirements* below.
 2. Download the build for your Minecraft version and put it in `mods`. Modrinth and
    CurseForge pick the right file for you; on GitHub the jars are named
-   `mclabs-addons-1.18.0-mc1.21.11.jar`, `mclabs-addons-1.18.0-mc26.2.jar` and
-   `mclabs-addons-1.18.0-mc26.3.jar`. The
+   `mclabs-addons-1.18.1-mc1.21.11.jar`, `mclabs-addons-1.18.1-mc26.2.jar` and
+   `mclabs-addons-1.18.1-mc26.3.jar`. The
    mod is **client-side**, so it works on the MCLabs server with nothing installed
    server-side.
 
@@ -116,7 +118,7 @@ Everything updates **passively** from chat — you never have to run anything sp
   you voted elsewhere or missed the chat lines, select the widget in the HUD editor
   and use **"Mark Voted Today"** to hide it until the next reset.
 - **Chemtainer** — tracks what's banked in your Chemtainer. Opening **`/ch`** syncs
-  the exact contents; or use the keybinds: **Deposit Chemtainer** (default **B**)
+  the exact contents; or use the keybinds (they only act on MCLabs): **Deposit Chemtainer** (default **B**)
   sends `/ch qd` and adds whatever left your inventory, and **Withdraw Chemtainer**
   (default **N**) runs `/ch withdraw` for whichever chem you have the most of. The
   widget shows each chem by quantity plus an estimate of how many **inventories**
@@ -151,6 +153,12 @@ Everything updates **passively** from chat — you never have to run anything sp
 - **Coinflip** — **Open Coinflips** lists every flip posted and not yet taken.
   **Coinflip Record** is seeded by one `/cf stats` the first time you open the
   lobby and then keeps itself current from each result.
+- **Halloween Carnage** (until midnight Eastern on November 1) — every `/carnage`
+  page is drawn as one screen with Today, Hunt, Shop, Leaders, Bestiary and Tags
+  tabs; the Shop tab's ◀ ▶ switch between each stage's items. The Carnage widget
+  follows your daily score, the 50,000 repeatable goal (which carries over from day
+  to day, as the server's does) and your Kill missions, which count a kill once the
+  server pays you Carnage Points for it. Open **`/carnage`** to sync it.
 - **Mini-Event, The Pit, Lab Wars, Rental Mount, Personal Boosters** — appear and
   count down whenever the matching server message or item shows up.
 - **Raid Mine** — counts down the double mine drops buff (procs stack, so a fresh
@@ -235,7 +243,7 @@ before the rename) is migrated on first launch and left in place as a backup.
 
 - `LabsAddonsClient` (entrypoint) registers the bite-marker render callbacks, all
   HUD widgets via `hud/HudObjects`, the chat dispatch (`ClientReceiveMessageEvents`
-  → per-feature trackers), the outgoing-command hook (`ClientSendMessageEvents`,
+  → per-feature trackers, after `server/ChatLines` drops player chat), the outgoing-command hook (`ClientSendMessageEvents`,
   used to clear the `/sm claim` reminder and to arm the Chemtainer deposit diff),
   item-use detection (`UseItemCallback`), the keybinds (HUD editor + Chemtainer
   deposit/withdraw, under a custom **McLab Addons** controls category), and the
@@ -248,8 +256,10 @@ before the rename) is migrated on first launch and left in place as a backup.
   draw helpers used by the HUD Studio.
 - One package per feature with a `*Tracker`/timer (chat parsing + persisted
   state) and a `*HudObject` widget: `chum/`, `booster/`, `event/` (mini-event +
-  pit), `labwars/`, `mount/`, `personal/`, `bounty/`, and `daily/` (dailies +
-  vote reminders). `chem/` holds the Chemtainer feature (`ChemtainerTracker`,
+  pit), `labwars/`, `mount/`, `personal/`, `bounty/`, `daily/` (dailies +
+  vote reminders) and `carnage/` (the Halloween Carnage screen, tracker and
+  widget; `CarnageKillTracker` credits Kill missions by pairing a death we caused
+  with the Carnage Points line only the killer gets). `chem/` holds the Chemtainer feature (`ChemtainerTracker`,
   `ChemtainerReader`, `ChemtainerDepositCapture`, `ChemtainerHudObject`), the
   `ChemItems`/`ChemBaseItems` chem-identity helpers, and `ChemIcons`, the
   chemical → item-icon map shared by the booster, bounty, and Chemtainer widgets;
@@ -263,7 +273,7 @@ before the rename) is migrated on first launch and left in place as a backup.
 - `casino/` is the shared base for the boards drawn over casino menus
   (`CasinoPanel`: click forwarding, container hold). `double2/`, `mines/`,
   `blackjack/` and `coinflip/` are the games, and `crate/` holds the crate chamber,
-  pity ladder and voter-crate odds. `rental/` tracks `/rent` items and their return
+  pity ladder, voter-crate odds and the taken tally (`RollsTaken`). `rental/` tracks `/rent` items and their return
   reminder, and `police/` feeds contraband prestige and the Patrol challenges.
 - `mastery/` and `prestige/`: the two sources behind the progress widget.
   `MasteryReader` scrapes `/mastery`, and the kill, catch, sell and chat trackers
@@ -286,14 +296,14 @@ before the rename) is migrated on first launch and left in place as a backup.
   `HandledScreenMixin` / `GenericContainerScreenMixin` (draw the casino and crate
   boards over their menus and route clicks to them), and
   `ClientPlayNetworkHandlerMixin` (server-closed menus, clicked chat commands, and
-  damage attribution for Pit kills).
+  damage attribution for Pit and Carnage kills).
 
 Design rule: **passive by default**. Chat is parsed; container GUIs are read only
 while the player has them open. Nothing is auto-clicked or auto-closed: the casino
 boards send a slot click only for a click the player made on them. The commands
 the mod sends are the Chemtainer deposit/withdraw keybinds (a `/ch` command only
-when the player presses the key) and one `/cf stats` the first time the coinflip
-lobby is ever opened.
+when the player presses the key on MCLabs) and one `/cf stats` the first time the
+coinflip lobby is ever opened.
 
 <!-- AUTO-GENERATED: from gradle.properties + build.gradle — do not hand-edit -->
 ## Requirements
@@ -308,7 +318,7 @@ Drop these in your `mods` folder alongside the mod:
 | [Mod Menu](https://modrinth.com/mod/modmenu) | 17.0.0 | optional (config screen) |
 | [Cloth Config](https://modrinth.com/mod/cloth-config) | 21.11.153 | optional (widgets on that screen) |
 
-Current mod version: **1.18.0**.
+Current mod version: **1.18.1**.
 
 ## Building
 

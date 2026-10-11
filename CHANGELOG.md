@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.18.1] - 2026-10-10
+
+### Added
+- **The voter crate board shows what you have taken from that crate before.** Under the three rewards, a line lists everything you have taken from it, most-taken first, with a count (`20 mcMMO Credits ×2`). The Voter Crate, the Deluxe Voter Crate and the daily spin each keep their own tally. It counts from the server's own "You opened a Voter Crate and unboxed …" and "You rolled your Daily Spin and chose …" lines, so only rewards you actually got are counted, named the way those lines name them.
+- **The Carnage shop switches between stages.** Stage II's items are on a page of their own, and the arrow to it was hidden under the board. The shop now has a ◀ Stage I ▶ switcher at the bottom that clicks the server's own stage arrows.
+- **Mod Menu links.** The mod's entry in Mod Menu now links to its Modrinth page, the source on GitHub and the issue tracker.
+
+### Changed
+- **Carnage Kill missions count kills the way the server does.** A kill now counts once the server pays you Carnage Points for it, so a mob you hit and someone else finished no longer counts. The bosses and Pumpkin Fiends count too: they carry no name of their own, so none of them were counted before.
+- **The repeatable goal carries over from day to day.** The 50,000 repeatable goal is not a daily figure. It keeps its progress into the next day and only starts over when it fills, keeping whatever the filling kill went past. The widget and the `/carnage` screen now follow it the same way.
+- **Lines other players type can no longer move your widgets or your saved stats.** MCLabs sends player chat the same way as its own announcements, so someone typing "Vote registered!" or "Double fish time remaining: 999h" moved your widgets, and a typed coinflip, runner or Mastery line was written into your saved records. Player chat and adverts are now ignored, and every line that saves something is matched on the server's own prefix.
+- **The Deposit and Withdraw keys only work on MCLabs.** Elsewhere they sent `/ch qd` and `/ch withdraw`, and on most servers `/ch` is a chat-channel command.
+- **A broken config file is kept rather than replaced.** If a file can't be read (a typo in a hand edit, say), it is copied to `<name>.corrupt` before defaults are saved over it, and a save that fails is tried again.
+- **The update notice shows once per launch**, not again on every hop between MCLabs servers.
+
+### Fixed
+- **Opening a horse's inventory after `/carnage` no longer crashes the game.** The Carnage screen could still be holding a page it had closed, and when a later menu came up under the same id it tried to draw that menu as a Carnage page. The screens now let go of a menu once it closes, and of everything on a disconnect or server hop.
+- **A coinflip can no longer be posted by accident.** Double-clicking **Create**, or holding Enter, sent `/cf create` without ever showing the confirm step, all in if Balance was picked. Confirming now takes a deliberate second press.
+- **Lab Wars server-wide events show up.** "Revenue Boost Event: … Fishing … 1.25x for the next 1 hour" was never read, because only boosts bought by a player matched. A later `/lw` summary also updates a boost's multiplier now instead of keeping the old one.
+- **Mini-event timers re-sync** from the "Mini-event ends in 12:14" line.
+- **Runner average times are right again.** Jobs taken before you logged in counted as taking no time at all and dragged the average down.
+- **The Carnage daily goal can't be counted twice.** A kill in the minute before the server's reset could finish the goal again on the new day. The score bar also stays up when your first `/carnage` of the day comes after the goal is done.
+- **The `/carnage` screen is up to date for Stage II.** The Bestiary still said Stage II arrived later, the leaderboard said "top 3 win daily" on every scope (the daily board pays the top 5, Stage and Overall the top 9), and the countdowns showed seconds they didn't have.
+- **A company Chemtainer deposit is no longer added to your own Chemtainer.**
+- **Double² shows the pot during the result** instead of "pot $0 · 0 investing".
+- **One coinflip result no longer clears every matching flip** from Open Coinflips when someone has two of the same amount posted.
+- **A voter key rolled after closing `/daily` with Esc** no longer shows the daily spin board.
+- **Mines tiles stop being clickable once you cash out.**
+- **Switching off the Mines or blackjack board no longer breaks the other game's bet screen**, which lost its chest frame and tooltips.
+- **Raid Mine totals only count the raid's own holograms.**
+- **mcMMO ability rows no longer stay "active" forever** after a server hop or disconnect, and the Bounty widget clears on disconnect.
+- **Amounts like $999,999 read $1.0m** instead of "$1000.0k".
+- **The Help guide fits narrow screens, the HUD editor's sidebar resizes with the window, and Rented Items and Progress start in their own spots** rather than on top of Dailies and Open Coinflips. The guide's sync list now includes `/chum`.
+
 ## [1.18.0] - 2026-10-01
 
 ### Added
@@ -258,6 +292,8 @@
 ### Added
 - Initial release: fish-bite indicator, Chum Bucket and booster timers, mini-event and Pit trackers, Lab Wars revenue boosters, rental mount and personal booster timers, and the draggable "HUD Studio" widget editor.
 
+[1.18.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.18.1
+[1.18.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.18.0
 [1.17.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.17.1
 [1.17.0]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.17.0
 [1.16.1]: https://github.com/Jade-Cod/mclabs-addons/releases/tag/v1.16.1
