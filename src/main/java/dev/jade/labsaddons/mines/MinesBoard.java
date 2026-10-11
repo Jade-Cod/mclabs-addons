@@ -180,7 +180,8 @@ public final class MinesBoard extends CasinoPanel {
 				MinesState.Tile tile = state.tiles().get(index);
 				// Only a face-down tile on a live game is worth a click; once a mine is
 				// showing the server ignores the grid anyway.
-				boolean live = tile == MinesState.Tile.HIDDEN && !state.blown();
+				boolean live = tile == MinesState.Tile.HIDDEN && !state.blown()
+						&& (state.canCashOut() || state.stars() == 0);
 				boolean hot = live && hovered(x, y, TILE, TILE);
 
 				float turn = turnsAt[index] == 0L ? 1f

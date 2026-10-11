@@ -24,6 +24,7 @@ import dev.jade.labsaddons.bounty.BountyHudObject;
 import dev.jade.labsaddons.carnage.CarnageBooster;
 import dev.jade.labsaddons.carnage.CarnageEvent;
 import dev.jade.labsaddons.carnage.CarnageHudObject;
+import dev.jade.labsaddons.carnage.CarnageKillTracker;
 import dev.jade.labsaddons.carnage.CarnageReader;
 import dev.jade.labsaddons.carnage.CarnageTracker;
 import dev.jade.labsaddons.bounty.BountyTracker;
@@ -39,13 +40,16 @@ import dev.jade.labsaddons.coinflip.CfRecordHudObject;
 import dev.jade.labsaddons.coinflip.CfStats;
 import dev.jade.labsaddons.crate.CratePity;
 import dev.jade.labsaddons.crate.DailySpin;
+import dev.jade.labsaddons.crate.RollsTaken;
 import dev.jade.labsaddons.crate.CratePityReader;
 import dev.jade.labsaddons.crate.VoteOddsReader;
 import dev.jade.labsaddons.double2.D2Chat;
+import dev.jade.labsaddons.double2.D2Ring;
 import dev.jade.labsaddons.daily.DailyReminderHudObject;
 import dev.jade.labsaddons.daily.DailyTracker;
 import dev.jade.labsaddons.daily.VoteReminderHudObject;
 import dev.jade.labsaddons.daily.VoteTracker;
+import dev.jade.labsaddons.casino.CasinoBoards;
 import dev.jade.labsaddons.chem.ChemItems;
 import dev.jade.labsaddons.chem.ChemtainerDepositCapture;
 import dev.jade.labsaddons.chem.ChemtainerHudObject;
@@ -79,6 +83,7 @@ import dev.jade.labsaddons.runner.SupplierJobsReader;
 import dev.jade.labsaddons.hud.HudEditScreen;
 import dev.jade.labsaddons.hud.HudObjects;
 import dev.jade.labsaddons.config.LabsAddonsConfig;
+import dev.jade.labsaddons.server.ChatLines;
 import dev.jade.labsaddons.server.McLabsSession;
 import dev.jade.labsaddons.server.McLabsWorld;
 import dev.jade.labsaddons.update.ModrinthUpdateChecker;
@@ -212,6 +217,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
 			McLabsSession.reset();
+			resetPerServer();
 			// Restore the saved boards on join rather than at startup. Building a quest
 			// icon needs item components bound, which happens later than both
 			// CLIENT_STARTED and the first client tick — both crashed with "Components
@@ -225,8 +231,14 @@ public class LabsAddonsClient implements ClientModInitializer {
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			McLabsSession.reset();
+			resetPerServer();
+			// Gone with the server: a hunt that ended while we were away never sends its end line,
+			// and the wheel order is only good for the session that showed it.
+			BountyTracker.clear();
+			D2Ring.reset();
 			// Entity ids are per-server; drop kill-tracking state so none leaks forward.
 			MasteryKillTracker.reset();
+			CarnageKillTracker.reset();
 			// Likewise the inventory baseline: rejoining must not read as a haul.
 			MasteryCatchTracker.reset();
 			// An in-flight sale can't settle across a disconnect, and the satchel we
@@ -285,6 +297,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
 			if (player == Minecraft.getInstance().player && McLabsSession.isActive()) {
 				MasteryKillTracker.onPlayerHit(entity.getId());
+				CarnageKillTracker.onPlayerHit(entity.getId());
 			}
 			return InteractionResult.PASS;
 		});
@@ -345,6 +358,10 @@ public class LabsAddonsClient implements ClientModInitializer {
 			if (client.level != null && McLabsSession.isActive() && MasteryKillTracker.tick(client.level)) {
 				MasteryStore.save();
 			}
+			// Carnage's Kill missions: confirmed by the Carnage Points line, which only the killer gets.
+			if (client.level != null && McLabsSession.isActive()) {
+				CarnageKillTracker.tick(client.level);
+			}
 			// Live "Catch <fish>" progress: the catch is read off the inventory, which
 			// sees it whether the server drops it at the bobber or hands it over directly.
 			if (client.player != null && McLabsSession.isActive() && MasteryCatchTracker.tick(client.player)) {
@@ -359,11 +376,19 @@ public class LabsAddonsClient implements ClientModInitializer {
 			while (chumEditorKey.consumeClick()) {
 				client.setScreenAndShow(new HudEditScreen(client.gui.screen()));
 			}
+			// Drained even off MCLabs, so a press elsewhere doesn't fire on the next join. Elsewhere
+			// /ch is usually a chat-channel command.
 			while (chemDepositKey.consumeClick()) {
+				if (!McLabsSession.isActive()) {
+					continue;
+				}
 				armDepositCapture();
 				sendChatCommand("ch qd");
 			}
 			while (chemWithdrawKey.consumeClick()) {
+				if (!McLabsSession.isActive()) {
+					continue;
+				}
 				ChemItems.ChemKey target = ChemtainerTracker.largestChem();
 				if (target != null) {
 					sendChatCommand("ch withdraw " + ChemItems.withdrawArg(target));
@@ -383,6 +408,13 @@ public class LabsAddonsClient implements ClientModInitializer {
 			// (their lore is a static snapshot; re-reading every tick would freeze
 			// the countdown).
 			net.minecraft.client.gui.screens.Screen current = client.gui.screen();
+			// /daily's spin and a voter crate's are the same screen, so a roll only counts as the
+			// daily one when it follows the daily menu straight away: a close to nothing (Esc)
+			// is noted so a voter key rolled later isn't taken for it.
+			if (wasOnContainer && current == null) {
+				DailySpin.onMenuClosed(net.minecraft.util.Util.getMillis());
+			}
+			wasOnContainer = current instanceof AbstractContainerScreen<?>;
 			if (current instanceof AbstractContainerScreen<?> handledScreen) {
 				if (current != lastRatesScreen && readyToScrape(handledScreen)) {
 					lastRatesScreen = current;
@@ -560,10 +592,29 @@ public class LabsAddonsClient implements ClientModInitializer {
 		}
 	}
 
+	/**
+	 * What belongs to the server we're connected to. A subserver hop is a JOIN with no DISCONNECT,
+	 * so this runs on both.
+	 */
+	private static void resetPerServer() {
+		// An ability's worn-off line only comes from the server that started it.
+		McmmoCooldownTracker.clear();
+		// The inventory the capture diffs against is about to be swapped out.
+		ChemtainerDepositCapture.cancel();
+		CasinoBoards.releaseAll();
+	}
+
+	/** Whether the last tick had a container open, to notice one closing to no screen. */
+	private static boolean wasOnContainer;
+
 	/** Guards the one-shot restore of the Mastery and prestige boards; see the tick handler. */
 	private static boolean storesRestored;
 
 	private static void dispatchChat(String text) {
+		// Players can type anything the server says, and nothing below reads player chat.
+		if (ChatLines.isPlayerChat(text)) {
+			return;
+		}
 		// First: the join banner names the world, which may swap the whole HUD profile.
 		McLabsWorld.onMessage(text);
 		BoosterTracker.onMessage(text);
@@ -638,6 +689,7 @@ public class LabsAddonsClient implements ClientModInitializer {
 		// The server saying what you took ends the daily spin, so a voter crate rolled
 		// afterwards is not mistaken for another one.
 		DailySpin.onMessage(text);
+		RollsTaken.onMessage(text);
 		// "[⚡ Your Exceedingly Rare odds have been JACKED-UP! ⚡]" — one per crate roll, in
 		// every capture, including the ones that won a Rare. It is the only signal for a crate
 		// opened with the board off, so it counts the roll whenever the board has not already.

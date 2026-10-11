@@ -3,7 +3,7 @@
     "state.json/labWarsActive": [
       {
         "key": "pit",
-        "multiplier": 1.5,
+        "multiplier": 2.25,
         "expiryEpochMs": "0s",
         "timerKnown": false
       },
@@ -11,6 +11,12 @@
         "key": "chem_sales",
         "multiplier": 1.1,
         "expiryEpochMs": "now+10m0s",
+        "timerKnown": true
+      },
+      {
+        "key": "fishing",
+        "multiplier": 1.25,
+        "expiryEpochMs": "now+60m0s",
         "timerKnown": true
       }
     ]

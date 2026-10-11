@@ -69,8 +69,15 @@ public final class BetBoard extends CasinoPanel {
 
 	@Override
 	protected boolean looksLike(AbstractContainerMenu handler) {
-		return BetReader.looksLikeBet(nameOf(handler, BetReader.START_SLOT),
-				nameOf(handler, BetReader.PLUS_100_SLOT));
+		if (!BetReader.looksLikeBet(nameOf(handler, BetReader.START_SLOT),
+				nameOf(handler, BetReader.PLUS_100_SLOT))) {
+			return false;
+		}
+		// Same per-game toggle as parses(), so a screen is never recognised (texture and
+		// tooltips suppressed) and then not drawn.
+		return BetReader.isMinesStepper(nameOf(handler, BetReader.MORE_MINES_SLOT))
+				? LabsAddonsConfig.get().minesOverlay
+				: LabsAddonsConfig.get().blackjackOverlay;
 	}
 
 	private static String nameOf(AbstractContainerMenu handler, int slot) {

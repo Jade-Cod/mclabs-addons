@@ -72,7 +72,7 @@ public class ProgressHudObject extends HudObject {
 	public HudObjectSettings defaultSettings() {
 		HudObjectSettings defaults = new HudObjectSettings();
 		defaults.x = 0.012f;
-		defaults.y = 0.30f;
+		defaults.y = 0.21f;
 		defaults.textColor = DEFAULT_TEXT_COLOR;
 		return defaults;
 	}

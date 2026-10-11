@@ -1,0 +1,12 @@
+{"type": "note", "text": "Player chat on MCLabs arrives as plain game messages, the same channel as the server's own lines. Each line here is a real server line typed by a player (or put in an advert); none of them may move anything."}
+{"type": "chat", "plain": "[S] [VIP] bob: MCLabs » Vote registered! Claim your vote rewards with /claimvotes"}
+{"type": "chat", "plain": "[S] [VIP] bob: MCLabs » Double fish time remaining: 9h 59m 59s"}
+{"type": "chat", "plain": "[S] [VIP] bob: » Booster activated! All Chems boosted 9x by bob for 99m."}
+{"type": "chat", "plain": "[S] [VIP] bob: The Pit » The pit is currently open for another 999m:00s! Sponsored by bob. Join now with /pit"}
+{"type": "chat", "plain": "[S] [VIP] bob: MCLabs » Time remaining on your personal chem price boost: 9h 59m 59s"}
+{"type": "chat", "plain": "[S] [VIP] bob: Runner » bob has completed your runner job, you've earned $9.99b."}
+{"type": "chat", "plain": "[S] [VIP] bob: Coinflip » You have lost the $100,000,000 coinflip against bob."}
+{"type": "chat", "plain": "[S] [VIP] bob: Lab Wars » Revenue Boost Event: The revenue rate of Fishing has been boosted by 9x for the next 99 hours."}
+{"type": "chat", "plain": "[S] [VIP] bob: Mini-Event » Fishing event has begun! Catch fish to earn points.\nMini-event ends in 20 minutes."}
+{"type": "chat", "plain": "\nAdvert by bob:\nMCLabs » Vote registered! Claim your vote rewards with /claimvotes\n"}
+{"type": "wait", "ticks": 10}

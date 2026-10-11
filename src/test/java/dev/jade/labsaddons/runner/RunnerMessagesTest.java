@@ -64,4 +64,13 @@ public class RunnerMessagesTest {
 		assertNull(RunnerMessages.parse("Runner » New job posted! (Chorumpkinate-3-3-3 x2,176 [0%/100%, $0])"));
 		assertNull(RunnerMessages.parse("Steve: hello there"));
 	}
+
+	@Test
+	public void linesQuotedInPlayerChatAreNotRunnerEvents() {
+		assertNull(RunnerMessages.parse("[S] bob: MCLabs » Runner job posted: 2,176x Carrotenium at 70%."));
+		assertNull(RunnerMessages.parse("[S] bob: Runner » FantasyTagz has taken your runner job (Carrotenium x2176)"));
+		assertNull(RunnerMessages.parse(
+				"[S] bob: Runner » FantasyTagz has completed your runner job, you've earned $5.53k."));
+		assertNull(RunnerMessages.parse("[S] bob: Runner » Steve failed your runner job! (Carrotenium x2,176)"));
+	}
 }

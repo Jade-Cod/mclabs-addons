@@ -83,6 +83,7 @@ public final class RunnerTracker {
 		}
 		long now = System.currentTimeMillis();
 		long duration = pending == null ? 0L : Math.max(0L, now - pending.takenMs());
+		boolean isTimed = pending != null;
 		String drug = pending == null ? "" : pending.drug();
 		int qty = pending == null ? 0 : pending.qty();
 
@@ -90,7 +91,10 @@ public final class RunnerTracker {
 		RunnerStats stats = statsFor(config, runner);
 		stats.completed++;
 		stats.valueSold += event.value();
-		stats.totalCompletionMs += duration;
+		if (isTimed) {
+			stats.timedCompleted++;
+			stats.totalCompletionMs += duration;
+		}
 		stats.recentJobs.add(new RunnerJob(drug, qty, event.value(), now, duration));
 		while (stats.recentJobs.size() > RunnerStats.MAX_JOBS) {
 			stats.recentJobs.remove(0);

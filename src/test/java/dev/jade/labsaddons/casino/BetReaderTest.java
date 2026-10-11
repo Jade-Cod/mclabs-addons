@@ -68,6 +68,13 @@ class BetReaderTest {
 	}
 
 	@Test
+	void onlyMinesHasTheMineStepper() {
+		assertTrue(BetReader.isMinesStepper("+1 Mine (Click)"));
+		assertFalse(BetReader.isMinesStepper(""));
+		assertFalse(BetReader.isMinesStepper(null));
+	}
+
+	@Test
 	void refusesAHalfSentStakeRow() {
 		// Drawing dead chips would be worse than leaving the chest up for a frame.
 		List<SlotView> slots = minesScreen();

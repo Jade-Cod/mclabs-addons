@@ -372,6 +372,10 @@ public abstract class CasinoPanel {
 	/** Hands the container back, so another board (or the real chest) can have it. */
 	public final void release() {
 		container.release();
+		// The screen pins its handler, the player and the whole world behind it.
+		drawnFor = null;
+		liveStacks = List.of();
+		shownStacks = List.of();
 		onContainerChange();
 	}
 

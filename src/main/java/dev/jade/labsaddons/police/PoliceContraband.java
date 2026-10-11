@@ -40,7 +40,7 @@ public final class PoliceContraband {
 
 	/** Both prefixes, both with and without the "(x1.13)" rate. */
 	private static final Pattern EARNED = Pattern.compile(
-			"earned\\s+([\\d,]+(?:\\.\\d+)?)\\s+progress\\b.{0,20}?\\bin confiscating contraband",
+			"^[A-Za-z]+\\s*»\\s*earned\\s+([\\d,]+(?:\\.\\d+)?)\\s+progress\\b.{0,20}?\\bin confiscating contraband",
 			Pattern.CASE_INSENSITIVE);
 	/**
 	 * The police prefix, which is what tells a frisk from a bounty chest. Required rather
@@ -58,7 +58,7 @@ public final class PoliceContraband {
 		if (text == null) {
 			return false;
 		}
-		Matcher earned = EARNED.matcher(text);
+		Matcher earned = EARNED.matcher(text.strip());
 		if (!earned.find()) {
 			return false;
 		}

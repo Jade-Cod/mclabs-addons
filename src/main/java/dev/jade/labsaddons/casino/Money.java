@@ -16,6 +16,10 @@ public final class Money {
 	private static final int CENTS = 100;
 	private static final long MILLION = 1_000_000L;
 	private static final double MILLION_D = 1_000_000.0;
+	private static final long BILLION = 1_000_000_000L;
+	private static final double BILLION_D = 1_000_000_000.0;
+	/** Half a tenth of the unit below: where one decimal place rounds up to the next unit. */
+	private static final long ROUNDS_UP = 50L;
 	/** Where {@link #compact} starts shortening, and where {@link #abbreviated} does. */
 	private static final long COMPACT_FROM_DOLLARS = 10_000L;
 	private static final long ABBREVIATE_FROM_DOLLARS = 1_000L;
@@ -101,10 +105,14 @@ public final class Money {
 		if (dollars < fromDollars) {
 			return format(Math.round(amountCents / (double) CENTS) * CENTS);
 		}
-		if (dollars < MILLION) {
+		// Promote at the rounded boundary: 999,960 would print as "1000.0k" otherwise.
+		if (dollars < MILLION - ROUNDS_UP) {
 			return sign + "$" + String.format(Locale.ROOT, "%.1fk", dollars / 1_000.0);
 		}
-		return sign + "$" + String.format(Locale.ROOT, "%.1fm", dollars / MILLION_D);
+		if (dollars < BILLION - ROUNDS_UP * 1_000L) {
+			return sign + "$" + String.format(Locale.ROOT, "%.1fm", dollars / MILLION_D);
+		}
+		return sign + "$" + String.format(Locale.ROOT, "%.1fb", dollars / BILLION_D);
 	}
 
 	public static long fromDollars(long dollars) {

@@ -73,4 +73,13 @@ class MoneyTest {
 		// compact() is untouched: it still spells out anything under ten thousand.
 		assertEquals("$9,000", Money.compact(900_000L));
 	}
+
+	@Test
+	void promotesToTheNextUnitAtTheRoundedBoundary() {
+		assertEquals("$999.9k", Money.abbreviated(Money.fromDollars(999_949)));
+		assertEquals("$1.0m", Money.abbreviated(Money.fromDollars(999_950)));
+		assertEquals("$1.0m", Money.compact(Money.fromDollars(999_999)));
+		assertEquals("$999.9m", Money.compact(Money.fromDollars(999_949_999)));
+		assertEquals("$1.0b", Money.compact(Money.fromDollars(999_950_000)));
+	}
 }

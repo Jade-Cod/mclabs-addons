@@ -108,6 +108,17 @@ public class ConfigStoreTest {
 	}
 
 	@Test
+	public void aBrokenFileIsKeptBeforeDefaultsReplaceIt() throws IOException {
+		Files.createDirectories(folder());
+		Files.writeString(folder().resolve("runners.json"), "{ this is not json");
+
+		store().loadMerged(null);
+
+		assertEquals("{ this is not json", Files.readString(folder().resolve("runners.json.corrupt")),
+				"a hand-edit typo has to cost a rename, not the runner board");
+	}
+
+	@Test
 	public void aMissingFolderLoadsAsEmptyRatherThanFailing() {
 		ConfigStore store = store();
 		JsonObject merged = store.loadMerged(null);

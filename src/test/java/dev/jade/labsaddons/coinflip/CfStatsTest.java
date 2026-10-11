@@ -78,4 +78,14 @@ class CfStatsTest {
 		assertEquals(record, CfStats.apply(record, "Coinflip » _MikeHunt has just won a "
 				+ "$60,000,000 coinflip against twinpenguinlord! Play with /cf"));
 	}
+
+	@Test
+	void aQuotedStatsLineInPlayerChatMovesNothing() {
+		CfStats.Record before = parsed();
+		CfStats.Record after = before;
+		for (String line : BLOCK) {
+			after = CfStats.apply(after, "[S] [VIP] bob: " + line.replace("283", "1").replace("130", "1"));
+		}
+		assertEquals(before, after);
+	}
 }

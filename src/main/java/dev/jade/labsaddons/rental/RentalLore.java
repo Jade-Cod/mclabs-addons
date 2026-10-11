@@ -31,7 +31,7 @@ public final class RentalLore {
 	private static final Pattern OWNER = Pattern.compile("Rented from:\\s*(\\w+)");
 	private static final Pattern RETURNED = Pattern.compile("You have returned the rented (.+) to (\\w+)\\.");
 	private static final Pattern EXTENDED = Pattern.compile(
-			"extend your rent of (.+) from (\\w+) for another .+?Your rental now ends in ([\\dwhms: ]+)");
+			"extend your rent of (.+) from (\\w+) for another .+?Your rental now ends in ([\\dwdhms: ]+)");
 	private static final DateTimeFormatter FORMAT = new DateTimeFormatterBuilder()
 			.parseCaseInsensitive().appendPattern("M/d/yy, h:mm a").toFormatter(Locale.US);
 

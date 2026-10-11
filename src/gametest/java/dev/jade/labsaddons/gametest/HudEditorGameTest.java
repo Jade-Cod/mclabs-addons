@@ -116,9 +116,14 @@ public class HudEditorGameTest implements FabricClientGameTest {
 			context.waitTicks(2);
 			context.takeScreenshot("editor-05-live");
 
-			// The deposit key, in the world rather than a screen, sends /ch qd.
+			// The deposit key, in the world rather than a screen, sends /ch qd, but only on MCLabs:
+			// elsewhere /ch is usually somebody's chat-channel command.
 			List<String> sent = new CopyOnWriteArrayList<>();
 			ClientSendMessageEvents.COMMAND.register(sent::add);
+			input.pressKey(InputConstants.KEY_B);
+			context.waitTicks(2);
+			check(sent.isEmpty(), "off MCLabs the deposit key sends nothing (sent " + sent + ")");
+			TestWorld.enterMcLabs(context, world);
 			input.pressKey(InputConstants.KEY_B);
 			context.waitTicks(2);
 			check(sent.contains("ch qd"), "the deposit key sends /ch qd (sent " + sent + ")");

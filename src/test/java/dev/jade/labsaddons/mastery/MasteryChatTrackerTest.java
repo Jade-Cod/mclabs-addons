@@ -346,4 +346,15 @@ public class MasteryChatTrackerTest {
 		assertEquals(40, MasteryQuest.percentOf(6, 15));
 		assertEquals(100, MasteryQuest.percentOf(1200000, 1152000), "overshoot clamps to 100");
 	}
+
+	@Test
+	public void linesQuotedInPlayerChatAdvanceNothing() {
+		active(MasteryChatTracker.WIN_QUEST, MasteryChatTracker.COMPLETE_QUEST, MasteryChatTracker.BOUNTY_QUEST);
+		MasteryChatTracker.onMessage("[S] [VIP] bob: " + WIN, "Jade");
+		MasteryChatTracker.onMessage("[S] [VIP] bob: " + RUNNER_UP, "Jade");
+		MasteryChatTracker.onMessage("[S] [VIP] bob: " + BOUNTY_FOUND, "Jade");
+		assertEquals(0, currentOf(MasteryChatTracker.WIN_QUEST));
+		assertEquals(0, currentOf(MasteryChatTracker.COMPLETE_QUEST));
+		assertEquals(0, currentOf(MasteryChatTracker.BOUNTY_QUEST));
+	}
 }

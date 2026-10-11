@@ -86,9 +86,13 @@ public final class CfChat {
 	 */
 	private static final long TAKE_TRUST_MS = 60_000L;
 
+	/** Big flips send both our own line and the public broadcast, a moment apart. */
+	private static final long OWN_ECHO_MS = 5_000L;
+
 	private static final Map<Integer, OpenFlip> OPEN = new LinkedHashMap<>();
 	private static Outcome last;
 	private static Taken taken;
+	private static Outcome lastRetired;
 	private static long sessionNetCents;
 	private static int sessionPlayed;
 	private static int sessionWon;
@@ -107,8 +111,11 @@ public final class CfChat {
 		if (text == null) {
 			return null;
 		}
+		// Player chat arrives as plain game messages too, so the server's prefix has to be at
+		// the start of the line (after the newline some of its lines open with).
+		text = text.strip();
 		Matcher created = CREATED.matcher(text);
-		if (created.find()) {
+		if (created.lookingAt()) {
 			String player = created.group(1);
 			if (!player.equalsIgnoreCase(selfName)) {
 				add(new OpenFlip(Integer.parseInt(created.group(3)), player,
@@ -117,32 +124,35 @@ public final class CfChat {
 			return null;
 		}
 		Matcher won = WON_SELF.matcher(text);
-		if (won.find()) {
+		if (won.lookingAt()) {
 			long wager = Money.parseCents(won.group(1));
 			long returned = Money.parseCents(won.group(3));
 			return settle(new Outcome(wager, returned, true, won.group(2), nowMs));
 		}
 		Matcher lost = LOST_SELF.matcher(text);
-		if (lost.find()) {
+		if (lost.lookingAt()) {
 			long wager = Money.parseCents(lost.group(1));
 			return settle(new Outcome(wager, 0L, false, lost.group(2), nowMs));
 		}
 		Matcher resolved = RESOLVED.matcher(text);
-		if (resolved.find()) {
+		if (resolved.lookingAt()) {
 			// Only ever used to drop a row that is no longer takeable. The figure here is
 			// the pot, and our own result has already been counted by the lines above.
-			retire(resolved.group(1), resolved.group(3),
-					Money.parseCents(resolved.group(2)) / 2L);
+			long wager = Money.parseCents(resolved.group(2)) / 2L;
+			if (!isBroadcastOfOwnOutcome(resolved.group(1), resolved.group(3), wager, selfName,
+					nowMs)) {
+				retire(resolved.group(1), resolved.group(3), wager);
+			}
 			return null;
 		}
-		if (TOO_POOR.matcher(text).find()) {
+		if (TOO_POOR.matcher(text).lookingAt()) {
 			taken = null;
 			return null;
 		}
 		Matcher debited = DEBITED.matcher(text);
 		// taken(nowMs), not the field: a lobby click whose result line never arrived sits
 		// there for a minute, and while it did the debit for the *next* flip was dropped.
-		if (debited.find() && taken(nowMs) == null) {
+		if (debited.lookingAt() && taken(nowMs) == null) {
 			taken = new Taken(0, Money.parseCents(debited.group(1)), null, null, nowMs);
 		}
 		return null;
@@ -229,6 +239,7 @@ public final class CfChat {
 	public static void reset() {
 		OPEN.clear();
 		last = null;
+		lastRetired = null;
 		taken = null;
 		sessionNetCents = 0L;
 		sessionPlayed = 0;
@@ -244,6 +255,7 @@ public final class CfChat {
 		}
 		sessionNetCents += outcome.returnedCents() - outcome.wagerCents();
 		retire(outcome.opponent(), null, outcome.wagerCents());
+		lastRetired = outcome;
 		return outcome;
 	}
 
@@ -255,14 +267,33 @@ public final class CfChat {
 		}
 	}
 
+	/** Whether this broadcast repeats the own-result line that already retired its row. */
+	private static boolean isBroadcastOfOwnOutcome(String winner, String loser, long wagerCents,
+			String selfName, long nowMs) {
+		Outcome own = lastRetired;
+		if (own == null || own.wagerCents() != wagerCents || nowMs - own.atMs() > OWN_ECHO_MS) {
+			return false;
+		}
+		String other = winner.equalsIgnoreCase(selfName) ? loser : winner;
+		boolean involvesSelf = winner.equalsIgnoreCase(selfName) || loser.equalsIgnoreCase(selfName);
+		if (!involvesSelf || !other.equalsIgnoreCase(own.opponent())) {
+			return false;
+		}
+		lastRetired = null;
+		return true;
+	}
+
 	/**
-	 * Drops a post that has just been played. The broadcast never carries the id, so the
+	 * Drops one post that has just been played. The broadcast never carries the id, so the
 	 * row is matched on the one thing both lines agree about: who posted it and for how
-	 * much.
+	 * much. Two identical posts are two flips, so only the oldest goes.
 	 */
 	private static void retire(String one, String two, long wagerCents) {
-		OPEN.values().removeIf(flip -> flip.wagerCents() == wagerCents
-				&& (flip.player().equalsIgnoreCase(one)
-						|| (two != null && flip.player().equalsIgnoreCase(two))));
+		OPEN.values().stream()
+				.filter(flip -> flip.wagerCents() == wagerCents
+						&& (flip.player().equalsIgnoreCase(one)
+								|| (two != null && flip.player().equalsIgnoreCase(two))))
+				.findFirst()
+				.ifPresent(flip -> OPEN.remove(flip.id()));
 	}
 }

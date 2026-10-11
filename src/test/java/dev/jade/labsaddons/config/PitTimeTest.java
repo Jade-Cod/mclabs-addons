@@ -7,6 +7,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -62,5 +64,68 @@ public class PitTimeTest {
 		PitTracker.onMessage("The Pit » AtomicBomb has sponsored The Pit for 37.5 minutes! Join with /pit");
 		PitTracker.onMessage("The Pit » MC_Labs has sponsored The Pit for 25 minutes! Join with /pit");
 		assertRemaining(37.5);
+	}
+
+	@Test
+	public void colonSeparatedOpenForAnotherCountdownParses() {
+		PitTracker.onMessage("The Pit » The pit is currently open for another 35m:00s! Sponsored by AtomicBomb. Join now with /pit");
+		assertRemaining(35);
+		assertTrue(PitTracker.isActive());
+	}
+
+	@Test
+	public void openForAnotherReplacesEvenWhenShorter() {
+		PitTracker.onMessage("The Pit » AtomicBomb has sponsored The Pit for 37.5 minutes! Join with /pit");
+		PitTracker.onMessage("The Pit » The pit is currently open for another 10m:00s! Sponsored by AtomicBomb. Join now with /pit");
+		assertRemaining(10);
+	}
+
+	@Test
+	public void aLargerSponsorRaisesTheWindow() {
+		PitTracker.onMessage("The Pit » MC_Labs has sponsored The Pit for 25 minutes! Join with /pit");
+		PitTracker.onMessage("The Pit » AtomicBomb has sponsored The Pit for 37.5 minutes! Join with /pit");
+		assertRemaining(37.5);
+	}
+
+	// Open question: whether a sponsorship adds to the running window. Today it only raises the floor.
+	@Test
+	public void sponsorDoesNotAddToARunningWindow() {
+		PitTracker.onMessage("The Pit » The pit is currently open for another 30m:00s! Sponsored by AtomicBomb. Join now with /pit");
+		PitTracker.onMessage("The Pit » MC_Labs has sponsored The Pit for 25 minutes! Join with /pit");
+		assertRemaining(30);
+	}
+
+	@Test
+	public void lineWithoutASentenceEndMovesNothing() {
+		PitTracker.onMessage("The pit is currently open for another 30m:00s");
+		assertFalse(PitTracker.isActive());
+	}
+
+	@Test
+	public void zeroLengthWindowMovesNothing() {
+		PitTracker.onMessage("The Pit » The pit is currently open for another 0m:00s! Join now with /pit");
+		assertFalse(PitTracker.isActive());
+		assertEquals(0L, PitTracker.remainingMs());
+	}
+
+	@Test
+	public void expiredWindowIsInactive() {
+		LabsAddonsConfig.get().pitExpiryEpochMs = System.currentTimeMillis() - 1_000L;
+		assertFalse(PitTracker.isActive());
+		assertEquals(0L, PitTracker.remainingMs());
+	}
+
+	@Test
+	public void joinBannerAndOtherLinesMoveNothing() {
+		PitTracker.onMessage("Welcome to The Pit, Ophiliah!");
+		PitTracker.onMessage("MCLabs » Vote registered! Claim your vote rewards with /claimvotes");
+		assertFalse(PitTracker.isActive());
+	}
+
+	@Test
+	public void clearEndsTheWindow() {
+		PitTracker.onMessage("The Pit » MC_Labs has sponsored The Pit for 25 minutes! Join with /pit");
+		PitTracker.clear();
+		assertFalse(PitTracker.isActive());
 	}
 }

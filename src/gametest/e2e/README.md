@@ -54,8 +54,10 @@ anything written there. `--local` writes to the gitignored `local/` (and
 
 Records are gui-dumper's (`chat`, `actionbar`, `screen`, `full`, `delta`, `close`) plus
 `sidebar`, `command` (server console), `playerCommand`, `key`, `mouse`, `window`,
-`wait`, `screenshot` and `note`. `Replay.java` is the only file that differs between
-version branches.
+`wait`, `screenshot` and `note`. A `screen` record with `"reuseSyncId": true` opens under
+the previous menu's sync id, the way the server's ids wrap after 100. `command` runs on the
+server console, so `execute at @p run summon ...` and `damage ... by @p` can stage a kill.
+`Replay.java` is the only file that differs between version branches.
 
 ## Known gaps
 
@@ -63,4 +65,5 @@ version branches.
   a player head's texture (the crate odds pages' spent/ahead heads) or custom model data
   (rental coupons) cannot be replayed until the dumper writes those too.
 - Entity-driven tracking (the bite marker, Mastery kills, Raid Mine holograms) and
-  inventory-driven tracking (Mastery catches and sales) have no scenarios yet.
+  inventory-driven tracking (Mastery catches and sales) have no scenarios yet. Carnage
+  kills do (`carnage-kill-missions`), staged with summoned husks.

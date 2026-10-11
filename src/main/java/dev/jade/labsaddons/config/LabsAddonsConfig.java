@@ -300,6 +300,13 @@ public class LabsAddonsConfig {
 	 */
 	@Section(ConfigSection.STATE)
 	public java.util.Map<String, Integer> cratePityRolls = new java.util.LinkedHashMap<>();
+	/**
+	 * How many times each reward was taken from each roll (Voter Crate, Deluxe Voter Crate, Daily
+	 * Spin), keyed by crate and then by the reward as the server's line names it. Counted from
+	 * that line, so it is the server's record of what you took, not the board's.
+	 */
+	@Section(ConfigSection.STATE)
+	public java.util.Map<String, java.util.Map<String, Integer>> rollsTaken = new java.util.LinkedHashMap<>();
 
 	// --- Coinflip record, seeded once from /cf stats and kept up to date from chat.
 	// Server-derived, so it lives with the timers in state.json rather than with the
@@ -414,6 +421,7 @@ public class LabsAddonsConfig {
 		} catch (JsonParseException e) {
 			LOGGER.warn("[labsaddons] Config under {} did not parse; using defaults.",
 					configStore.root(), e);
+			configStore.backUpLoaded();
 		}
 		LabsAddonsConfig clean = loaded == null ? new LabsAddonsConfig() : loaded.sanitized();
 
@@ -591,6 +599,22 @@ public class LabsAddonsConfig {
 				// here is undefined there.
 				if (rarity != null && !rarity.isBlank() && roll != null && roll >= 1) {
 					clean.cratePityRolls.put(rarity, roll);
+				}
+			});
+		}
+		if (this.rollsTaken != null) {
+			this.rollsTaken.forEach((crate, rewards) -> {
+				if (crate == null || crate.isBlank() || rewards == null) {
+					return;
+				}
+				java.util.Map<String, Integer> kept = new java.util.LinkedHashMap<>();
+				rewards.forEach((reward, count) -> {
+					if (reward != null && !reward.isBlank() && count != null && count > 0) {
+						kept.put(reward, count);
+					}
+				});
+				if (!kept.isEmpty()) {
+					clean.rollsTaken.put(crate, kept);
 				}
 			});
 		}

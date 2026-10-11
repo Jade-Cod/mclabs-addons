@@ -34,6 +34,11 @@ final class StateSnapshot {
 	 * clock, not the mod, so it only has to be in the past.
 	 */
 	private static final long CALENDAR_PAST_MS = 10L * 60_000L;
+	/**
+	 * The last daily reset (21:00 Pacific). It is a calendar time too, but a run that starts just
+	 * after the reset sees it only minutes old, and the vote scenario failed for ten minutes every evening.
+	 */
+	private static final String RESET_KEY = "voteBoundaryMs";
 
 	private StateSnapshot() {
 	}
@@ -83,7 +88,8 @@ final class StateSnapshot {
 			double number = value.getAsDouble();
 			if (number >= EPOCH_MIN && number <= EPOCH_MAX && number == Math.rint(number)) {
 				long delta = (long) number - nowMs;
-				return new JsonPrimitive(delta < -CALENDAR_PAST_MS ? "past" : relative(delta));
+				boolean past = delta < -CALENDAR_PAST_MS || delta <= 0 && RESET_KEY.equals(key);
+				return new JsonPrimitive(past ? "past" : relative(delta));
 			}
 			if (key.endsWith("Ms") && number >= 0 && number < EPOCH_MIN) {
 				return new JsonPrimitive(Math.round(number / 1000.0) + "s");

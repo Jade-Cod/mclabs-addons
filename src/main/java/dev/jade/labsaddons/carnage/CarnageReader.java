@@ -121,8 +121,9 @@ public final class CarnageReader {
 		List<Mission> list = missions(missions.lore());
 		int held = (int) tickets[0];
 		if (goalDone) {
-			return new Daily(dayEnd, stage, stageEnd, score[0], 0, held, (int) tickets[1],
-					ticketBase(nextTicket[1], held), (int) goals[0], (int) goals[1], list, (int) score[1], -1);
+			// the menu states the repeatable goal's progress but not today's total, so it goes in as the carry
+			return new Daily(dayEnd, stage, stageEnd, 0, 0, held, (int) tickets[1],
+					ticketBase(nextTicket[1], held), (int) goals[0], (int) goals[1], list, (int) score[1], -1, score[0]);
 		}
 		return new Daily(dayEnd, stage, stageEnd, score[0], (int) score[1], held, (int) tickets[1],
 				ticketBase(nextTicket[1], held), (int) goals[0], (int) goals[1], list);
